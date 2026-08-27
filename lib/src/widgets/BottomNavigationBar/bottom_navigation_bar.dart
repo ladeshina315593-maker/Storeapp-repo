@@ -4,27 +4,32 @@ import 'package:flutter/material.dart';
 import 'package:flutter_ecommerce_app/src/themes/theme.dart';
 
 class CustomBottomNavigationBar extends StatefulWidget {
-  final Function(int) onIconPresedCallback;
+  const CustomBottomNavigationBar({
+    super.key,
+    required this.selectedIndex,
+    required this.onIconPressedCallback,
+  });
 
-  CustomBottomNavigationBar({
-    Key key,
-    this.onIconPresedCallback,
-  }) : super(key: key);
+  /// The tab currently displayed by MainPage.
+  final int selectedIndex;
+
+  /// Tells MainPage which tab the user selected.
+  final ValueChanged<int> onIconPressedCallback;
 
   @override
-  _CustomBottomNavigationBarState createState() =>
+  State<CustomBottomNavigationBar> createState() =>
       _CustomBottomNavigationBarState();
 }
 
 class _CustomBottomNavigationBarState
     extends State<CustomBottomNavigationBar>
     with TickerProviderStateMixin {
-  int _selectedIndex = 0;
+  late AnimationController _xController;
+  late AnimationController _yController;
 
-  AnimationController _xController;
-  AnimationController _yController;
+  int _previousIndex = 0;
 
-  final List<IconData> _icons = [
+  final List<IconData> _icons = const [
     Icons.home_rounded,
     Icons.shopping_bag_rounded,
     Icons.favorite_rounded,
@@ -34,6 +39,8 @@ class _CustomBottomNavigationBarState
   @override
   void initState() {
     super.initState();
+
+    _previousIndex = widget.selectedIndex;
 
     _xController = AnimationController(
       vsync: this,
@@ -47,14 +54,7 @@ class _CustomBottomNavigationBarState
       animationBehavior: AnimationBehavior.preserve,
     );
 
-    Listenable.merge([
-      _xController,
-      _yController,
-    ]).addListener(() {
-      if (mounted) {
-        setState(() {});
-      }
-    });
+    _yController.value = 1.0;
   }
 
   @override
@@ -62,10 +62,22 @@ class _CustomBottomNavigationBarState
     super.didChangeDependencies();
 
     _xController.value =
-        _indexToPosition(_selectedIndex) /
+        _indexToPosition(widget.selectedIndex) /
             MediaQuery.of(context).size.width;
 
     _yController.value = 1.0;
+  }
+
+  @override
+  void didUpdateWidget(
+    covariant CustomBottomNavigationBar oldWidget,
+  ) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.selectedIndex !=
+        widget.selectedIndex) {
+      _animateToIndex(widget.selectedIndex);
+    }
   }
 
   double _indexToPosition(int index) {
@@ -99,11 +111,66 @@ class _CustomBottomNavigationBarState
     return width;
   }
 
-  @override
-  void dispose() {
-    _xController.dispose();
-    _yController.dispose();
-    super.dispose();
+  void _animateToIndex(int index) {
+    if (!mounted) return;
+
+    if (_xController.isAnimating) {
+      _xController.stop();
+    }
+
+    final double screenWidth =
+        MediaQuery.of(context).size.width;
+
+    final double target =
+        _indexToPosition(index) /
+            screenWidth;
+
+    _yController.value = 1.0;
+
+    _xController.animateTo(
+      target,
+      duration:
+          const Duration(milliseconds: 620),
+      curve: Curves.easeOutCubic,
+    );
+
+    _yController.animateTo(
+      0.0,
+      duration:
+          const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+
+    Future.delayed(
+      const Duration(milliseconds: 500),
+      () {
+        if (!mounted) return;
+
+        _yController.animateTo(
+          1.0,
+          duration:
+              const Duration(milliseconds: 900),
+          curve: Curves.easeOutBack,
+        );
+      },
+    );
+
+    _previousIndex = index;
+  }
+
+  void _handlePressed(int index) {
+    if (index == widget.selectedIndex) {
+      return;
+    }
+
+    if (_xController.isAnimating) {
+      _xController.stop();
+    }
+
+    // MainPage owns the real navigation state.
+    widget.onIconPressedCallback(index);
+
+    _animateToIndex(index);
   }
 
   Widget _icon(
@@ -113,7 +180,8 @@ class _CustomBottomNavigationBarState
   ) {
     return Expanded(
       child: InkWell(
-        borderRadius: BorderRadius.circular(40),
+        borderRadius:
+            BorderRadius.circular(40),
         splashColor: Colors.transparent,
         highlightColor: Colors.transparent,
         onTap: () {
@@ -135,16 +203,14 @@ class _CustomBottomNavigationBarState
             alignment: Alignment.center,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-
               color: isSelected
                   ? AppTheme.grapePurple
                   : Colors.white.withOpacity(0.38),
-
               border: Border.all(
-                color: Colors.white.withOpacity(0.85),
+                color:
+                    Colors.white.withOpacity(0.85),
                 width: 1.2,
               ),
-
               boxShadow: [
                 BoxShadow(
                   color: isSelected
@@ -220,51 +286,6 @@ class _CustomBottomNavigationBarState
     );
   }
 
-  void _handlePressed(int index) {
-    if (_selectedIndex == index ||
-        _xController.isAnimating) {
-      return;
-    }
-
-    // Tell MainPage which real page was selected.
-    widget.onIconPresedCallback?.call(index);
-
-    setState(() {
-      _selectedIndex = index;
-    });
-
-    _yController.value = 1.0;
-
-    _xController.animateTo(
-      _indexToPosition(index) /
-          MediaQuery.of(context).size.width,
-      duration:
-          const Duration(milliseconds: 620),
-      curve: Curves.easeOutCubic,
-    );
-
-    _yController.animateTo(
-      0.0,
-      duration:
-          const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
-    );
-
-    Future.delayed(
-      const Duration(milliseconds: 500),
-      () {
-        if (!mounted) return;
-
-        _yController.animateTo(
-          1.0,
-          duration:
-              const Duration(milliseconds: 900),
-          curve: Curves.easeOutBack,
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final double width =
@@ -294,26 +315,23 @@ class _CustomBottomNavigationBarState
                   MainAxisAlignment.spaceAround,
               children: [
                 _icon(
-                  Icons.home_rounded,
-                  _selectedIndex == 0,
+                  _icons[0],
+                  widget.selectedIndex == 0,
                   0,
                 ),
-
                 _icon(
-                  Icons.shopping_bag_rounded,
-                  _selectedIndex == 1,
+                  _icons[1],
+                  widget.selectedIndex == 1,
                   1,
                 ),
-
                 _icon(
-                  Icons.favorite_rounded,
-                  _selectedIndex == 2,
+                  _icons[2],
+                  widget.selectedIndex == 2,
                   2,
                 ),
-
                 _icon(
-                  Icons.person_rounded,
-                  _selectedIndex == 3,
+                  _icons[3],
+                  widget.selectedIndex == 3,
                   3,
                 ),
               ],
@@ -322,5 +340,12 @@ class _CustomBottomNavigationBarState
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _xController.dispose();
+    _yController.dispose();
+    super.dispose();
   }
 }
