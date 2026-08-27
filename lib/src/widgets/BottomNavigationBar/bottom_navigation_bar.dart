@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_ecommerce_app/src/themes/light_color.dart';
+import 'package:flutter_ecommerce_app/src/widgets/BottomNavigationBar/bottom_curved_Painter.dart';
 
 class CustomBottomNavigationBar extends StatefulWidget {
   final Function(int) onIconPresedCallback;
@@ -61,16 +62,6 @@ class _CustomBottomNavigationBarState
     _yController.value = 1.0;
   }
 
-  double _getButtonContainerWidth() {
-    double width = MediaQuery.of(context).size.width;
-
-    if (width > 400.0) {
-      width = 400.0;
-    }
-
-    return width;
-  }
-
   double _indexToPosition(int index) {
     const double buttonCount = 4.0;
 
@@ -89,6 +80,17 @@ class _CustomBottomNavigationBarState
             buttonCount +
         buttonsWidth /
             (buttonCount * 2.0);
+  }
+
+  double _getButtonContainerWidth() {
+    double width =
+        MediaQuery.of(context).size.width;
+
+    if (width > 400.0) {
+      width = 400.0;
+    }
+
+    return width;
   }
 
   @override
@@ -122,44 +124,46 @@ class _CustomBottomNavigationBarState
             duration:
                 const Duration(milliseconds: 300),
             curve: Curves.easeOutCubic,
-            width: isSelected ? 46 : 38,
-            height: isSelected ? 46 : 38,
+            width: isSelected ? 44 : 38,
+            height: isSelected ? 44 : 38,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
 
+              // Grapego purple active state
               color: isSelected
                   ? LightColor.grapePurple
-                  : Colors.white.withOpacity(0.42),
+                  : Colors.white.withOpacity(0.38),
 
+              // Glass border
               border: Border.all(
                 color: Colors.white.withOpacity(0.85),
                 width: 1.2,
               ),
 
+              // Soft glass shadow
               boxShadow: [
                 BoxShadow(
                   color: isSelected
                       ? LightColor.grapePurple
-                          .withOpacity(0.32)
-                      : Colors.black.withOpacity(0.035),
+                          .withOpacity(0.30)
+                      : Colors.black.withOpacity(0.04),
                   blurRadius:
-                      isSelected ? 15 : 8,
+                      isSelected ? 14 : 8,
                   spreadRadius:
                       isSelected ? 1 : 0,
-                  offset: const Offset(0, 5),
+                  offset:
+                      const Offset(0, 5),
                 ),
               ],
             ),
             child: Opacity(
-              opacity:
-                  isSelected
-                      ? _yController.value
-                      : 1.0,
+              opacity: isSelected
+                  ? _yController.value
+                  : 1.0,
               child: Icon(
                 icon,
-                size:
-                    isSelected ? 23 : 21,
+                size: isSelected ? 22 : 20,
                 color: isSelected
                     ? Colors.white
                     : LightColor.darkText,
@@ -182,32 +186,27 @@ class _CustomBottomNavigationBarState
         ),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white
-                .withOpacity(0.58),
-
+            color:
+                Colors.white.withOpacity(0.58),
             borderRadius:
                 BorderRadius.circular(30),
-
             border: Border.all(
-              color: Colors.white
-                  .withOpacity(0.82),
+              color:
+                  Colors.white.withOpacity(0.82),
               width: 1.2,
             ),
-
             boxShadow: [
               BoxShadow(
-                color: Colors.black
-                    .withOpacity(0.08),
+                color:
+                    Colors.black.withOpacity(0.08),
                 blurRadius: 24,
-                spreadRadius: 0,
                 offset:
                     const Offset(0, 10),
               ),
-
               BoxShadow(
                 color: LightColor
                     .grapePurple
-                    .withOpacity(0.10),
+                    .withOpacity(0.08),
                 blurRadius: 28,
                 spreadRadius: 1,
               ),
@@ -264,25 +263,25 @@ class _CustomBottomNavigationBarState
 
   @override
   Widget build(BuildContext context) {
-    final Size appSize =
-        MediaQuery.of(context).size;
+    final double width =
+        MediaQuery.of(context).size.width;
 
     return Container(
-      width: appSize.width,
-      height: 78,
+      width: width,
+      height: 76,
       padding: const EdgeInsets.only(
         left: 16,
         right: 16,
-        bottom: 12,
+        bottom: 10,
       ),
       child: Stack(
         children: [
-          // Glass floating navigation background
+          // Floating glass background
           Positioned.fill(
             child: _buildGlassBackground(),
           ),
 
-          // Navigation icons
+          // Existing animated navigation
           Positioned(
             left: 8,
             right: 8,
@@ -297,19 +296,16 @@ class _CustomBottomNavigationBarState
                   _selectedIndex == 0,
                   0,
                 ),
-
                 _icon(
                   Icons.search_rounded,
                   _selectedIndex == 1,
                   1,
                 ),
-
                 _icon(
                   Icons.shopping_bag_rounded,
                   _selectedIndex == 2,
                   2,
                 ),
-
                 _icon(
                   Icons.favorite_border_rounded,
                   _selectedIndex == 3,
