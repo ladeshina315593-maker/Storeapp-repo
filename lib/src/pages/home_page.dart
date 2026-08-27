@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+
 import 'package:flutter_ecommerce_app/src/model/data.dart';
 import 'package:flutter_ecommerce_app/src/themes/light_color.dart';
 import 'package:flutter_ecommerce_app/src/themes/theme.dart';
@@ -17,10 +18,13 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  String selectedFilter = 'All';
+
   Widget _glassIcon(
     IconData icon, {
     Color color,
     double size = 22,
+    VoidCallback onTap,
   }) {
     return Container(
       width: 46,
@@ -46,14 +50,23 @@ class _MyHomePageState extends State<MyHomePage> {
         size: size,
       ),
     ).ripple(
-      () {},
+      onTap,
       borderRadius: BorderRadius.circular(15),
     );
   }
 
+  // ==============================
+  // WELCOME HEADER
+  // ==============================
+
   Widget _welcomeHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+      padding: const EdgeInsets.fromLTRB(
+        20,
+        10,
+        20,
+        8,
+      ),
       child: Row(
         children: [
           Expanded(
@@ -91,96 +104,29 @@ class _MyHomePageState extends State<MyHomePage> {
                     const SizedBox(width: 6),
                     const Text(
                       '🍇',
-                      style: TextStyle(fontSize: 21),
+                      style: TextStyle(
+                        fontSize: 21,
+                      ),
                     ),
                   ],
                 ),
               ],
             ),
           ),
-          _glassIcon(
-            Icons.notifications_none_rounded,
-            color: LightColor.grapePurple,
-          ),
         ],
       ),
     );
   }
 
-  Widget _locationWidget() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 20,
-        vertical: 10,
-      ),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 11,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.48),
-          borderRadius: BorderRadius.circular(17),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.8),
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: LightColor.grapePurple
-                    .withOpacity(0.14),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.location_on_rounded,
-                color: LightColor.grapePurple,
-                size: 19,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Deliver to',
-                    style: TextStyle(
-                      color: LightColor.mutedText,
-                      fontSize: 10,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Select your location',
-                    style: TextStyle(
-                      color: LightColor.darkText,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.keyboard_arrow_down_rounded,
-              color: LightColor.grapePurple,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // ==============================
+  // SEARCH + FILTER
+  // ==============================
 
   Widget _search() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         20,
-        4,
+        5,
         20,
         10,
       ),
@@ -216,7 +162,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                   prefixIcon: Icon(
                     Icons.search_rounded,
-                    color: LightColor.grapePurple,
+                    color:
+                        LightColor.grapePurple,
                   ),
                   contentPadding:
                       const EdgeInsets.symmetric(
@@ -226,15 +173,158 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             ),
           ),
+
           const SizedBox(width: 10),
+
+          // WORKING FILTER BUTTON
           _glassIcon(
             Icons.tune_rounded,
             color: LightColor.grapePurple,
+            onTap: _showFilterSheet,
           ),
         ],
       ),
     );
   }
+
+  // ==============================
+  // FILTER SHEET
+  // ==============================
+
+  void _showFilterSheet() {
+    final List<String> filters = [
+      'All',
+      'Trending Now',
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: false,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.fromLTRB(
+            20,
+            12,
+            20,
+            25,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.96),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(28),
+              topRight: Radius.circular(28),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 42,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color:
+                        LightColor.grapeSoftPurple,
+                    borderRadius:
+                        BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 18),
+
+              Text(
+                'Filter products',
+                style: TextStyle(
+                  color: LightColor.darkText,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+
+              const SizedBox(height: 15),
+
+              ...filters.map(
+                (filter) {
+                  final bool selected =
+                      selectedFilter == filter;
+
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        selectedFilter = filter;
+                      });
+
+                      Navigator.pop(context);
+                    },
+                    child: Container(
+                      margin:
+                          const EdgeInsets.only(
+                        bottom: 10,
+                      ),
+                      padding:
+                          const EdgeInsets.symmetric(
+                        horizontal: 15,
+                        vertical: 14,
+                      ),
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? LightColor
+                                .grapePurple
+                                .withOpacity(0.12)
+                            : Colors.white
+                                .withOpacity(0.65),
+                        borderRadius:
+                            BorderRadius.circular(16),
+                        border: Border.all(
+                          color: selected
+                              ? LightColor.grapePurple
+                              : LightColor
+                                  .grapeSoftPurple,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            selected
+                                ? Icons
+                                    .radio_button_checked
+                                : Icons
+                                    .radio_button_off,
+                            color:
+                                LightColor.grapePurple,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            filter,
+                            style: TextStyle(
+                              color:
+                                  LightColor.darkText,
+                              fontSize: 13,
+                              fontWeight:
+                                  FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ).toList(),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ==============================
+  // PROMO BANNER
+  // ==============================
 
   Widget _promoBanner() {
     return Padding(
@@ -256,7 +346,8 @@ class _MyHomePageState extends State<MyHomePage> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(24),
+          borderRadius:
+              BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
               color: LightColor.grapePurple
@@ -295,14 +386,15 @@ class _MyHomePageState extends State<MyHomePage> {
                   Text(
                     'Explore our latest products',
                     style: TextStyle(
-                      color: Colors.white
-                          .withOpacity(0.85),
+                      color:
+                          Colors.white.withOpacity(0.85),
                       fontSize: 11,
                     ),
                   ),
                 ],
               ),
             ),
+
             Container(
               width: 64,
               height: 64,
@@ -314,7 +406,9 @@ class _MyHomePageState extends State<MyHomePage> {
               child: const Center(
                 child: Text(
                   '🍇',
-                  style: TextStyle(fontSize: 34),
+                  style: TextStyle(
+                    fontSize: 34,
+                  ),
                 ),
               ),
             ),
@@ -323,6 +417,10 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
     );
   }
+
+  // ==============================
+  // CATEGORIES
+  // ==============================
 
   Widget _categoryWidget() {
     return Column(
@@ -336,42 +434,33 @@ class _MyHomePageState extends State<MyHomePage> {
             20,
             5,
           ),
-          child: Row(
-            mainAxisAlignment:
-                MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Categories',
-                style: TextStyle(
-                  color: LightColor.darkText,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              Text(
-                'See all',
-                style: TextStyle(
-                  color: LightColor.grapePurple,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
+          child: Text(
+            'Categories',
+            style: TextStyle(
+              color: LightColor.darkText,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ),
+
         Container(
-          margin: const EdgeInsets.symmetric(
+          margin:
+              const EdgeInsets.symmetric(
             vertical: 8,
           ),
-          width: AppTheme.fullWidth(context),
+          width:
+              AppTheme.fullWidth(context),
           height: 82,
           child: ListView(
             padding: const EdgeInsets.only(
               left: 20,
               right: 10,
             ),
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
+            scrollDirection:
+                Axis.horizontal,
+            physics:
+                const BouncingScrollPhysics(),
             children: AppData.categoryList
                 .map(
                   (category) => ProductIcon(
@@ -395,7 +484,22 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  // ==============================
+  // PRODUCTS
+  // ==============================
+
   Widget _productWidget() {
+    final products =
+        selectedFilter == 'All'
+            ? AppData.productList
+            : AppData.productList
+                .where(
+                  (product) =>
+                      product.category ==
+                      selectedFilter,
+                )
+                .toList();
+
     return Column(
       crossAxisAlignment:
           CrossAxisAlignment.start,
@@ -408,76 +512,155 @@ class _MyHomePageState extends State<MyHomePage> {
             5,
           ),
           child: Row(
-            mainAxisAlignment:
-                MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Popular Products',
+                selectedFilter == 'All'
+                    ? 'Popular Products'
+                    : selectedFilter,
                 style: TextStyle(
                   color: LightColor.darkText,
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              Text(
-                'See all',
-                style: TextStyle(
-                  color: LightColor.grapePurple,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
+
+              const Spacer(),
+
+              if (selectedFilter != 'All')
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      selectedFilter = 'All';
+                    });
+                  },
+                  child: Text(
+                    'Clear',
+                    style: TextStyle(
+                      color:
+                          LightColor.grapePurple,
+                      fontSize: 12,
+                      fontWeight:
+                          FontWeight.w700,
+                    ),
+                  ),
                 ),
-              ),
             ],
           ),
         ),
-        Container(
-          margin: const EdgeInsets.symmetric(
-            vertical: 8,
-          ),
-          width: AppTheme.fullWidth(context),
-          height:
-              AppTheme.fullWidth(context) * .70,
-          child: GridView(
-            gridDelegate:
-                const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 1,
-              childAspectRatio: 4 / 3,
-              mainAxisSpacing: 18,
-              crossAxisSpacing: 15,
-            ),
-            padding:
-                const EdgeInsets.only(left: 20),
-            scrollDirection: Axis.horizontal,
-            physics:
-                const BouncingScrollPhysics(),
-            children: AppData.productList
-                .map(
-                  (product) => ProductCard(
-                    product: product,
-                    onSelected: (model) {
-                      setState(() {
-                        AppData.productList
-                            .forEach((item) {
-                          item.isSelected = false;
-                        });
 
-                        model.isSelected = true;
-                      });
-                    },
-                  ),
-                )
-                .toList(),
+        if (products.isEmpty)
+          _emptyProducts()
+        else
+          Container(
+            margin:
+                const EdgeInsets.symmetric(
+              vertical: 8,
+            ),
+            width:
+                AppTheme.fullWidth(context),
+            height:
+                AppTheme.fullWidth(context) *
+                    .70,
+            child: GridView(
+              gridDelegate:
+                  const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 1,
+                childAspectRatio: 4 / 3,
+                mainAxisSpacing: 18,
+                crossAxisSpacing: 15,
+              ),
+              padding:
+                  const EdgeInsets.only(
+                left: 20,
+              ),
+              scrollDirection:
+                  Axis.horizontal,
+              physics:
+                  const BouncingScrollPhysics(),
+              children: products
+                  .map(
+                    (product) => ProductCard(
+                      product: product,
+                      onSelected: (model) {
+                        setState(() {
+                          AppData.productList
+                              .forEach((item) {
+                            item.isSelected =
+                                false;
+                          });
+
+                          model.isSelected =
+                              true;
+                        });
+                      },
+                    ),
+                  )
+                  .toList(),
+            ),
           ),
-        ),
       ],
     );
   }
+
+  Widget _emptyProducts() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(
+        20,
+        12,
+        20,
+        20,
+      ),
+      padding: const EdgeInsets.all(25),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.55),
+        borderRadius:
+            BorderRadius.circular(22),
+        border: Border.all(
+          color:
+              Colors.white.withOpacity(0.85),
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.search_off_rounded,
+            color:
+                LightColor.grapePurple,
+            size: 38,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'No products found',
+            style: TextStyle(
+              color: LightColor.darkText,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Try another filter.',
+            style: TextStyle(
+              color: LightColor.mutedText,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==============================
+  // BUILD
+  // ==============================
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height:
-          MediaQuery.of(context).size.height - 210,
+          MediaQuery.of(context).size.height -
+              210,
       child: SingleChildScrollView(
         physics:
             const BouncingScrollPhysics(),
@@ -488,7 +671,6 @@ class _MyHomePageState extends State<MyHomePage> {
               CrossAxisAlignment.start,
           children: [
             _welcomeHeader(),
-            _locationWidget(),
             _search(),
             _promoBanner(),
             _categoryWidget(),
