@@ -1,8 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_ecommerce_app/src/themes/light_color.dart';
-import 'package:flutter_ecommerce_app/src/widgets/BottomNavigationBar/bottom_curved_Painter.dart';
+import 'package:flutter_ecommerce_app/src/themes/theme.dart';
 
 class CustomBottomNavigationBar extends StatefulWidget {
   final Function(int) onIconPresedCallback;
@@ -24,6 +23,13 @@ class _CustomBottomNavigationBarState
 
   AnimationController _xController;
   AnimationController _yController;
+
+  final List<IconData> _icons = [
+    Icons.home_rounded,
+    Icons.shopping_bag_rounded,
+    Icons.favorite_rounded,
+    Icons.person_rounded,
+  ];
 
   @override
   void initState() {
@@ -130,22 +136,19 @@ class _CustomBottomNavigationBarState
             decoration: BoxDecoration(
               shape: BoxShape.circle,
 
-              // Grapego purple active state
               color: isSelected
-                  ? LightColor.grapePurple
+                  ? AppTheme.grapePurple
                   : Colors.white.withOpacity(0.38),
 
-              // Glass border
               border: Border.all(
                 color: Colors.white.withOpacity(0.85),
                 width: 1.2,
               ),
 
-              // Soft glass shadow
               boxShadow: [
                 BoxShadow(
                   color: isSelected
-                      ? LightColor.grapePurple
+                      ? AppTheme.grapePurple
                           .withOpacity(0.30)
                       : Colors.black.withOpacity(0.04),
                   blurRadius:
@@ -166,7 +169,7 @@ class _CustomBottomNavigationBarState
                 size: isSelected ? 22 : 20,
                 color: isSelected
                     ? Colors.white
-                    : LightColor.darkText,
+                    : AppTheme.darkText,
               ),
             ),
           ),
@@ -204,7 +207,7 @@ class _CustomBottomNavigationBarState
                     const Offset(0, 10),
               ),
               BoxShadow(
-                color: LightColor
+                color: AppTheme
                     .grapePurple
                     .withOpacity(0.08),
                 blurRadius: 28,
@@ -223,6 +226,7 @@ class _CustomBottomNavigationBarState
       return;
     }
 
+    // Tell MainPage which real page was selected.
     widget.onIconPresedCallback?.call(index);
 
     setState(() {
@@ -276,12 +280,10 @@ class _CustomBottomNavigationBarState
       ),
       child: Stack(
         children: [
-          // Floating glass background
           Positioned.fill(
             child: _buildGlassBackground(),
           ),
 
-          // Existing animated navigation
           Positioned(
             left: 8,
             right: 8,
@@ -290,24 +292,27 @@ class _CustomBottomNavigationBarState
             child: Row(
               mainAxisAlignment:
                   MainAxisAlignment.spaceAround,
-              children: <Widget>[
+              children: [
                 _icon(
                   Icons.home_rounded,
                   _selectedIndex == 0,
                   0,
                 ),
+
                 _icon(
-                  Icons.search_rounded,
+                  Icons.shopping_bag_rounded,
                   _selectedIndex == 1,
                   1,
                 ),
+
                 _icon(
-                  Icons.shopping_bag_rounded,
+                  Icons.favorite_rounded,
                   _selectedIndex == 2,
                   2,
                 ),
+
                 _icon(
-                  Icons.favorite_border_rounded,
+                  Icons.person_rounded,
                   _selectedIndex == 3,
                   3,
                 ),
