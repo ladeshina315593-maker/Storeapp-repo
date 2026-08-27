@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_ecommerce_app/src/model/data.dart';
-import 'package:flutter_ecommerce_app/src/themes/light_color.dart';
 import 'package:flutter_ecommerce_app/src/themes/theme.dart';
 
 class ProductDetailPage extends StatefulWidget {
@@ -27,7 +26,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     "US 9",
   ];
 
-  // Grape Go purple-only color choices.
+  // Grape Go purple-only palette.
   final List<Color> colors = [
     AppTheme.grapePurple,
     AppTheme.grapeSoftPurple,
@@ -64,6 +63,10 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     super.dispose();
   }
 
+  // ------------------------------------------------------------
+  // GLASS BUTTON
+  // ------------------------------------------------------------
+
   Widget _glassButton({
     IconData icon,
     Color iconColor,
@@ -96,6 +99,10 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     );
   }
 
+  // ------------------------------------------------------------
+  // TOP BAR
+  // ------------------------------------------------------------
+
   Widget _appBar() {
     return Padding(
       padding: EdgeInsets.symmetric(
@@ -106,7 +113,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           _glassButton(
-            icon: Icons.arrow_back_ios_new,
+            icon: Icons.arrow_back_ios_new_rounded,
             iconColor: AppTheme.darkText,
             onPressed: () {
               Navigator.of(context).pop();
@@ -131,7 +138,13 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     );
   }
 
+  // ------------------------------------------------------------
+  // PRODUCT IMAGE
+  // ------------------------------------------------------------
+
   Widget _productImage() {
+    String image = AppData.showThumbnailList[selectedImage];
+
     return Expanded(
       child: AnimatedBuilder(
         animation: animation,
@@ -156,7 +169,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Colors.white.withOpacity(0.95),
+                  Colors.white.withOpacity(0.96),
                   AppTheme.grapeLightPurple,
                 ],
                 begin: Alignment.topLeft,
@@ -172,6 +185,22 @@ class _ProductDetailPageState extends State<ProductDetailPage>
             child: Stack(
               alignment: Alignment.center,
               children: [
+                // Soft decorative glow.
+                Positioned(
+                  top: -30,
+                  left: -30,
+                  child: Container(
+                    width: 130,
+                    height: 130,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppTheme.grapePurple
+                          .withOpacity(0.08),
+                    ),
+                  ),
+                ),
+
+                // Trending badge.
                 Positioned(
                   right: 20,
                   top: 20,
@@ -181,14 +210,16 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                       vertical: 7,
                     ),
                     decoration: BoxDecoration(
-                      color: AppTheme.grapeSoftPurple
-                          .withOpacity(0.65),
+                      color: Colors.white.withOpacity(0.65),
                       borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.8),
+                      ),
                     ),
                     child: Text(
                       "TRENDING",
                       style: TextStyle(
-                        color: AppTheme.darkText,
+                        color: AppTheme.grapePurple,
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.5,
@@ -197,9 +228,13 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                   ),
                 ),
 
-                Image.asset(
-                  'assets/show_1.png',
-                  fit: BoxFit.contain,
+                // Main product image.
+                Padding(
+                  padding: EdgeInsets.all(35),
+                  child: Image.asset(
+                    image,
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ],
             ),
@@ -208,6 +243,10 @@ class _ProductDetailPageState extends State<ProductDetailPage>
       ),
     );
   }
+
+  // ------------------------------------------------------------
+  // THUMBNAILS
+  // ------------------------------------------------------------
 
   Widget _thumbnail(String image, int index) {
     final bool selected = selectedImage == index;
@@ -225,7 +264,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
         width: 58,
         padding: EdgeInsets.all(6),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.75),
+          color: Colors.white.withOpacity(0.72),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected
@@ -236,7 +275,8 @@ class _ProductDetailPageState extends State<ProductDetailPage>
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: AppTheme.grapePurple.withOpacity(0.18),
+                    color: AppTheme.grapePurple
+                        .withOpacity(0.18),
                     blurRadius: 12,
                     spreadRadius: 1,
                   ),
@@ -274,10 +314,13 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     );
   }
 
+  // ------------------------------------------------------------
+  // RATING
+  // ------------------------------------------------------------
+
   Widget _rating() {
     return Row(
       children: [
-        // Purple rating icon instead of yellow.
         Icon(
           Icons.star_rounded,
           color: AppTheme.grapePurple,
@@ -308,6 +351,10 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     );
   }
 
+  // ------------------------------------------------------------
+  // DETAILS SHEET
+  // ------------------------------------------------------------
+
   Widget _detailWidget() {
     return DraggableScrollableSheet(
       maxChildSize: 0.82,
@@ -322,7 +369,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
             20,
           ),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.96),
+            color: Colors.white.withOpacity(0.97),
             borderRadius: BorderRadius.only(
               topLeft: Radius.circular(34),
               topRight: Radius.circular(34),
@@ -345,6 +392,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Drag handle.
                 Center(
                   child: Container(
                     height: 5,
@@ -358,8 +406,10 @@ class _ProductDetailPageState extends State<ProductDetailPage>
 
                 SizedBox(height: 18),
 
+                // PRODUCT TITLE + PRICE
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: Column(
@@ -425,6 +475,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
 
                 SizedBox(height: 25),
 
+                // SIZE
                 _sectionTitle("Available Size"),
 
                 SizedBox(height: 12),
@@ -435,7 +486,8 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                     (index) => Expanded(
                       child: Padding(
                         padding: EdgeInsets.only(
-                          right: index == sizes.length - 1
+                          right: index ==
+                                  sizes.length - 1
                               ? 0
                               : 8,
                         ),
@@ -450,6 +502,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
 
                 SizedBox(height: 24),
 
+                // COLOR
                 _sectionTitle("Available Color"),
 
                 SizedBox(height: 14),
@@ -471,6 +524,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
 
                 SizedBox(height: 25),
 
+                // DESCRIPTION
                 _sectionTitle("Description"),
 
                 SizedBox(height: 10),
@@ -486,6 +540,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
 
                 SizedBox(height: 25),
 
+                // DELIVERY
                 _infoRow(
                   Icons.local_shipping_outlined,
                   "Fast delivery",
@@ -494,6 +549,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
 
                 SizedBox(height: 12),
 
+                // VERIFICATION
                 _infoRow(
                   Icons.verified_outlined,
                   "Grape Go verified",
@@ -509,6 +565,10 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     );
   }
 
+  // ------------------------------------------------------------
+  // SECTION TITLE
+  // ------------------------------------------------------------
+
   Widget _sectionTitle(String title) {
     return Text(
       title,
@@ -519,6 +579,10 @@ class _ProductDetailPageState extends State<ProductDetailPage>
       ),
     );
   }
+
+  // ------------------------------------------------------------
+  // SIZE SELECTOR
+  // ------------------------------------------------------------
 
   Widget _sizeWidget(String text, int index) {
     final bool selected = selectedSize == index;
@@ -568,6 +632,10 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     );
   }
 
+  // ------------------------------------------------------------
+  // COLOR SELECTOR
+  // ------------------------------------------------------------
+
   Widget _colorWidget(Color color, int index) {
     final bool selected = selectedColor == index;
 
@@ -598,7 +666,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
           ),
           child: selected
               ? Icon(
-                  Icons.check,
+                  Icons.check_rounded,
                   color: Colors.white,
                   size: 17,
                 )
@@ -607,6 +675,10 @@ class _ProductDetailPageState extends State<ProductDetailPage>
       ),
     );
   }
+
+  // ------------------------------------------------------------
+  // INFORMATION ROW
+  // ------------------------------------------------------------
 
   Widget _infoRow(
     IconData icon,
@@ -619,7 +691,8 @@ class _ProductDetailPageState extends State<ProductDetailPage>
         color: AppTheme.grapeLightPurple,
         borderRadius: BorderRadius.circular(17),
         border: Border.all(
-          color: AppTheme.grapeSoftPurple.withOpacity(0.5),
+          color: AppTheme.grapeSoftPurple
+              .withOpacity(0.5),
         ),
       ),
       child: Row(
@@ -628,7 +701,8 @@ class _ProductDetailPageState extends State<ProductDetailPage>
             height: 38,
             width: 38,
             decoration: BoxDecoration(
-              color: AppTheme.grapePurple.withOpacity(0.15),
+              color: AppTheme.grapePurple
+                  .withOpacity(0.15),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -671,6 +745,10 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     );
   }
 
+  // ------------------------------------------------------------
+  // ADD TO CART
+  // ------------------------------------------------------------
+
   Widget _floatingCartButton() {
     return Container(
       margin: EdgeInsets.only(
@@ -681,8 +759,33 @@ class _ProductDetailPageState extends State<ProductDetailPage>
         elevation: 8,
         backgroundColor: AppTheme.grapePurple,
         onPressed: () {
-          // Cart connection will be handled
-          // when the cart/order flow is connected.
+          // Add the selected product to the cart.
+          if (AppData.cartList.isEmpty ||
+              !AppData.cartList.any(
+                (item) => item.name == "Nike Air Max 200",
+              )) {
+            AppData.cartList.add(
+              AppData.productList.first,
+            );
+          }
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                "Nike Air Max 200 added to cart",
+              ),
+              backgroundColor:
+                  AppTheme.grapePurple,
+              behavior:
+                  SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius:
+                    BorderRadius.circular(14),
+              ),
+              duration:
+                  Duration(seconds: 2),
+            ),
+          );
         },
         icon: Icon(
           Icons.shopping_bag_outlined,
@@ -700,10 +803,15 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     );
   }
 
+  // ------------------------------------------------------------
+  // BUILD
+  // ------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.grapeLightPurple,
+      backgroundColor:
+          AppTheme.grapeLightPurple,
 
       floatingActionButton:
           _floatingCartButton(),
