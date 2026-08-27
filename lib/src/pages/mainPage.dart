@@ -10,12 +10,16 @@ import 'package:flutter_ecommerce_app/src/pages/orders_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/delivery_address_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/notifications_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/settings_page.dart';
+
 import 'package:flutter_ecommerce_app/src/themes/theme.dart';
 import 'package:flutter_ecommerce_app/src/widgets/BottomNavigationBar/bottom_navigation_bar.dart';
 import 'package:flutter_ecommerce_app/src/widgets/title_text.dart';
 
 class MainPage extends StatefulWidget {
-  const MainPage({super.key, this.title});
+  const MainPage({
+    super.key,
+    this.title,
+  });
 
   final String? title;
 
@@ -32,9 +36,9 @@ class _MainPageState extends State<MainPage> {
 
   User? get currentUser => _auth.currentUser;
 
-  // --------------------------------------------------
-  // MAIN PAGES
-  // --------------------------------------------------
+  // ==================================================
+  // MAIN NAVIGATION
+  // ==================================================
 
   Widget _buildCurrentPage() {
     switch (_selectedIndex) {
@@ -55,9 +59,17 @@ class _MainPageState extends State<MainPage> {
     }
   }
 
-  // --------------------------------------------------
+  void _onBottomIconPressed(int index) {
+    if (index < 0 || index > 3) return;
+
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  // ==================================================
   // TOP GLASS ICON
-  // --------------------------------------------------
+  // ==================================================
 
   Widget _glassIcon(
     IconData icon, {
@@ -68,26 +80,22 @@ class _MainPageState extends State<MainPage> {
       color: Colors.transparent,
       child: InkWell(
         onTap: onPressed,
-        borderRadius:
-            BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
           height: 46,
           width: 46,
           decoration: BoxDecoration(
             color: AppTheme.glassWhite,
-            borderRadius:
-                BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color:
-                  Colors.white.withOpacity(0.85),
+              color: Colors.white.withOpacity(0.85),
+              width: 1,
             ),
             boxShadow: AppTheme.shadow,
           ),
           child: Icon(
             icon,
-            color:
-                iconColor ??
-                AppTheme.darkText,
+            color: iconColor ?? AppTheme.darkText,
             size: 21,
           ),
         ),
@@ -95,17 +103,17 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
-  // --------------------------------------------------
+  // ==================================================
   // APP BAR
-  // --------------------------------------------------
+  // ==================================================
 
   Widget _appBar() {
     return Padding(
       padding: AppTheme.padding,
       child: Row(
-        mainAxisAlignment:
-            MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          // MENU
           _glassIcon(
             Icons.menu_rounded,
             onPressed: _openMenu,
@@ -113,6 +121,7 @@ class _MainPageState extends State<MainPage> {
 
           Row(
             children: [
+              // NOTIFICATIONS
               _glassIcon(
                 Icons.notifications_none_rounded,
                 onPressed: _openNotifications,
@@ -120,6 +129,7 @@ class _MainPageState extends State<MainPage> {
 
               const SizedBox(width: 10),
 
+              // PROFILE
               GestureDetector(
                 onTap: () {
                   setState(() {
@@ -129,23 +139,17 @@ class _MainPageState extends State<MainPage> {
                 child: Container(
                   height: 46,
                   width: 46,
-                  padding:
-                      const EdgeInsets.all(3),
+                  padding: const EdgeInsets.all(3),
                   decoration: BoxDecoration(
-                    color:
-                        AppTheme.glassWhite,
-                    borderRadius:
-                        BorderRadius.circular(16),
+                    color: AppTheme.glassWhite,
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: Colors.white
-                          .withOpacity(0.85),
+                      color: Colors.white.withOpacity(0.85),
                     ),
-                    boxShadow:
-                        AppTheme.shadow,
+                    boxShadow: AppTheme.shadow,
                   ),
                   child: ClipRRect(
-                    borderRadius:
-                        BorderRadius.circular(13),
+                    borderRadius: BorderRadius.circular(13),
                     child: _buildProfileImage(),
                   ),
                 ),
@@ -158,16 +162,13 @@ class _MainPageState extends State<MainPage> {
   }
 
   Widget _buildProfileImage() {
-    final photoUrl =
-        currentUser?.photoURL;
+    final String? photoUrl = currentUser?.photoURL;
 
-    if (photoUrl != null &&
-        photoUrl.isNotEmpty) {
+    if (photoUrl != null && photoUrl.isNotEmpty) {
       return Image.network(
         photoUrl,
         fit: BoxFit.cover,
-        errorBuilder:
-            (context, error, stackTrace) {
+        errorBuilder: (context, error, stackTrace) {
           return _defaultProfileIcon();
         },
       );
@@ -187,9 +188,9 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
-  // --------------------------------------------------
-  // TITLE
-  // --------------------------------------------------
+  // ==================================================
+  // PAGE TITLE
+  // ==================================================
 
   Widget _title() {
     String first;
@@ -224,98 +225,72 @@ class _MainPageState extends State<MainPage> {
     return Container(
       margin: AppTheme.padding,
       child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TitleText(
                 text: first,
                 fontSize: 27,
-                fontWeight:
-                    FontWeight.w400,
-                color:
-                    AppTheme.darkText,
+                fontWeight: FontWeight.w400,
+                color: AppTheme.darkText,
               ),
               TitleText(
                 text: second,
                 fontSize: 27,
-                fontWeight:
-                    FontWeight.w700,
-                color:
-                    AppTheme.darkText,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.darkText,
               ),
             ],
           ),
 
           const Spacer(),
 
+          // CLEAR CART BUTTON
           if (_selectedIndex == 1)
             _glassIcon(
               Icons.delete_outline_rounded,
-              iconColor:
-                  AppTheme.grapePurple,
-              onPressed:
-                  _clearCart,
+              iconColor: AppTheme.grapePurple,
+              onPressed: _clearCart,
             ),
         ],
       ),
     );
   }
 
-  // --------------------------------------------------
-  // BOTTOM NAVIGATION
-  // --------------------------------------------------
-
-  void onBottomIconPressed(int index) {
-    if (index < 0 || index > 3) {
-      return;
-    }
-
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
-  // --------------------------------------------------
+  // ==================================================
   // NOTIFICATIONS
-  // --------------------------------------------------
+  // ==================================================
 
   void _openNotifications() {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            const NotificationsPage(),
+        builder: (_) => const NotificationsPage(),
       ),
     );
   }
 
-  // --------------------------------------------------
+  // ==================================================
   // MENU
-  // --------------------------------------------------
+  // ==================================================
 
   void _openMenu() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) {
-        return _buildGlassMenu();
-      },
+      builder: (_) => _buildGlassMenu(),
     );
   }
 
   Widget _buildGlassMenu() {
     return SafeArea(
       child: Padding(
-        padding:
-            const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(12),
         child: ClipRRect(
-          borderRadius:
-              BorderRadius.circular(30),
+          borderRadius: BorderRadius.circular(30),
           child: BackdropFilter(
             filter: ImageFilter.blur(
               sigmaX: 20,
@@ -323,55 +298,41 @@ class _MainPageState extends State<MainPage> {
             ),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white
-                    .withOpacity(0.90),
-                borderRadius:
-                    BorderRadius.circular(30),
+                color: Colors.white.withOpacity(0.90),
+                borderRadius: BorderRadius.circular(30),
                 border: Border.all(
-                  color: Colors.white
-                      .withOpacity(0.9),
+                  color: Colors.white.withOpacity(0.9),
                 ),
               ),
               child: Padding(
-                padding:
-                    const EdgeInsets.fromLTRB(
+                padding: const EdgeInsets.fromLTRB(
                   20,
                   20,
                   20,
                   16,
                 ),
                 child: Column(
-                  mainAxisSize:
-                      MainAxisSize.min,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
                       width: 42,
                       height: 5,
-                      decoration:
-                          BoxDecoration(
-                        color: const Color(
-                          0xFFDCC7FA,
-                        ),
-                        borderRadius:
-                            BorderRadius.circular(
-                          10,
-                        ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDCC7FA),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
 
                     const SizedBox(height: 20),
 
                     const Align(
-                      alignment:
-                          Alignment.centerLeft,
+                      alignment: Alignment.centerLeft,
                       child: Text(
                         'GrapeGo Menu',
                         style: TextStyle(
-                          color:
-                              Color(0xFF1D2635),
+                          color: Color(0xFF1D2635),
                           fontSize: 21,
-                          fontWeight:
-                              FontWeight.w800,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
@@ -394,12 +355,8 @@ class _MainPageState extends State<MainPage> {
                       'My Orders',
                       () {
                         Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                const OrdersPage(),
-                          ),
+                        _pushPage(
+                          const OrdersPage(),
                         );
                       },
                     ),
@@ -409,12 +366,8 @@ class _MainPageState extends State<MainPage> {
                       'Delivery Addresses',
                       () {
                         Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                const DeliveryAddressPage(),
-                          ),
+                        _pushPage(
+                          const DeliveryAddressPage(),
                         );
                       },
                     ),
@@ -444,30 +397,22 @@ class _MainPageState extends State<MainPage> {
                       'Settings',
                       () {
                         Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                const SettingsPage(),
-                          ),
+                        _pushPage(
+                          const SettingsPage(),
                         );
                       },
                     ),
 
                     const Divider(
                       height: 22,
-                      color:
-                          Color(0xFFE1E2E4),
+                      color: Color(0xFFE1E2E4),
                     ),
 
                     _menuItem(
                       Icons.logout_rounded,
                       'Log Out',
                       _logout,
-                      iconColor:
-                          const Color(
-                        0xFFE65829,
-                      ),
+                      iconColor: const Color(0xFFE65829),
                     ),
                   ],
                 ),
@@ -489,11 +434,9 @@ class _MainPageState extends State<MainPage> {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius:
-            BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(18),
         child: Padding(
-          padding:
-              const EdgeInsets.symmetric(
+          padding: const EdgeInsets.symmetric(
             vertical: 13,
             horizontal: 6,
           ),
@@ -503,16 +446,13 @@ class _MainPageState extends State<MainPage> {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color:
-                      const Color(0xFFF8F5FF),
-                  borderRadius:
-                      BorderRadius.circular(14),
+                  color: const Color(0xFFF8F5FF),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
                   icon,
                   color:
-                      iconColor ??
-                      AppTheme.grapePurple,
+                      iconColor ?? AppTheme.grapePurple,
                   size: 21,
                 ),
               ),
@@ -523,11 +463,9 @@ class _MainPageState extends State<MainPage> {
                 child: Text(
                   title,
                   style: const TextStyle(
-                    color:
-                        Color(0xFF1D2635),
+                    color: Color(0xFF1D2635),
                     fontSize: 15,
-                    fontWeight:
-                        FontWeight.w600,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -535,8 +473,7 @@ class _MainPageState extends State<MainPage> {
               const Icon(
                 Icons.arrow_forward_ios_rounded,
                 size: 14,
-                color:
-                    Color(0xFFA1A3A6),
+                color: Color(0xFFA1A3A6),
               ),
             ],
           ),
@@ -545,37 +482,40 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
-  // --------------------------------------------------
-  // CLEAR CART
-  // --------------------------------------------------
+  void _pushPage(Widget page) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => page,
+      ),
+    );
+  }
+
+  // ==================================================
+  // CLEAR FIREBASE CART
+  // ==================================================
 
   Future<void> _clearCart() async {
     final user = currentUser;
 
     if (user == null) {
-      _showMessage(
-        'Please sign in first.',
-      );
+      _showMessage('Please sign in first.');
       return;
     }
 
-    final shouldClear =
+    final bool? shouldClear =
         await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor:
-              Colors.white,
-          shape:
-              RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(24),
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
           ),
           title: const Text(
             'Clear cart?',
             style: TextStyle(
-              fontWeight:
-                  FontWeight.w800,
+              fontWeight: FontWeight.w800,
             ),
           ),
           content: const Text(
@@ -583,28 +523,20 @@ class _MainPageState extends State<MainPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () =>
-                  Navigator.pop(
-                context,
-                false,
-              ),
-              child: const Text(
-                'Cancel',
-              ),
+              onPressed: () {
+                Navigator.pop(context, false);
+              },
+              child: const Text('Cancel'),
             ),
             TextButton(
-              onPressed: () =>
-                  Navigator.pop(
-                context,
-                true,
-              ),
+              onPressed: () {
+                Navigator.pop(context, true);
+              },
               child: Text(
                 'Clear',
                 style: TextStyle(
-                  color:
-                      AppTheme.grapePurple,
-                  fontWeight:
-                      FontWeight.w700,
+                  color: AppTheme.grapePurple,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -613,70 +545,55 @@ class _MainPageState extends State<MainPage> {
       },
     );
 
-    if (shouldClear != true) {
-      return;
-    }
+    if (shouldClear != true) return;
 
     try {
-      final snapshot =
-          await _firestore
-              .collection('users')
-              .doc(user.uid)
-              .collection('cart')
-              .get();
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('cart')
+          .get();
 
-      final batch =
-          _firestore.batch();
+      final batch = _firestore.batch();
 
-      for (final doc
-          in snapshot.docs) {
-        batch.delete(doc.reference);
+      for (final document in snapshot.docs) {
+        batch.delete(document.reference);
       }
 
       await batch.commit();
 
       if (!mounted) return;
 
-      _showMessage(
-        'Cart cleared.',
-      );
-
-      setState(() {});
+      _showMessage('Cart cleared.');
     } catch (e) {
+      debugPrint('Clear cart error: $e');
+
       if (!mounted) return;
 
       _showMessage(
         'Could not clear cart.',
       );
-
-      debugPrint(
-        'Clear cart error: $e',
-      );
     }
   }
 
-  // --------------------------------------------------
-  // LOG OUT
-  // --------------------------------------------------
+  // ==================================================
+  // LOGOUT
+  // ==================================================
 
   Future<void> _logout() async {
-    final shouldLogout =
+    final bool? shouldLogout =
         await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor:
-              Colors.white,
-          shape:
-              RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(24),
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
           ),
           title: const Text(
             'Log out?',
             style: TextStyle(
-              fontWeight:
-                  FontWeight.w800,
+              fontWeight: FontWeight.w800,
             ),
           ),
           content: const Text(
@@ -684,27 +601,20 @@ class _MainPageState extends State<MainPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () =>
-                  Navigator.pop(
-                context,
-                false,
-              ),
-              child:
-                  const Text('Cancel'),
+              onPressed: () {
+                Navigator.pop(context, false);
+              },
+              child: const Text('Cancel'),
             ),
             TextButton(
-              onPressed: () =>
-                  Navigator.pop(
-                context,
-                true,
-              ),
+              onPressed: () {
+                Navigator.pop(context, true);
+              },
               child: const Text(
                 'Log Out',
                 style: TextStyle(
-                  color:
-                      Color(0xFFE65829),
-                  fontWeight:
-                      FontWeight.w700,
+                  color: Color(0xFFE65829),
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -713,66 +623,54 @@ class _MainPageState extends State<MainPage> {
       },
     );
 
-    if (shouldLogout != true) {
-      return;
-    }
+    if (shouldLogout != true) return;
 
     try {
       await _auth.signOut();
 
       if (!mounted) return;
 
-      // The authentication flow should
-      // eventually handle this automatically
-      // using FirebaseAuth.authStateChanges().
-      _showMessage(
-        'You have been logged out.',
-      );
+      _showMessage('You have been logged out.');
     } catch (e) {
-      debugPrint(
-        'Logout error: $e',
-      );
+      debugPrint('Logout error: $e');
+
+      if (!mounted) return;
+
+      _showMessage('Could not log out.');
     }
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor:
-            AppTheme.grapePurple,
+        backgroundColor: AppTheme.grapePurple,
       ),
     );
   }
 
-  // --------------------------------------------------
+  // ==================================================
   // BUILD
-  // --------------------------------------------------
+  // ==================================================
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          AppTheme.grapeLightPurple,
+      backgroundColor: AppTheme.grapeLightPurple,
 
       body: SafeArea(
         child: Stack(
           fit: StackFit.expand,
           children: [
             Container(
-              decoration:
-                  const BoxDecoration(
-                gradient:
-                    LinearGradient(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
                   colors: [
                     AppTheme.grapeLightPurple,
                     Colors.white,
                   ],
-                  begin:
-                      Alignment.topCenter,
-                  end:
-                      Alignment.bottomCenter,
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
                 ),
               ),
 
@@ -781,26 +679,19 @@ class _MainPageState extends State<MainPage> {
                     CrossAxisAlignment.start,
                 children: [
                   _appBar(),
-
                   _title(),
 
                   Expanded(
-                    child:
-                        AnimatedSwitcher(
+                    child: AnimatedSwitcher(
                       duration:
-                          const Duration(
-                        milliseconds: 300,
-                      ),
+                          const Duration(milliseconds: 300),
                       switchInCurve:
                           Curves.easeInToLinear,
                       switchOutCurve:
                           Curves.easeOutBack,
                       child: KeyedSubtree(
-                        key: ValueKey(
-                          _selectedIndex,
-                        ),
-                        child:
-                            _buildCurrentPage(),
+                        key: ValueKey(_selectedIndex),
+                        child: _buildCurrentPage(),
                       ),
                     ),
                   ),
@@ -810,12 +701,12 @@ class _MainPageState extends State<MainPage> {
 
             Positioned(
               bottom: 0,
-              right: 0,
               left: 0,
-              child:
-                  CustomBottomNavigationBar(
-                onIconPresedCallback:
-                    onBottomIconPressed,
+              right: 0,
+              child: CustomBottomNavigationBar(
+                selectedIndex: _selectedIndex,
+                onIconPressedCallback:
+                    _onBottomIconPressed,
               ),
             ),
           ],
@@ -838,11 +729,9 @@ class FavouritePage extends StatelessWidget {
         FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      return _SimpleEmptyState(
-        icon:
-            Icons.favorite_outline_rounded,
-        title:
-            'Sign in to view favourites',
+      return const _SimpleEmptyState(
+        icon: Icons.favorite_outline_rounded,
+        title: 'Sign in to view favourites',
         subtitle:
             'Your saved products will appear here.',
       );
@@ -855,61 +744,48 @@ class FavouritePage extends StatelessWidget {
           .doc(user.uid)
           .collection('favorites')
           .snapshots(),
-
       builder: (context, snapshot) {
         if (snapshot.connectionState ==
             ConnectionState.waiting) {
           return const Center(
-            child:
-                CircularProgressIndicator(
-              color:
-                  Color(0xFFB98BEF),
+            child: CircularProgressIndicator(
+              color: Color(0xFFB98BEF),
             ),
           );
         }
 
         if (snapshot.hasError) {
           return const _SimpleEmptyState(
-            icon:
-                Icons.error_outline_rounded,
-            title:
-                'Could not load favourites',
-            subtitle:
-                'Please try again.',
+            icon: Icons.error_outline_rounded,
+            title: 'Could not load favourites',
+            subtitle: 'Please try again.',
           );
         }
 
-        final docs =
-            snapshot.data?.docs ?? [];
+        final docs = snapshot.data?.docs ?? [];
 
         if (docs.isEmpty) {
           return const _SimpleEmptyState(
-            icon:
-                Icons.favorite_outline_rounded,
-            title:
-                'No favourites yet',
+            icon: Icons.favorite_outline_rounded,
+            title: 'No favourites yet',
             subtitle:
                 'Products you save will appear here.',
           );
         }
 
         return ListView.builder(
-          padding:
-              const EdgeInsets.fromLTRB(
+          padding: const EdgeInsets.fromLTRB(
             16,
             5,
             16,
             90,
           ),
           itemCount: docs.length,
-          itemBuilder:
-              (context, index) {
-            final data =
-                docs[index].data();
+          itemBuilder: (context, index) {
+            final data = docs[index].data();
 
             final name =
-                data['name']
-                    ?.toString() ??
+                data['name']?.toString() ??
                     'Product';
 
             final price =
@@ -918,15 +794,11 @@ class FavouritePage extends StatelessWidget {
 
             return Padding(
               padding:
-                  const EdgeInsets.only(
-                bottom: 12,
-              ),
+                  const EdgeInsets.only(bottom: 12),
               child: _GlassListTile(
-                icon:
-                    Icons.favorite_rounded,
+                icon: Icons.favorite_rounded,
                 title: name,
-                subtitle:
-                    '₦$price',
+                subtitle: '₦$price',
               ),
             );
           },
@@ -950,30 +822,23 @@ class ProfilePage extends StatelessWidget {
 
     if (user == null) {
       return const _SimpleEmptyState(
-        icon:
-            Icons.person_outline_rounded,
-        title:
-            'You are not signed in',
+        icon: Icons.person_outline_rounded,
+        title: 'You are not signed in',
         subtitle:
             'Sign in to view your profile.',
       );
     }
 
-    final name =
-        user.displayName?.trim();
-
-    final email =
-        user.email ?? '';
+    final name = user.displayName?.trim();
+    final email = user.email ?? '';
 
     return ListView(
-      padding:
-          const EdgeInsets.fromLTRB(
+      padding: const EdgeInsets.fromLTRB(
         16,
         5,
         16,
         90,
       ),
-
       children: [
         ClipRRect(
           borderRadius:
@@ -986,8 +851,7 @@ class ProfilePage extends StatelessWidget {
             child: Container(
               padding:
                   const EdgeInsets.all(22),
-              decoration:
-                  BoxDecoration(
+              decoration: BoxDecoration(
                 color: Colors.white
                     .withOpacity(0.72),
                 borderRadius:
@@ -1002,43 +866,31 @@ class ProfilePage extends StatelessWidget {
                   CircleAvatar(
                     radius: 42,
                     backgroundColor:
-                        const Color(
-                      0xFFF8F5FF,
-                    ),
+                        const Color(0xFFF8F5FF),
                     backgroundImage:
-                        user.photoURL !=
-                                null
+                        user.photoURL != null
                             ? NetworkImage(
                                 user.photoURL!,
                               )
                             : null,
                     child:
-                        user.photoURL ==
-                                null
+                        user.photoURL == null
                             ? const Icon(
-                                Icons
-                                    .person_rounded,
+                                Icons.person_rounded,
                                 size: 42,
                                 color:
-                                    Color(
-                                  0xFFB98BEF,
-                                ),
+                                    Color(0xFFB98BEF),
                               )
                             : null,
                   ),
 
-                  const SizedBox(
-                    height: 14,
-                  ),
+                  const SizedBox(height: 14),
 
                   Text(
-                    (name == null ||
-                            name.isEmpty)
+                    (name == null || name.isEmpty)
                         ? 'GrapeGo User'
                         : name,
-
-                    style:
-                        const TextStyle(
+                    style: const TextStyle(
                       fontSize: 21,
                       fontWeight:
                           FontWeight.w800,
@@ -1048,13 +900,10 @@ class ProfilePage extends StatelessWidget {
                   ),
 
                   if (email.isNotEmpty) ...[
-                    const SizedBox(
-                      height: 5,
-                    ),
+                    const SizedBox(height: 5),
                     Text(
                       email,
-                      style:
-                          const TextStyle(
+                      style: const TextStyle(
                         color:
                             Color(0xFF797878),
                         fontSize: 13,
@@ -1067,16 +916,13 @@ class ProfilePage extends StatelessWidget {
           ),
         ),
 
-        const SizedBox(
-          height: 18,
-        ),
+        const SizedBox(height: 18),
 
         _GlassListTile(
           icon:
               Icons.shopping_bag_outlined,
           title: 'My Orders',
-          subtitle:
-              'View your orders',
+          subtitle: 'View your orders',
           onTap: () {
             Navigator.push(
               context,
@@ -1088,15 +934,12 @@ class ProfilePage extends StatelessWidget {
           },
         ),
 
-        const SizedBox(
-          height: 10,
-        ),
+        const SizedBox(height: 10),
 
         _GlassListTile(
           icon:
               Icons.location_on_outlined,
-          title:
-              'Delivery Addresses',
+          title: 'Delivery Addresses',
           subtitle:
               'Manage your addresses',
           onTap: () {
@@ -1110,13 +953,10 @@ class ProfilePage extends StatelessWidget {
           },
         ),
 
-        const SizedBox(
-          height: 10,
-        ),
+        const SizedBox(height: 10),
 
         _GlassListTile(
-          icon:
-              Icons.settings_outlined,
+          icon: Icons.settings_outlined,
           title: 'Settings',
           subtitle:
               'Manage your account',
@@ -1139,8 +979,7 @@ class ProfilePage extends StatelessWidget {
 // GLASS LIST TILE
 // ======================================================
 
-class _GlassListTile
-    extends StatelessWidget {
+class _GlassListTile extends StatelessWidget {
   const _GlassListTile({
     required this.icon,
     required this.title,
@@ -1181,32 +1020,23 @@ class _GlassListTile
                     decoration:
                         BoxDecoration(
                       color:
-                          const Color(
-                        0xFFF8F5FF,
-                      ),
+                          const Color(0xFFF8F5FF),
                       borderRadius:
-                          BorderRadius.circular(
-                        15,
-                      ),
+                          BorderRadius.circular(15),
                     ),
                     child: Icon(
                       icon,
                       color:
-                          const Color(
-                        0xFFB98BEF,
-                      ),
+                          const Color(0xFFB98BEF),
                     ),
                   ),
 
-                  const SizedBox(
-                    width: 13,
-                  ),
+                  const SizedBox(width: 13),
 
                   Expanded(
                     child: Column(
                       crossAxisAlignment:
-                          CrossAxisAlignment
-                              .start,
+                          CrossAxisAlignment.start,
                       children: [
                         Text(
                           title,
@@ -1215,26 +1045,19 @@ class _GlassListTile
                             fontWeight:
                                 FontWeight.w700,
                             color:
-                                Color(
-                              0xFF1D2635,
-                            ),
+                                Color(0xFF1D2635),
                           ),
                         ),
 
-                        if (subtitle !=
-                            null) ...[
-                          const SizedBox(
-                            height: 3,
-                          ),
+                        if (subtitle != null) ...[
+                          const SizedBox(height: 3),
                           Text(
                             subtitle!,
                             style:
                                 const TextStyle(
                               fontSize: 12,
                               color:
-                                  Color(
-                                0xFF797878,
-                              ),
+                                  Color(0xFF797878),
                             ),
                           ),
                         ],
@@ -1244,8 +1067,7 @@ class _GlassListTile
 
                   if (onTap != null)
                     const Icon(
-                      Icons
-                          .arrow_forward_ios_rounded,
+                      Icons.arrow_forward_ios_rounded,
                       size: 14,
                       color:
                           Color(0xFFA1A3A6),
@@ -1292,27 +1114,19 @@ class _SimpleEmptyState
               decoration:
                   BoxDecoration(
                 color:
-                    const Color(
-                  0xFFF8F5FF,
-                ),
+                    const Color(0xFFF8F5FF),
                 borderRadius:
-                    BorderRadius.circular(
-                  24,
-                ),
+                    BorderRadius.circular(24),
               ),
               child: Icon(
                 icon,
                 size: 40,
                 color:
-                    const Color(
-                  0xFFB98BEF,
-                ),
+                    const Color(0xFFB98BEF),
               ),
             ),
 
-            const SizedBox(
-              height: 16,
-            ),
+            const SizedBox(height: 16),
 
             Text(
               title,
@@ -1328,9 +1142,7 @@ class _SimpleEmptyState
               ),
             ),
 
-            const SizedBox(
-              height: 7,
-            ),
+            const SizedBox(height: 7),
 
             Text(
               subtitle,
