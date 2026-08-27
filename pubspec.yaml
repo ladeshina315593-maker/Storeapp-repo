@@ -11,9 +11,10 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # iOS icons
   cupertino_icons: ^1.0.8
 
-  # UI
+  # UI / Fonts
   google_fonts: ^6.2.1
 
   # Firebase
@@ -21,7 +22,7 @@ dependencies:
   firebase_auth: ^6.5.5
   cloud_firestore: ^6.7.0
 
-  # Authentication providers
+  # Social Authentication
   google_sign_in: ^7.2.0
   flutter_facebook_auth: ^7.1.2
   sign_in_with_apple: ^7.0.1
@@ -37,3 +38,4 @@ flutter:
 
   assets:
     - assets/
+
