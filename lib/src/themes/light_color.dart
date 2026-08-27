@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class LightColor {
   // ==============================
-  // Grape Go Background Colors
+  // Pickle Mkt Background Colors
   // ==============================
 
   static const Color background = Color(0xFFF8F5FF);
@@ -10,14 +10,14 @@ class LightColor {
   static const Color glassWhite = Color(0xCCFFFFFF);
 
   // ==============================
-  // Grape Go Purple Palette
+  // Pickle Mkt Purple Palette
   // ==============================
 
   static const Color grapePurple = Color(0xFFB98BEF);
   static const Color grapeLightPurple = Color(0xFFF8F5FF);
   static const Color grapeSoftPurple = Color(0xFFDCC7FA);
 
-  // Kept for compatibility with existing code
+  // Compatibility with existing code
   static const Color skyBlue = grapePurple;
   static const Color lightBlue = grapeSoftPurple;
 
@@ -45,19 +45,14 @@ class LightColor {
   static const Color lightblack = Color(0xFF62556F);
 
   // ==============================
-  // Accent Colors
-  // ==============================
-
-  static const Color orange = Color(0xFFE65829);
-  static const Color red = Color(0xFFF72804);
-  static const Color yellowColor = Color(0xFFFBBA01);
-
-  // ==============================
   // Borders & Dividers
   // ==============================
 
   static const Color dividerColor = Color(0xFFE8DDF5);
   static const Color borderColor = Color(0xFFE5D8F3);
+
+  // Compatibility alias
+  static const Color divider = dividerColor;
 
   // ==============================
   // Shadows
