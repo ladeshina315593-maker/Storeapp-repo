@@ -1,56 +1,94 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_ecommerce_app/src/themes/light_color.dart';
-import 'package:flutter_ecommerce_app/src/widgets/BottomNavigationBar/bottom_curved_Painter.dart';
 
 class CustomBottomNavigationBar extends StatefulWidget {
   final Function(int) onIconPresedCallback;
-  CustomBottomNavigationBar({Key key, this.onIconPresedCallback})
-      : super(key: key);
+
+  CustomBottomNavigationBar({
+    Key key,
+    this.onIconPresedCallback,
+  }) : super(key: key);
 
   @override
   _CustomBottomNavigationBarState createState() =>
       _CustomBottomNavigationBarState();
 }
 
-class _CustomBottomNavigationBarState extends State<CustomBottomNavigationBar>
+class _CustomBottomNavigationBarState
+    extends State<CustomBottomNavigationBar>
     with TickerProviderStateMixin {
   int _selectedIndex = 0;
 
   AnimationController _xController;
   AnimationController _yController;
+
   @override
   void initState() {
-    _xController = AnimationController(
-        vsync: this, animationBehavior: AnimationBehavior.preserve);
-    _yController = AnimationController(
-        vsync: this, animationBehavior: AnimationBehavior.preserve);
-
-    Listenable.merge([_xController, _yController]).addListener(() {
-      setState(() {});
-    });
-
     super.initState();
+
+    _xController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 620),
+      animationBehavior: AnimationBehavior.preserve,
+    );
+
+    _yController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+      animationBehavior: AnimationBehavior.preserve,
+    );
+
+    Listenable.merge([
+      _xController,
+      _yController,
+    ]).addListener(() {
+      if (mounted) {
+        setState(() {});
+      }
+    });
   }
 
   @override
   void didChangeDependencies() {
-    _xController.value =
-        _indexToPosition(_selectedIndex) / MediaQuery.of(context).size.width;
-    _yController.value = 1.0;
-
     super.didChangeDependencies();
+
+    _xController.value =
+        _indexToPosition(_selectedIndex) /
+            MediaQuery.of(context).size.width;
+
+    _yController.value = 1.0;
+  }
+
+  double _getButtonContainerWidth() {
+    double width = MediaQuery.of(context).size.width;
+
+    if (width > 400.0) {
+      width = 400.0;
+    }
+
+    return width;
   }
 
   double _indexToPosition(int index) {
-    // Calculate button positions based off of their
-    // index (works with `MainAxisAlignment.spaceAround`)
-    const buttonCount = 4.0;
-    final appWidth = MediaQuery.of(context).size.width;
-    final buttonsWidth = _getButtonContainerWidth();
-    final startX = (appWidth - buttonsWidth) / 2;
+    const double buttonCount = 4.0;
+
+    final double appWidth =
+        MediaQuery.of(context).size.width;
+
+    final double buttonsWidth =
+        _getButtonContainerWidth();
+
+    final double startX =
+        (appWidth - buttonsWidth) / 2;
+
     return startX +
-        index.toDouble() * buttonsWidth / buttonCount +
-        buttonsWidth / (buttonCount * 2.0);
+        index.toDouble() *
+            buttonsWidth /
+            buttonCount +
+        buttonsWidth /
+            (buttonCount * 2.0);
   }
 
   @override
@@ -60,112 +98,223 @@ class _CustomBottomNavigationBarState extends State<CustomBottomNavigationBar>
     super.dispose();
   }
 
-  Widget _icon(IconData icon, bool isEnable, int index) {
+  Widget _icon(
+    IconData icon,
+    bool isSelected,
+    int index,
+  ) {
     return Expanded(
       child: InkWell(
-        borderRadius: BorderRadius.all(Radius.circular(50)),
+        borderRadius: BorderRadius.circular(40),
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
         onTap: () {
           _handlePressed(index);
         },
         child: AnimatedContainer(
-          duration: Duration(milliseconds: 500),
-          alignment: isEnable ? Alignment.topCenter : Alignment.center,
+          duration:
+              const Duration(milliseconds: 450),
+          curve: Curves.easeOutCubic,
+          alignment: isSelected
+              ? Alignment.topCenter
+              : Alignment.center,
           child: AnimatedContainer(
-              height: isEnable ? 40 : 20,
-              duration: Duration(milliseconds: 300),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                  color: isEnable ? LightColor.orange : Colors.white,
-                  boxShadow: <BoxShadow>[
-                    BoxShadow(
-                      color: isEnable ? Color(0xfffeece2) : Colors.white,
-                      blurRadius: 10,
-                      spreadRadius: 5,
-                      offset: Offset(5, 5),
-                    ),
-                  ],
-                  shape: BoxShape.circle),
-              child: Opacity(
-                opacity: isEnable ? _yController.value : 1,
-                child: Icon(icon,
-                    color: isEnable
-                        ? LightColor.background
-                        : Theme.of(context).iconTheme.color),
-              )),
+            duration:
+                const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+            width: isSelected ? 46 : 38,
+            height: isSelected ? 46 : 38,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+
+              color: isSelected
+                  ? LightColor.grapePurple
+                  : Colors.white.withOpacity(0.42),
+
+              border: Border.all(
+                color: Colors.white.withOpacity(0.85),
+                width: 1.2,
+              ),
+
+              boxShadow: [
+                BoxShadow(
+                  color: isSelected
+                      ? LightColor.grapePurple
+                          .withOpacity(0.32)
+                      : Colors.black.withOpacity(0.035),
+                  blurRadius:
+                      isSelected ? 15 : 8,
+                  spreadRadius:
+                      isSelected ? 1 : 0,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Opacity(
+              opacity:
+                  isSelected
+                      ? _yController.value
+                      : 1.0,
+              child: Icon(
+                icon,
+                size:
+                    isSelected ? 23 : 21,
+                color: isSelected
+                    ? Colors.white
+                    : LightColor.darkText,
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildBackground() {
-    final inCurve = ElasticOutCurve(0.38);
-    return CustomPaint(
-      painter: BackgroundCurvePainter(
-          _xController.value * MediaQuery.of(context).size.width,
-          Tween<double>(
-            begin: Curves.easeInExpo.transform(_yController.value),
-            end: inCurve.transform(_yController.value),
-          ).transform(_yController.velocity.sign * 0.5 + 0.5),
-          Theme.of(context).backgroundColor),
+  Widget _buildGlassBackground() {
+    return ClipRRect(
+      borderRadius:
+          BorderRadius.circular(30),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: 18,
+          sigmaY: 18,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white
+                .withOpacity(0.58),
+
+            borderRadius:
+                BorderRadius.circular(30),
+
+            border: Border.all(
+              color: Colors.white
+                  .withOpacity(0.82),
+              width: 1.2,
+            ),
+
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black
+                    .withOpacity(0.08),
+                blurRadius: 24,
+                spreadRadius: 0,
+                offset:
+                    const Offset(0, 10),
+              ),
+
+              BoxShadow(
+                color: LightColor
+                    .grapePurple
+                    .withOpacity(0.10),
+                blurRadius: 28,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
-  double _getButtonContainerWidth() {
-    double width = MediaQuery.of(context).size.width;
-    if (width > 400.0) {
-      width = 400.0;
-    }
-    return width;
-  }
-
   void _handlePressed(int index) {
-    if (_selectedIndex == index || _xController.isAnimating) return;
-    widget.onIconPresedCallback(index);
+    if (_selectedIndex == index ||
+        _xController.isAnimating) {
+      return;
+    }
+
+    widget.onIconPresedCallback?.call(index);
+
     setState(() {
       _selectedIndex = index;
     });
 
     _yController.value = 1.0;
+
     _xController.animateTo(
-        _indexToPosition(index) / MediaQuery.of(context).size.width,
-        duration: Duration(milliseconds: 620));
+      _indexToPosition(index) /
+          MediaQuery.of(context).size.width,
+      duration:
+          const Duration(milliseconds: 620),
+      curve: Curves.easeOutCubic,
+    );
+
+    _yController.animateTo(
+      0.0,
+      duration:
+          const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+
     Future.delayed(
-      Duration(milliseconds: 500),
+      const Duration(milliseconds: 500),
       () {
-        _yController.animateTo(1.0, duration: Duration(milliseconds: 1200));
+        if (!mounted) return;
+
+        _yController.animateTo(
+          1.0,
+          duration:
+              const Duration(milliseconds: 900),
+          curve: Curves.easeOutBack,
+        );
       },
     );
-    _yController.animateTo(0.0, duration: Duration(milliseconds: 300));
   }
 
   @override
   Widget build(BuildContext context) {
-    final appSize = MediaQuery.of(context).size;
-    final height = 60.0;
+    final Size appSize =
+        MediaQuery.of(context).size;
+
     return Container(
       width: appSize.width,
-      height: 60,
+      height: 78,
+      padding: const EdgeInsets.only(
+        left: 16,
+        right: 16,
+        bottom: 12,
+      ),
       child: Stack(
         children: [
-          Positioned(
-            left: 0,
-            bottom: 0,
-            width: appSize.width,
-            height: height - 10,
-            child: _buildBackground(),
+          // Glass floating navigation background
+          Positioned.fill(
+            child: _buildGlassBackground(),
           ),
+
+          // Navigation icons
           Positioned(
-            left: (appSize.width - _getButtonContainerWidth()) / 2,
-            top: 0,
-            width: _getButtonContainerWidth(),
-            height: height,
+            left: 8,
+            right: 8,
+            top: 5,
+            bottom: 5,
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              mainAxisAlignment:
+                  MainAxisAlignment.spaceAround,
               children: <Widget>[
-                _icon(Icons.home, _selectedIndex == 0, 0),
-                _icon(Icons.search, _selectedIndex == 1, 1),
-                _icon(Icons.card_travel, _selectedIndex == 2, 2),
-                _icon(Icons.favorite_border, _selectedIndex == 3, 3),
+                _icon(
+                  Icons.home_rounded,
+                  _selectedIndex == 0,
+                  0,
+                ),
+
+                _icon(
+                  Icons.search_rounded,
+                  _selectedIndex == 1,
+                  1,
+                ),
+
+                _icon(
+                  Icons.shopping_bag_rounded,
+                  _selectedIndex == 2,
+                  2,
+                ),
+
+                _icon(
+                  Icons.favorite_border_rounded,
+                  _selectedIndex == 3,
+                  3,
+                ),
               ],
             ),
           ),
