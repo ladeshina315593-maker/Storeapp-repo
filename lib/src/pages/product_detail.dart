@@ -16,13 +16,46 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     with TickerProviderStateMixin {
   AnimationController controller;
   Animation<double> animation;
+
+  bool isLiked = false;
+  int selectedSize = 1;
+  int selectedColor = 0;
+  int selectedImage = 0;
+
+  final List<String> sizes = [
+    "US 6",
+    "US 7",
+    "US 8",
+    "US 9",
+  ];
+
+  final List<Color> colors = [
+    LightColor.yellowColor,
+    LightColor.lightBlue,
+    LightColor.black,
+    LightColor.red,
+    LightColor.skyBlue,
+  ];
+
   @override
   void initState() {
     super.initState();
-    controller =
-        AnimationController(vsync: this, duration: Duration(milliseconds: 300));
-    animation = Tween<double>(begin: 0, end: 1).animate(
-        CurvedAnimation(parent: controller, curve: Curves.easeInToLinear));
+
+    controller = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 500),
+    );
+
+    animation = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(
+      CurvedAnimation(
+        parent: controller,
+        curve: Curves.easeOut,
+      ),
+    );
+
     controller.forward();
   }
 
@@ -32,222 +65,426 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     super.dispose();
   }
 
-  bool isLiked = true;
+  Widget _glassButton({
+    IconData icon,
+    Color iconColor,
+    VoidCallback onPressed,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          height: 46,
+          width: 46,
+          decoration: BoxDecoration(
+            color: AppTheme.glassWhite,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.85),
+              width: 1,
+            ),
+            boxShadow: AppTheme.shadow,
+          ),
+          child: Icon(
+            icon,
+            color: iconColor ?? AppTheme.darkText,
+            size: 21,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _appBar() {
-    return Container(
-      padding: AppTheme.padding,
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: 20,
+        vertical: 12,
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: <Widget>[
-          _icon(
-            Icons.arrow_back_ios,
-            color: Colors.black54,
-            size: 15,
-            padding: 12,
-            isOutLine: true,
+        children: [
+          _glassButton(
+            icon: Icons.arrow_back_ios_new,
+            iconColor: AppTheme.darkText,
             onPressed: () {
               Navigator.of(context).pop();
             },
           ),
-          _icon(isLiked ? Icons.favorite : Icons.favorite_border,
-              color: isLiked ? LightColor.red : LightColor.lightGrey,
-              size: 15,
-              padding: 12,
-              isOutLine: false, onPressed: () {
-            setState(() {
-              isLiked = !isLiked;
-            });
-          }),
+          _glassButton(
+            icon: isLiked
+                ? Icons.favorite
+                : Icons.favorite_border,
+            iconColor: isLiked
+                ? LightColor.red
+                : AppTheme.darkText,
+            onPressed: () {
+              setState(() {
+                isLiked = !isLiked;
+              });
+            },
+          ),
         ],
       ),
     );
-  }
-
-  Widget _icon(
-    IconData icon, {
-    Color color = LightColor.iconColor,
-    double size = 20,
-    double padding = 10,
-    bool isOutLine = false,
-    Function onPressed,
-  }) {
-    return Container(
-      height: 40,
-      width: 40,
-      padding: EdgeInsets.all(padding),
-      // margin: EdgeInsets.all(padding),
-      decoration: BoxDecoration(
-        border: Border.all(
-            color: LightColor.iconColor,
-            style: isOutLine ? BorderStyle.solid : BorderStyle.none),
-        borderRadius: BorderRadius.all(Radius.circular(13)),
-        color:
-            isOutLine ? Colors.transparent : Theme.of(context).backgroundColor,
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-              color: Color(0xfff8f8f8),
-              blurRadius: 5,
-              spreadRadius: 10,
-              offset: Offset(5, 5)),
-        ],
-      ),
-      child: Icon(icon, color: color, size: size),
-    ).ripple(() {
-      if (onPressed != null) {
-        onPressed();
-      }
-    }, borderRadius: BorderRadius.all(Radius.circular(13)));
   }
 
   Widget _productImage() {
-    return AnimatedBuilder(
-      builder: (context, child) {
-        return AnimatedOpacity(
-          duration: Duration(milliseconds: 500),
-          opacity: animation.value,
-          child: child,
-        );
-      },
-      animation: animation,
-      child: Stack(
-        alignment: Alignment.bottomCenter,
-        children: <Widget>[
-          TitleText(
-            text: "AIP",
-            fontSize: 160,
-            color: LightColor.lightGrey,
-          ),
-          Image.asset('assets/show_1.png')
-        ],
-      ),
-    );
-  }
-
-  Widget _categoryWidget() {
-    return Container(
-      margin: EdgeInsets.symmetric(vertical: 0),
-      width: AppTheme.fullWidth(context),
-      height: 80,
-      child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children:
-              AppData.showThumbnailList.map((x) => _thumbnail(x)).toList()),
-    );
-  }
-
-  Widget _thumbnail(String image) {
-    return AnimatedBuilder(
-      animation: animation,
-      //  builder: null,
-      builder: (context, child) => AnimatedOpacity(
-        opacity: animation.value,
-        duration: Duration(milliseconds: 500),
-        child: child,
-      ),
-      child: Container(
-        margin: EdgeInsets.symmetric(horizontal: 10),
-        child: Container(
-          height: 40,
-          width: 50,
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: LightColor.grey,
+    return Expanded(
+      child: AnimatedBuilder(
+        animation: animation,
+        builder: (context, child) {
+          return FadeTransition(
+            opacity: animation,
+            child: ScaleTransition(
+              scale: Tween<double>(
+                begin: 0.92,
+                end: 1.0,
+              ).animate(animation),
+              child: child,
             ),
-            borderRadius: BorderRadius.all(Radius.circular(13)),
-            // color: Theme.of(context).backgroundColor,
+          );
+        },
+        child: Center(
+          child: Container(
+            margin: EdgeInsets.symmetric(
+              horizontal: 25,
+              vertical: 10,
+            ),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white.withOpacity(0.92),
+                  AppTheme.grapeLightPurple.withOpacity(0.75),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(32),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.9),
+                width: 1.2,
+              ),
+              boxShadow: AppTheme.shadow,
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Positioned(
+                  right: 20,
+                  top: 20,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.grapeSoftPurple.withOpacity(0.65),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      "TRENDING",
+                      style: TextStyle(
+                        color: AppTheme.darkText,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ),
+                Image.asset(
+                  'assets/show_1.png',
+                  fit: BoxFit.contain,
+                ),
+              ],
+            ),
           ),
-          child: Image.asset(image),
-        ).ripple(() {}, borderRadius: BorderRadius.all(Radius.circular(13))),
+        ),
       ),
+    );
+  }
+
+  Widget _thumbnail(String image, int index) {
+    final bool selected = selectedImage == index;
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedImage = index;
+        });
+      },
+      child: AnimatedContainer(
+        duration: Duration(milliseconds: 250),
+        margin: EdgeInsets.symmetric(horizontal: 5),
+        height: 58,
+        width: 58,
+        padding: EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.75),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected
+                ? AppTheme.grapePurple
+                : Colors.white.withOpacity(0.8),
+            width: selected ? 2 : 1,
+          ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: AppTheme.grapePurple.withOpacity(0.18),
+                    blurRadius: 12,
+                    spreadRadius: 1,
+                  ),
+                ]
+              : [],
+        ),
+        child: Image.asset(
+          image,
+          fit: BoxFit.contain,
+        ),
+      ),
+    );
+  }
+
+  Widget _thumbnailRow() {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        bottom: 12,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: AppData.showThumbnailList
+            .asMap()
+            .entries
+            .map(
+              (entry) => _thumbnail(
+                entry.value,
+                entry.key,
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
+
+  Widget _rating() {
+    return Row(
+      children: [
+        Icon(
+          Icons.star_rounded,
+          color: LightColor.yellowColor,
+          size: 19,
+        ),
+        SizedBox(width: 4),
+        Text(
+          "4.8",
+          style: TextStyle(
+            color: AppTheme.darkText,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        SizedBox(width: 5),
+        Text(
+          "(120 reviews)",
+          style: TextStyle(
+            color: AppTheme.mutedText,
+            fontSize: 12,
+          ),
+        ),
+      ],
     );
   }
 
   Widget _detailWidget() {
     return DraggableScrollableSheet(
-      maxChildSize: .8,
-      initialChildSize: .53,
-      minChildSize: .53,
+      maxChildSize: 0.82,
+      initialChildSize: 0.56,
+      minChildSize: 0.56,
       builder: (context, scrollController) {
         return Container(
-          padding: AppTheme.padding.copyWith(bottom: 0),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            8,
+            20,
+            20,
+          ),
           decoration: BoxDecoration(
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(40),
-                topRight: Radius.circular(40),
+            color: Colors.white.withOpacity(0.96),
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(34),
+              topRight: Radius.circular(34),
+            ),
+            border: Border.all(
+              color: Colors.white,
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.07),
+                blurRadius: 25,
+                offset: Offset(0, -5),
               ),
-              color: Colors.white),
+            ],
+          ),
           child: SingleChildScrollView(
             controller: scrollController,
+            physics: BouncingScrollPhysics(),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.max,
-              children: <Widget>[
-                SizedBox(height: 5),
-                Container(
-                  alignment: Alignment.center,
+              children: [
+                Center(
                   child: Container(
-                    width: 50,
                     height: 5,
+                    width: 45,
                     decoration: BoxDecoration(
-                        color: LightColor.iconColor,
-                        borderRadius: BorderRadius.all(Radius.circular(10))),
+                      color: AppTheme.grapeSoftPurple,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
-                SizedBox(height: 10),
-                Container(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: <Widget>[
-                      TitleText(text: "NIKE AIR MAX 200", fontSize: 25),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: <Widget>[
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: <Widget>[
-                              TitleText(
-                                text: "\$ ",
-                                fontSize: 18,
-                                color: LightColor.red,
-                              ),
-                              TitleText(
-                                text: "240",
-                                fontSize: 25,
-                              ),
-                            ],
+
+                SizedBox(height: 18),
+
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "NIKE AIR MAX 200",
+                            style: TextStyle(
+                              color: AppTheme.darkText,
+                              fontSize: 23,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
-                          Row(
-                            children: <Widget>[
-                              Icon(Icons.star,
-                                  color: LightColor.yellowColor, size: 17),
-                              Icon(Icons.star,
-                                  color: LightColor.yellowColor, size: 17),
-                              Icon(Icons.star,
-                                  color: LightColor.yellowColor, size: 17),
-                              Icon(Icons.star,
-                                  color: LightColor.yellowColor, size: 17),
-                              Icon(Icons.star_border, size: 17),
-                            ],
+                          SizedBox(height: 6),
+                          Text(
+                            "Trending Now",
+                            style: TextStyle(
+                              color: AppTheme.grapePurple,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
+                          SizedBox(height: 10),
+                          _rating(),
                         ],
                       ),
-                    ],
+                    ),
+                    SizedBox(width: 15),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          "\$240",
+                          style: TextStyle(
+                            color: AppTheme.darkText,
+                            fontSize: 25,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        SizedBox(height: 5),
+                        Text(
+                          "In stock",
+                          style: TextStyle(
+                            color: Colors.green,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+
+                SizedBox(height: 25),
+
+                _sectionTitle("Available Size"),
+
+                SizedBox(height: 12),
+
+                Row(
+                  children: List.generate(
+                    sizes.length,
+                    (index) => Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          right: index == sizes.length - 1
+                              ? 0
+                              : 8,
+                        ),
+                        child: _sizeWidget(
+                          sizes[index],
+                          index,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-                SizedBox(
-                  height: 20,
+
+                SizedBox(height: 24),
+
+                _sectionTitle("Available Color"),
+
+                SizedBox(height: 14),
+
+                Row(
+                  children: List.generate(
+                    colors.length,
+                    (index) => Padding(
+                      padding: EdgeInsets.only(
+                        right: 18,
+                      ),
+                      child: _colorWidget(
+                        colors[index],
+                        index,
+                      ),
+                    ),
+                  ),
                 ),
-                _availableSize(),
-                SizedBox(
-                  height: 20,
+
+                SizedBox(height: 25),
+
+                _sectionTitle("Description"),
+
+                SizedBox(height: 10),
+
+                Text(
+                  AppData.description,
+                  style: TextStyle(
+                    color: AppTheme.mutedText,
+                    fontSize: 13,
+                    height: 1.65,
+                  ),
                 ),
-                _availableColor(),
-                SizedBox(
-                  height: 20,
+
+                SizedBox(height: 25),
+
+                _infoRow(
+                  Icons.local_shipping_outlined,
+                  "Fast delivery",
+                  "Get your order delivered quickly",
                 ),
-                _description(),
+
+                SizedBox(height: 12),
+
+                _infoRow(
+                  Icons.verified_outlined,
+                  "Grape Go verified",
+                  "Quality product from a trusted seller",
+                ),
+
+                SizedBox(height: 90),
               ],
             ),
           ),
@@ -256,144 +493,219 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     );
   }
 
-  Widget _availableSize() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        TitleText(
-          text: "Available Size",
-          fontSize: 14,
-        ),
-        SizedBox(height: 20),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: <Widget>[
-            _sizeWidget("US 6"),
-            _sizeWidget("US 7", isSelected: true),
-            _sizeWidget("US 8"),
-            _sizeWidget("US 9"),
-          ],
-        )
-      ],
+  Widget _sectionTitle(String title) {
+    return Text(
+      title,
+      style: TextStyle(
+        color: AppTheme.darkText,
+        fontSize: 15,
+        fontWeight: FontWeight.w800,
+      ),
     );
   }
 
-  Widget _sizeWidget(String text, {bool isSelected = false}) {
+  Widget _sizeWidget(String text, int index) {
+    final bool selected = selectedSize == index;
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedSize = index;
+        });
+      },
+      child: AnimatedContainer(
+        duration: Duration(milliseconds: 220),
+        height: 45,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected
+              ? AppTheme.grapePurple
+              : AppTheme.grapeLightPurple,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected
+                ? AppTheme.grapePurple
+                : AppTheme.grapeSoftPurple,
+          ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: AppTheme.grapePurple.withOpacity(0.20),
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ]
+              : [],
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: selected
+                ? Colors.white
+                : AppTheme.darkText,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _colorWidget(Color color, int index) {
+    final bool selected = selectedColor == index;
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedColor = index;
+        });
+      },
+      child: AnimatedContainer(
+        duration: Duration(milliseconds: 200),
+        height: 38,
+        width: 38,
+        padding: EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: selected
+                ? AppTheme.grapePurple
+                : Colors.transparent,
+            width: 2,
+          ),
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: color,
+          ),
+          child: selected
+              ? Icon(
+                  Icons.check,
+                  color: Colors.white,
+                  size: 17,
+                )
+              : null,
+        ),
+      ),
+    );
+  }
+
+  Widget _infoRow(
+    IconData icon,
+    String title,
+    String subtitle,
+  ) {
     return Container(
-      padding: EdgeInsets.all(10),
+      padding: EdgeInsets.all(13),
       decoration: BoxDecoration(
+        color: AppTheme.grapeLightPurple,
+        borderRadius: BorderRadius.circular(17),
         border: Border.all(
-            color: LightColor.iconColor,
-            style: !isSelected ? BorderStyle.solid : BorderStyle.none),
-        borderRadius: BorderRadius.all(Radius.circular(13)),
-        color:
-            isSelected ? LightColor.orange : Theme.of(context).backgroundColor,
-      ),
-      child: TitleText(
-        text: text,
-        fontSize: 16,
-        color: isSelected ? LightColor.background : LightColor.titleTextColor,
-      ),
-    ).ripple(() {}, borderRadius: BorderRadius.all(Radius.circular(13)));
-  }
-
-  Widget _availableColor() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        TitleText(
-          text: "Available Size",
-          fontSize: 14,
+          color: AppTheme.grapeSoftPurple.withOpacity(0.5),
         ),
-        SizedBox(height: 20),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: <Widget>[
-            _colorWidget(LightColor.yellowColor, isSelected: true),
-            SizedBox(
-              width: 30,
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 38,
+            width: 38,
+            decoration: BoxDecoration(
+              color: AppTheme.grapePurple.withOpacity(0.15),
+              shape: BoxShape.circle,
             ),
-            _colorWidget(LightColor.lightBlue),
-            SizedBox(
-              width: 30,
+            child: Icon(
+              icon,
+              color: AppTheme.grapePurple,
+              size: 20,
             ),
-            _colorWidget(LightColor.black),
-            SizedBox(
-              width: 30,
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: AppTheme.darkText,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: AppTheme.mutedText,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
             ),
-            _colorWidget(LightColor.red),
-            SizedBox(
-              width: 30,
-            ),
-            _colorWidget(LightColor.skyBlue),
-          ],
-        )
-      ],
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _colorWidget(Color color, {bool isSelected = false}) {
-    return CircleAvatar(
-      radius: 12,
-      backgroundColor: color.withAlpha(150),
-      child: isSelected
-          ? Icon(
-              Icons.check_circle,
-              color: color,
-              size: 18,
-            )
-          : CircleAvatar(radius: 7, backgroundColor: color),
-    );
-  }
-
-  Widget _description() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        TitleText(
-          text: "Available Size",
-          fontSize: 14,
+  Widget _floatingCartButton() {
+    return Container(
+      margin: EdgeInsets.only(
+        right: 5,
+        bottom: 8,
+      ),
+      child: FloatingActionButton.extended(
+        elevation: 8,
+        backgroundColor: AppTheme.grapePurple,
+        onPressed: () {
+          // Cart functionality will be connected
+          // when we update the shopping cart system.
+        },
+        icon: Icon(
+          Icons.shopping_bag_outlined,
+          color: Colors.white,
         ),
-        SizedBox(height: 20),
-        Text(AppData.description),
-      ],
-    );
-  }
-
-  FloatingActionButton _flotingButton() {
-    return FloatingActionButton(
-      onPressed: () {},
-      backgroundColor: LightColor.orange,
-      child: Icon(Icons.shopping_basket,
-          color: Theme.of(context).floatingActionButtonTheme.backgroundColor),
+        label: Text(
+          "Add to Cart",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+            fontSize: 13,
+          ),
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton: _flotingButton(),
+      backgroundColor: AppTheme.grapeLightPurple,
+      floatingActionButton: _floatingCartButton(),
       body: SafeArea(
         child: Container(
           decoration: BoxDecoration(
-              gradient: LinearGradient(
-            colors: [
-              Color(0xfffbfbfb),
-              Color(0xfff7f7f7),
-            ],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          )),
+            gradient: LinearGradient(
+              colors: [
+                AppTheme.grapeLightPurple,
+                Colors.white,
+              ],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
           child: Stack(
-            children: <Widget>[
+            children: [
               Column(
-                children: <Widget>[
+                children: [
                   _appBar(),
                   _productImage(),
-                  _categoryWidget(),
+                  _thumbnailRow(),
                 ],
               ),
-              _detailWidget()
+              _detailWidget(),
             ],
           ),
         ),
