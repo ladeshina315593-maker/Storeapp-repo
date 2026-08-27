@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_ecommerce_app/src/model/data.dart';
 import 'package:flutter_ecommerce_app/src/themes/light_color.dart';
 import 'package:flutter_ecommerce_app/src/themes/theme.dart';
-import 'package:flutter_ecommerce_app/src/widgets/title_text.dart';
-import 'package:flutter_ecommerce_app/src/widgets/extentions.dart';
 
 class ProductDetailPage extends StatefulWidget {
   ProductDetailPage({Key key}) : super(key: key);
@@ -29,12 +27,13 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     "US 9",
   ];
 
+  // Grape Go purple-only color choices.
   final List<Color> colors = [
-    LightColor.yellowColor,
-    LightColor.lightBlue,
-    LightColor.black,
-    LightColor.red,
-    LightColor.skyBlue,
+    AppTheme.grapePurple,
+    AppTheme.grapeSoftPurple,
+    Color(0xFF9670D8),
+    Color(0xFF7450B5),
+    Color(0xFFC9A8F5),
   ];
 
   @override
@@ -113,12 +112,13 @@ class _ProductDetailPageState extends State<ProductDetailPage>
               Navigator.of(context).pop();
             },
           ),
+
           _glassButton(
             icon: isLiked
-                ? Icons.favorite
-                : Icons.favorite_border,
+                ? Icons.favorite_rounded
+                : Icons.favorite_border_rounded,
             iconColor: isLiked
-                ? LightColor.red
+                ? AppTheme.grapePurple
                 : AppTheme.darkText,
             onPressed: () {
               setState(() {
@@ -156,8 +156,8 @@ class _ProductDetailPageState extends State<ProductDetailPage>
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Colors.white.withOpacity(0.92),
-                  AppTheme.grapeLightPurple.withOpacity(0.75),
+                  Colors.white.withOpacity(0.95),
+                  AppTheme.grapeLightPurple,
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -181,7 +181,8 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                       vertical: 7,
                     ),
                     decoration: BoxDecoration(
-                      color: AppTheme.grapeSoftPurple.withOpacity(0.65),
+                      color: AppTheme.grapeSoftPurple
+                          .withOpacity(0.65),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -195,6 +196,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                     ),
                   ),
                 ),
+
                 Image.asset(
                   'assets/show_1.png',
                   fit: BoxFit.contain,
@@ -275,12 +277,15 @@ class _ProductDetailPageState extends State<ProductDetailPage>
   Widget _rating() {
     return Row(
       children: [
+        // Purple rating icon instead of yellow.
         Icon(
           Icons.star_rounded,
-          color: LightColor.yellowColor,
+          color: AppTheme.grapePurple,
           size: 19,
         ),
+
         SizedBox(width: 4),
+
         Text(
           "4.8",
           style: TextStyle(
@@ -289,7 +294,9 @@ class _ProductDetailPageState extends State<ProductDetailPage>
             fontWeight: FontWeight.w700,
           ),
         ),
+
         SizedBox(width: 5),
+
         Text(
           "(120 reviews)",
           style: TextStyle(
@@ -367,7 +374,9 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                               fontWeight: FontWeight.w800,
                             ),
                           ),
+
                           SizedBox(height: 6),
+
                           Text(
                             "Trending Now",
                             style: TextStyle(
@@ -376,14 +385,19 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                               fontWeight: FontWeight.w700,
                             ),
                           ),
+
                           SizedBox(height: 10),
+
                           _rating(),
                         ],
                       ),
                     ),
+
                     SizedBox(width: 15),
+
                     Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                      crossAxisAlignment:
+                          CrossAxisAlignment.end,
                       children: [
                         Text(
                           "\$240",
@@ -393,11 +407,13 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                             fontWeight: FontWeight.w800,
                           ),
                         ),
+
                         SizedBox(height: 5),
+
                         Text(
                           "In stock",
                           style: TextStyle(
-                            color: Colors.green,
+                            color: AppTheme.grapePurple,
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
@@ -530,7 +546,8 @@ class _ProductDetailPageState extends State<ProductDetailPage>
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: AppTheme.grapePurple.withOpacity(0.20),
+                    color: AppTheme.grapePurple
+                        .withOpacity(0.20),
                     blurRadius: 10,
                     offset: Offset(0, 4),
                   ),
@@ -620,7 +637,9 @@ class _ProductDetailPageState extends State<ProductDetailPage>
               size: 20,
             ),
           ),
+
           SizedBox(width: 12),
+
           Expanded(
             child: Column(
               crossAxisAlignment:
@@ -634,7 +653,9 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                     fontWeight: FontWeight.w800,
                   ),
                 ),
+
                 SizedBox(height: 3),
+
                 Text(
                   subtitle,
                   style: TextStyle(
@@ -660,8 +681,8 @@ class _ProductDetailPageState extends State<ProductDetailPage>
         elevation: 8,
         backgroundColor: AppTheme.grapePurple,
         onPressed: () {
-          // Cart functionality will be connected
-          // when we update the shopping cart system.
+          // Cart connection will be handled
+          // when the cart/order flow is connected.
         },
         icon: Icon(
           Icons.shopping_bag_outlined,
@@ -683,7 +704,10 @@ class _ProductDetailPageState extends State<ProductDetailPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.grapeLightPurple,
-      floatingActionButton: _floatingCartButton(),
+
+      floatingActionButton:
+          _floatingCartButton(),
+
       body: SafeArea(
         child: Container(
           decoration: BoxDecoration(
@@ -705,6 +729,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                   _thumbnailRow(),
                 ],
               ),
+
               _detailWidget(),
             ],
           ),
