@@ -4,36 +4,198 @@ import 'light_color.dart';
 
 class AppTheme {
   const AppTheme();
+
+  // Grape Go colors
+  static const Color grapePurple = Color(0xFFB98BEF);
+  static const Color grapeLightPurple = Color(0xFFF8F5FF);
+  static const Color grapeSoftPurple = Color(0xFFDCC7FA);
+  static const Color glassWhite = Color(0xCCFFFFFF);
+
+  static const Color darkText = Color(0xFF30243D);
+  static const Color mutedText = Color(0xFF7E718D);
+
   static ThemeData lightTheme = ThemeData(
-      backgroundColor: LightColor.background,
-      primaryColor: LightColor.background,
-      cardTheme: CardTheme(color: LightColor.background),
-      textTheme: TextTheme(bodyText1: TextStyle(color: LightColor.black)),
-      iconTheme: IconThemeData(color: LightColor.iconColor),
-      bottomAppBarColor: LightColor.background,
-      dividerColor: LightColor.lightGrey,
-      primaryTextTheme:
-          TextTheme(bodyText1: TextStyle(color: LightColor.titleTextColor)));
+    brightness: Brightness.light,
 
-  static TextStyle titleStyle =
-      const TextStyle(color: LightColor.titleTextColor, fontSize: 16);
-  static TextStyle subTitleStyle =
-      const TextStyle(color: LightColor.subTitleTextColor, fontSize: 12);
+    scaffoldBackgroundColor: grapeLightPurple,
 
-  static TextStyle h1Style =
-      const TextStyle(fontSize: 24, fontWeight: FontWeight.bold);
-  static TextStyle h2Style = const TextStyle(fontSize: 22);
-  static TextStyle h3Style = const TextStyle(fontSize: 20);
-  static TextStyle h4Style = const TextStyle(fontSize: 18);
-  static TextStyle h5Style = const TextStyle(fontSize: 16);
-  static TextStyle h6Style = const TextStyle(fontSize: 14);
+    backgroundColor: grapeLightPurple,
 
-  static List<BoxShadow> shadow = <BoxShadow>[
-    BoxShadow(color: Color(0xfff8f8f8), blurRadius: 10, spreadRadius: 15),
+    primaryColor: grapePurple,
+
+    colorScheme: const ColorScheme.light(
+      primary: grapePurple,
+      secondary: grapeSoftPurple,
+      background: grapeLightPurple,
+      surface: Colors.white,
+    ),
+
+    cardTheme: const CardTheme(
+      color: glassWhite,
+      elevation: 0,
+      margin: EdgeInsets.zero,
+    ),
+
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      centerTitle: false,
+      iconTheme: IconThemeData(
+        color: darkText,
+      ),
+      titleTextStyle: TextStyle(
+        color: darkText,
+        fontSize: 22,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+
+    textTheme: const TextTheme(
+      bodyText1: TextStyle(
+        color: darkText,
+        fontSize: 14,
+      ),
+      bodyText2: TextStyle(
+        color: mutedText,
+        fontSize: 13,
+      ),
+      headline1: TextStyle(
+        color: darkText,
+        fontSize: 28,
+        fontWeight: FontWeight.w800,
+      ),
+      headline2: TextStyle(
+        color: darkText,
+        fontSize: 24,
+        fontWeight: FontWeight.w800,
+      ),
+      headline3: TextStyle(
+        color: darkText,
+        fontSize: 20,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+
+    primaryTextTheme: const TextTheme(
+      bodyText1: TextStyle(
+        color: darkText,
+      ),
+    ),
+
+    iconTheme: const IconThemeData(
+      color: grapePurple,
+    ),
+
+    bottomAppBarColor: Colors.white,
+
+    dividerColor: Color(0xFFE8DDF5),
+
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: glassWhite,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.all(
+          Radius.circular(18),
+        ),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.all(
+          Radius.circular(18),
+        ),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.all(
+          Radius.circular(18),
+        ),
+        borderSide: BorderSide(
+          color: grapePurple,
+          width: 1.5,
+        ),
+      ),
+      hintStyle: TextStyle(
+        color: mutedText,
+      ),
+    ),
+
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        primary: grapePurple,
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
+        textStyle: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    ),
+  );
+
+  static TextStyle titleStyle = const TextStyle(
+    color: darkText,
+    fontSize: 16,
+    fontWeight: FontWeight.w700,
+  );
+
+  static TextStyle subTitleStyle = const TextStyle(
+    color: mutedText,
+    fontSize: 12,
+  );
+
+  static TextStyle h1Style = const TextStyle(
+    color: darkText,
+    fontSize: 24,
+    fontWeight: FontWeight.bold,
+  );
+
+  static TextStyle h2Style = const TextStyle(
+    color: darkText,
+    fontSize: 22,
+    fontWeight: FontWeight.w700,
+  );
+
+  static TextStyle h3Style = const TextStyle(
+    color: darkText,
+    fontSize: 20,
+    fontWeight: FontWeight.w700,
+  );
+
+  static TextStyle h4Style = const TextStyle(
+    color: darkText,
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
+  );
+
+  static TextStyle h5Style = const TextStyle(
+    color: darkText,
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+  );
+
+  static TextStyle h6Style = const TextStyle(
+    color: darkText,
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+  );
+
+  // Soft glass-style shadow
+  static List<BoxShadow> shadow = const <BoxShadow>[
+    BoxShadow(
+      color: Color(0x14000000),
+      blurRadius: 20,
+      spreadRadius: 0,
+      offset: Offset(0, 8),
+    ),
   ];
 
-  static EdgeInsets padding =
-      const EdgeInsets.symmetric(horizontal: 20, vertical: 10);
+  static EdgeInsets padding = const EdgeInsets.symmetric(
+    horizontal: 20,
+    vertical: 10,
+  );
+
   static EdgeInsets hPadding = const EdgeInsets.symmetric(
     horizontal: 10,
   );
@@ -44,5 +206,20 @@ class AppTheme {
 
   static double fullHeight(BuildContext context) {
     return MediaQuery.of(context).size.height;
+  }
+
+  // Reusable glass decoration for Grape Go cards.
+  static BoxDecoration glassDecoration({
+    double radius = 22,
+  }) {
+    return BoxDecoration(
+      color: glassWhite,
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(
+        color: Colors.white.withOpacity(0.85),
+        width: 1.2,
+      ),
+      boxShadow: shadow,
+    );
   }
 }
