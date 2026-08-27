@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import 'package:flutter_ecommerce_app/src/model/product.dart';
@@ -8,12 +7,14 @@ import 'package:flutter_ecommerce_app/src/widgets/extentions.dart';
 
 class ProductCard extends StatelessWidget {
   final Product product;
-  final ValueChanged<Product> onSelected;
+  final ValueChanged<Product>? onSelected;
+  final VoidCallback? onFavoritePressed;
 
-  ProductCard({
-    Key key,
-    this.product,
+  const ProductCard({
+    Key? key,
+    required this.product,
     this.onSelected,
+    this.onFavoritePressed,
   }) : super(key: key);
 
   @override
@@ -43,7 +44,7 @@ class ProductCard extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          // Soft purple glow
+          // Soft purple glass glow
           Positioned(
             top: -30,
             left: -25,
@@ -66,26 +67,36 @@ class ProductCard extends StatelessWidget {
             ),
             child: Column(
               children: [
-                // Favourite button
+                // ==========================
+                // FAVOURITE BUTTON
+                // ==========================
+
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.62),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.8),
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: onFavoritePressed,
+                        borderRadius: BorderRadius.circular(30),
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.62),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.8),
+                            ),
+                          ),
+                          child: Icon(
+                            product.isliked
+                                ? Icons.favorite_rounded
+                                : Icons.favorite_border_rounded,
+                            size: 19,
+                            color: LightColor.grapePurple,
+                          ),
                         ),
-                      ),
-                      child: Icon(
-                        product.isliked
-                            ? Icons.favorite_rounded
-                            : Icons.favorite_border_rounded,
-                        size: 19,
-                        color: LightColor.grapePurple,
                       ),
                     ),
                   ],
@@ -93,7 +104,10 @@ class ProductCard extends StatelessWidget {
 
                 const SizedBox(height: 3),
 
-                // Product image
+                // ==========================
+                // PRODUCT IMAGE
+                // ==========================
+
                 Expanded(
                   child: Center(
                     child: Stack(
@@ -122,10 +136,7 @@ class ProductCard extends StatelessWidget {
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(10),
-                            child: Image.asset(
-                              product.image,
-                              fit: BoxFit.contain,
-                            ),
+                            child: _productImage(),
                           ),
                         ),
                       ],
@@ -135,7 +146,10 @@ class ProductCard extends StatelessWidget {
 
                 const SizedBox(height: 8),
 
-                // Product name
+                // ==========================
+                // PRODUCT NAME
+                // ==========================
+
                 Align(
                   alignment: Alignment.centerLeft,
                   child: TitleText(
@@ -147,11 +161,16 @@ class ProductCard extends StatelessWidget {
 
                 const SizedBox(height: 4),
 
-                // Category
+                // ==========================
+                // CATEGORY
+                // ==========================
+
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
                     product.category,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: LightColor.mutedText,
                       fontSize: 11,
@@ -162,7 +181,10 @@ class ProductCard extends StatelessWidget {
 
                 const SizedBox(height: 9),
 
-                // Price + arrow
+                // ==========================
+                // PRICE + DETAILS BUTTON
+                // ==========================
+
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -176,7 +198,8 @@ class ProductCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: TitleText(
-                        text: '\$${product.price.toStringAsFixed(2)}',
+                        text:
+                            '₦${product.price.toStringAsFixed(2)}',
                         fontSize: selected ? 16 : 14,
                         color: LightColor.darkText,
                       ),
@@ -211,12 +234,10 @@ class ProductCard extends StatelessWidget {
         ],
       ).ripple(
         () {
-          // Tell the parent which product was selected.
-          if (onSelected != null) {
-            onSelected(product);
-          }
+          // Tell Home page which product was selected.
+          onSelected?.call(product);
 
-          // Pass the actual Product to the detail page.
+          // Open the real product details page.
           Navigator.of(context).pushNamed(
             '/detail',
             arguments: product,
@@ -224,6 +245,68 @@ class ProductCard extends StatelessWidget {
         },
         borderRadius: BorderRadius.circular(26),
       ),
+    );
+  }
+
+  // ==========================
+  // FIREBASE IMAGE SUPPORT
+  // ==========================
+
+  Widget _productImage() {
+    if (product.image.isEmpty) {
+      return Icon(
+        Icons.shopping_bag_outlined,
+        color: LightColor.grapePurple,
+        size: 38,
+      );
+    }
+
+    // Firebase/Cloud Storage download URL
+    if (product.image.startsWith('http')) {
+      return Image.network(
+        product.image,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return Icon(
+            Icons.image_not_supported_outlined,
+            color: LightColor.grapePurple,
+            size: 34,
+          );
+        },
+        loadingBuilder: (
+          context,
+          child,
+          loadingProgress,
+        ) {
+          if (loadingProgress == null) {
+            return child;
+          }
+
+          return Center(
+            child: SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: LightColor.grapePurple,
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    // Existing local asset support
+    return Image.asset(
+      product.image,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) {
+        return Icon(
+          Icons.image_not_supported_outlined,
+          color: LightColor.grapePurple,
+          size: 34,
+        );
+      },
     );
   }
 }
