@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'package:flutter_ecommerce_app/src/model/category.dart';
 import 'package:flutter_ecommerce_app/src/themes/light_color.dart';
 import 'package:flutter_ecommerce_app/src/themes/theme.dart';
@@ -6,58 +7,104 @@ import 'package:flutter_ecommerce_app/src/widgets/title_text.dart';
 import 'package:flutter_ecommerce_app/src/widgets/extentions.dart';
 
 class ProductIcon extends StatelessWidget {
-  // final String imagePath;
-  // final String text;
   final ValueChanged<Category> onSelected;
   final Category model;
-  ProductIcon({Key key, this.model, this.onSelected}) : super(key: key);
 
+  ProductIcon({
+    Key key,
+    this.model,
+    this.onSelected,
+  }) : super(key: key);
+
+  @override
   Widget build(BuildContext context) {
-    return model.id == null
-        ? Container(width: 5)
-        : Container(
-            margin: EdgeInsets.symmetric(horizontal: 10, vertical: 15),
-            child: Container(
-              padding: AppTheme.hPadding,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.all(Radius.circular(10)),
-                color: model.isSelected
-                    ? LightColor.background
-                    : Colors.transparent,
-                border: Border.all(
-                  color: model.isSelected ? LightColor.orange : LightColor.grey,
-                  width: model.isSelected ? 2 : 1,
-                ),
-                boxShadow: <BoxShadow>[
-                  BoxShadow(
-                    color: model.isSelected ? Color(0xfffbf2ef) : Colors.white,
-                    blurRadius: 10,
-                    spreadRadius: 5,
-                    offset: Offset(5, 5),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: <Widget>[
-                  model.image != null ? Image.asset(model.image) : SizedBox(),
-                  model.name == null
-                      ? Container()
-                      : Container(
-                          child: TitleText(
-                            text: model.name,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15,
-                          ),
-                        )
-                ],
-              ),
-            ).ripple(
-              () {
-                onSelected(model);
-              },
-              borderRadius: BorderRadius.all(Radius.circular(10)),
+    // Empty category spacer
+    if (model.id == null) {
+      return const SizedBox(width: 5);
+    }
+
+    final bool selected = model.isSelected;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(
+        horizontal: 6,
+        vertical: 12,
+      ),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 8,
+        ),
+        decoration: BoxDecoration(
+          // Glassy surface
+          color: selected
+              ? LightColor.grapePurple.withOpacity(0.18)
+              : Colors.white.withOpacity(0.48),
+
+          borderRadius: BorderRadius.circular(18),
+
+          border: Border.all(
+            color: selected
+                ? LightColor.grapePurple.withOpacity(0.45)
+                : Colors.white.withOpacity(0.75),
+            width: selected ? 1.3 : 1,
+          ),
+
+          boxShadow: [
+            BoxShadow(
+              color: selected
+                  ? LightColor.grapePurple.withOpacity(0.14)
+                  : Colors.black.withOpacity(0.035),
+              blurRadius: selected ? 14 : 10,
+              offset: const Offset(0, 5),
             ),
-          );
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Category image
+            if (model.image != null) ...[
+              Container(
+                width: 30,
+                height: 30,
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: selected
+                      ? Colors.white.withOpacity(0.60)
+                      : LightColor.grapeSoftPurple
+                          .withOpacity(0.20),
+                ),
+                child: Image.asset(
+                  model.image,
+                  fit: BoxFit.contain,
+                ),
+              ),
+              const SizedBox(width: 7),
+            ],
+
+            // Category name
+            if (model.name != null)
+              TitleText(
+                text: model.name,
+                fontWeight:
+                    selected ? FontWeight.w700 : FontWeight.w600,
+                fontSize: 13,
+                color: selected
+                    ? LightColor.darkText
+                    : LightColor.mutedText,
+              ),
+          ],
+        ),
+      ).ripple(
+        () {
+          onSelected(model);
+        },
+        borderRadius: BorderRadius.circular(18),
+      ),
+    );
   }
 }
