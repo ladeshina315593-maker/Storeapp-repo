@@ -8,87 +8,273 @@ import 'package:flutter_ecommerce_app/src/widgets/extentions.dart';
 class ProductCard extends StatelessWidget {
   final Product product;
   final ValueChanged<Product> onSelected;
-  ProductCard({Key key, this.product, this.onSelected}) : super(key: key);
 
-//   @override
-//   _ProductCardState createState() => _ProductCardState();
-// }
-
-// class _ProductCardState extends State<ProductCard> {
-//   Product product;
-//   @override
-//   void initState() {
-//     product = widget.product;
-//     super.initState();
-//   }
+  ProductCard({
+    Key key,
+    this.product,
+    this.onSelected,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final bool selected = product.isSelected;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+      margin: EdgeInsets.symmetric(
+        vertical: selected ? 5 : 15,
+      ),
       decoration: BoxDecoration(
-        color: LightColor.background,
-        borderRadius: BorderRadius.all(Radius.circular(20)),
-        boxShadow: <BoxShadow>[
-          BoxShadow(color: Color(0xfff8f8f8), blurRadius: 15, spreadRadius: 10),
+        // Pickle-Mkt-style soft glass
+        color: Colors.white.withOpacity(0.52),
+
+        borderRadius: BorderRadius.circular(26),
+
+        border: Border.all(
+          color: Colors.white.withOpacity(0.78),
+          width: 1.2,
+        ),
+
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.045),
+            blurRadius: 20,
+            offset: const Offset(0, 9),
+          ),
         ],
       ),
-      margin: EdgeInsets.symmetric(vertical: !product.isSelected ? 20 : 0),
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        child: Stack(
-          alignment: Alignment.center,
-          children: <Widget>[
-            Positioned(
-              left: 0,
-              top: 0,
-              child: IconButton(
-                icon: Icon(
-                  product.isliked ? Icons.favorite : Icons.favorite_border,
-                  color:
-                      product.isliked ? LightColor.red : LightColor.iconColor,
-                ),
-                onPressed: () {},
+
+      child: Stack(
+        children: [
+
+          // Very soft purple glow
+          Positioned(
+            top: -30,
+            left: -25,
+            child: Container(
+              width: 110,
+              height: 110,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: LightColor.grapePurple
+                    .withOpacity(0.07),
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: <Widget>[
-                SizedBox(height: product.isSelected ? 15 : 0),
-                Expanded(
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: <Widget>[
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundColor: LightColor.orange.withAlpha(40),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              16,
+              14,
+              16,
+              15,
+            ),
+            child: Column(
+              children: [
+
+                // TOP ROW
+                Row(
+                  mainAxisAlignment:
+                      MainAxisAlignment.end,
+                  children: [
+
+                    // Favourite
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: Colors.white
+                            .withOpacity(0.62),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white
+                              .withOpacity(0.8),
+                        ),
                       ),
-                      Image.asset(product.image)
-                    ],
+                      child: Icon(
+                        product.isliked
+                            ? Icons.favorite_rounded
+                            : Icons
+                                .favorite_border_rounded,
+                        size: 19,
+                        color: product.isliked
+                            ? LightColor.red
+                            : LightColor
+                                .grapePurple,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 3),
+
+                // PRODUCT IMAGE
+                Expanded(
+                  child: Center(
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+
+                        // Soft background circle
+                        Container(
+                          width: selected
+                              ? 120
+                              : 105,
+                          height: selected
+                              ? 120
+                              : 105,
+                          decoration:
+                              BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: LightColor
+                                .grapeSoftPurple
+                                .withOpacity(0.30),
+                          ),
+                        ),
+
+                        // Inner glass circle
+                        Container(
+                          width: selected
+                              ? 100
+                              : 88,
+                          height: selected
+                              ? 100
+                              : 88,
+                          decoration:
+                              BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white
+                                .withOpacity(0.48),
+                            border: Border.all(
+                              color: Colors.white
+                                  .withOpacity(0.75),
+                              width: 1,
+                            ),
+                          ),
+                          child: Padding(
+                            padding:
+                                const EdgeInsets.all(10),
+                            child: Image.asset(
+                              product.image,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                // SizedBox(height: 5),
-                TitleText(
-                  text: product.name,
-                  fontSize: product.isSelected ? 16 : 14,
+
+                const SizedBox(height: 8),
+
+                // PRODUCT NAME
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TitleText(
+                    text: product.name,
+                    fontSize:
+                        selected ? 16 : 14,
+                    color:
+                        LightColor.darkText,
+                  ),
                 ),
-                TitleText(
-                  text: product.category,
-                  fontSize: product.isSelected ? 14 : 12,
-                  color: LightColor.orange,
+
+                const SizedBox(height: 4),
+
+                // CATEGORY
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    product.category,
+                    style: TextStyle(
+                      color:
+                          LightColor.mutedText,
+                      fontSize: 11,
+                      fontWeight:
+                          FontWeight.w500,
+                    ),
+                  ),
                 ),
-                TitleText(
-                  text: product.price.toString(),
-                  fontSize: product.isSelected ? 18 : 16,
+
+                const SizedBox(height: 9),
+
+                // PRICE + ARROW
+                Row(
+                  mainAxisAlignment:
+                      MainAxisAlignment
+                          .spaceBetween,
+                  children: [
+
+                    // Price
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(
+                        horizontal: 11,
+                        vertical: 6,
+                      ),
+                      decoration:
+                          BoxDecoration(
+                        color: LightColor
+                            .grapePurple
+                            .withOpacity(0.10),
+                        borderRadius:
+                            BorderRadius.circular(
+                                12),
+                      ),
+                      child: TitleText(
+                        text:
+                            product.price.toString(),
+                        fontSize:
+                            selected ? 16 : 14,
+                        color:
+                            LightColor.darkText,
+                      ),
+                    ),
+
+                    // View product button
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration:
+                          BoxDecoration(
+                        color:
+                            LightColor.grapePurple,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: LightColor
+                                .grapePurple
+                                .withOpacity(0.22),
+                            blurRadius: 10,
+                            offset:
+                                const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons
+                            .arrow_forward_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
-      ).ripple(() {
-        Navigator.of(context).pushNamed('/detail');
-        onSelected(product);
-      }, borderRadius: BorderRadius.all(Radius.circular(20))),
+          ),
+        ],
+      ).ripple(
+        () {
+          Navigator.of(context)
+              .pushNamed('/detail');
+
+          onSelected(product);
+        },
+        borderRadius:
+            BorderRadius.circular(26),
+      ),
     );
   }
 }
