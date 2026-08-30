@@ -3,7 +3,7 @@
    <application
         android:label="flutter_ecommerce_app"
         android:icon="@mipmap/ic_launcher">
-        <activity
+        <activity android:exported="true"
             android:name=".MainActivity"
             android:launchMode="singleTop"
             android:theme="@style/LaunchTheme"
