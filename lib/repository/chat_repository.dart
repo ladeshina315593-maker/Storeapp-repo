@@ -6,14 +6,14 @@ class ChatRepository {
   final FirebaseAuth _auth;
 
   ChatRepository({
-    FirebaseFirestore firestore,
-    FirebaseAuth auth,
+    FirebaseFirestore? firestore,
+    FirebaseAuth? auth,
   })  : _firestore = firestore ?? FirebaseFirestore.instance,
         _auth = auth ?? FirebaseAuth.instance;
 
   /// Current authenticated user's UID.
   String get _userId {
-    final User user = _auth.currentUser;
+    final User? user = _auth.currentUser;
 
     if (user == null) {
       throw Exception('User is not authenticated.');

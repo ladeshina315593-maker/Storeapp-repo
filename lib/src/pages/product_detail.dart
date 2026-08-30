@@ -3,7 +3,7 @@ import 'package:flutter_ecommerce_app/src/model/data.dart';
 import 'package:flutter_ecommerce_app/src/themes/theme.dart';
 
 class ProductDetailPage extends StatefulWidget {
-  ProductDetailPage({Key key}) : super(key: key);
+  ProductDetailPage({super.key});
 
   @override
   _ProductDetailPageState createState() => _ProductDetailPageState();
@@ -11,8 +11,8 @@ class ProductDetailPage extends StatefulWidget {
 
 class _ProductDetailPageState extends State<ProductDetailPage>
     with TickerProviderStateMixin {
-  AnimationController controller;
-  Animation<double> animation;
+  late AnimationController controller;
+  late Animation<double> animation;
 
   bool isLiked = false;
   int selectedSize = 1;
@@ -68,9 +68,9 @@ class _ProductDetailPageState extends State<ProductDetailPage>
   // ------------------------------------------------------------
 
   Widget _glassButton({
-    IconData icon,
-    Color iconColor,
-    VoidCallback onPressed,
+    required IconData icon,
+    required Color iconColor,
+    required VoidCallback onPressed,
   }) {
     return Material(
       color: Colors.transparent,
@@ -530,7 +530,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                 SizedBox(height: 10),
 
                 Text(
-                  AppData.description,
+                  "Quality product from a trusted seller",
                   style: TextStyle(
                     color: AppTheme.mutedText,
                     fontSize: 13,

@@ -11,10 +11,15 @@ import 'package:flutter_ecommerce_app/src/pages/chat_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/settings_page.dart';
 import 'package:flutter_ecommerce_app/src/widgets/customRoute.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import 'src/themes/theme.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await GoogleSignIn.instance.initialize();
+
   runApp(const GrapeGoApp());
 }
 
@@ -132,9 +137,8 @@ class GrapeGoApp extends StatelessWidget {
 
           return CustomRoute<bool>(
             builder: (BuildContext context) =>
-                ProductDetailPage(
-                  product: product,
-                ),
+                ProductDetailPage(),
+            settings: settings,
           );
         }
 
@@ -162,13 +166,14 @@ class GrapeGoApp extends StatelessWidget {
             );
           }
 
-          return CustomRoute<bool>(
-            builder: (BuildContext context) =>
-                OrderDetailsPage(
-              orderId: orderId,
-            ),
-          );
-        }
+            return CustomRoute<bool>(
+              builder: (BuildContext context) =>
+                  OrderDetailsPage(
+                    orderId: orderId,
+                  ),
+              settings: settings,
+            );
+          }
 
         // ------------------------------------------------
         // CHAT
@@ -208,15 +213,15 @@ class GrapeGoApp extends StatelessWidget {
             );
           }
 
-          return CustomRoute<bool>(
-            builder: (BuildContext context) =>
-                ChatPage(
-              chatId: chatId!,
-              otherUserName:
-                  otherUserName,
-            ),
-          );
-        }
+        return CustomRoute<bool>(
+          builder: (BuildContext context) =>
+              ChatPage(
+                chatId: chatId!,
+                otherUserName: otherUserName,
+              ),
+          settings: settings,
+        );
+      }
 
         // ==================================================
         // UNKNOWN ROUTE

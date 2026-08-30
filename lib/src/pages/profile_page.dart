@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_ecommerce_app/src/themes/theme.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({Key key}) : super(key: key);
+  const ProfilePage({Key? key}) : super(key: key);
 
   @override
   _ProfilePageState createState() => _ProfilePageState();
@@ -259,7 +259,7 @@ class _ProfilePageState extends State<ProfilePage> {
     required IconData icon,
     required String title,
     required String subtitle,
-    VoidCallback onTap,
+    VoidCallback? onTap,
   }) {
     return Padding(
       padding: const EdgeInsets.only(
@@ -531,9 +531,9 @@ class _EditProfileSheet extends StatefulWidget {
   final Future<void> Function(String name) onSave;
 
   const _EditProfileSheet({
-    Key key,
-    @required this.currentName,
-    @required this.onSave,
+    Key? key,
+    required this.currentName,
+    required this.onSave,
   }) : super(key: key);
 
   @override

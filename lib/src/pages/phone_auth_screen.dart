@@ -2,7 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class PhoneAuthScreen extends StatefulWidget {
-  const PhoneAuthScreen({Key key}) : super(key: key);
+  const PhoneAuthScreen({super.key});
 
   @override
   _PhoneAuthScreenState createState() => _PhoneAuthScreenState();
@@ -92,7 +92,7 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
         },
 
         codeSent:
-            (String verificationId, int resendToken) {
+            (String verificationId, int? resendToken) {
           if (!mounted) return;
 
           setState(() {

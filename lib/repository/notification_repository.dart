@@ -6,14 +6,14 @@ class NotificationRepository {
   final FirebaseAuth _auth;
 
   NotificationRepository({
-    FirebaseFirestore firestore,
-    FirebaseAuth auth,
+    FirebaseFirestore? firestore,
+    FirebaseAuth? auth,
   })  : _firestore = firestore ?? FirebaseFirestore.instance,
         _auth = auth ?? FirebaseAuth.instance;
 
   /// Get the currently authenticated user's UID.
   String get _userId {
-    final User user = _auth.currentUser;
+    final User? user = _auth.currentUser;
 
     if (user == null) {
       throw Exception('User is not authenticated.');
@@ -96,7 +96,7 @@ class NotificationRepository {
     required String title,
     required String message,
     String type = 'general',
-    Map<String, dynamic> data,
+    Map<String, dynamic>? data,
   }) async {
     try {
       final DocumentReference<Map<String, dynamic>> notification =

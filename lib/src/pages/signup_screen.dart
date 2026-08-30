@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class SignUpScreen extends StatefulWidget {
-  SignUpScreen({Key key}) : super(key: key);
+  SignUpScreen({Key? key}) : super(key: key);
 
   @override
   _SignUpScreenState createState() => _SignUpScreenState();
@@ -44,7 +44,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   // ============================================================
 
   Future<void> _signUpWithEmail() async {
-    if (!_formKey.currentState.validate()) {
+    if (!_formKey.currentState!.validate()) {
       return;
     }
 
@@ -200,13 +200,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
   // ============================================================
 
   Widget _glassField({
-    TextEditingController controller,
-    String hint,
-    IconData icon,
+    TextEditingController? controller,
+    String? hint,
+    IconData? icon,
     bool obscureText = false,
-    Widget suffix,
-    TextInputType keyboardType,
-    String Function(String) validator,
+    Widget? suffix,
+    TextInputType? keyboardType,
+    FormFieldValidator<String>? validator,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -257,9 +257,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
   // ============================================================
 
   Widget _socialButton({
-    Widget icon,
-    String text,
-    VoidCallback onTap,
+    required Widget icon,
+    required String text,
+    VoidCallback? onTap,
   }) {
     return Material(
       color: Colors.transparent,

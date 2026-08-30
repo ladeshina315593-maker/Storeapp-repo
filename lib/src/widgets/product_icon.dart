@@ -11,9 +11,9 @@ class ProductIcon extends StatelessWidget {
   final Category model;
 
   ProductIcon({
-    Key key,
-    this.model,
-    this.onSelected,
+    Key? key,
+    required this.model,
+    required this.onSelected,
   }) : super(key: key);
 
   @override
@@ -79,7 +79,7 @@ class ProductIcon extends StatelessWidget {
                           .withOpacity(0.20),
                 ),
                 child: Image.asset(
-                  model.image,
+                  model.image!,
                   fit: BoxFit.contain,
                 ),
               ),
@@ -89,7 +89,7 @@ class ProductIcon extends StatelessWidget {
             // Category name
             if (model.name != null)
               TitleText(
-                text: model.name,
+                text: model.name!,
                 fontWeight:
                     selected ? FontWeight.w700 : FontWeight.w600,
                 fontSize: 13,

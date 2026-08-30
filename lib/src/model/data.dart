@@ -8,7 +8,7 @@ class AppData {
 
   static List<Product> productList = [
     Product(
-      id: 1,
+      id: "1",
       name: 'Nike Air Max 200',
       category: 'Trending Now',
       price: 240.00,
@@ -35,7 +35,7 @@ class AppData {
     ),
 
     Product(
-      id: 2,
+      id: "2",
       name: 'Nike Air Max 97',
       category: 'Trending Now',
       price: 220.00,
@@ -67,7 +67,7 @@ class AppData {
 
   static List<Product> cartList = [
     Product(
-      id: 1,
+      id: "1",
       name: 'Nike Air Max 200',
       category: 'Trending Now',
       price: 240.00,
@@ -78,7 +78,7 @@ class AppData {
     ),
 
     Product(
-      id: 2,
+      id: "2",
       name: 'Nike Air Max 97',
       category: 'Trending Now',
       price: 190.00,
@@ -88,7 +88,7 @@ class AppData {
     ),
 
     Product(
-      id: 3,
+      id: "3",
       name: 'Nike Air Max 92607',
       category: 'Trending Now',
       price: 220.00,

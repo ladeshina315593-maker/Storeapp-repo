@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class AuthScreen extends StatelessWidget {
-  AuthScreen({Key key}) : super(key: key);
+  AuthScreen({Key? key}) : super(key: key);
 
   static const Color purple = Color(0xFF9B6FE8);
   static const Color lightPurple = Color(0xFFF4EEFF);
@@ -9,9 +9,9 @@ class AuthScreen extends StatelessWidget {
   static const Color mutedText = Color(0xFF8D8498);
 
   Widget _glassButton({
-    @required BuildContext context,
-    @required Widget child,
-    @required VoidCallback onTap,
+    required BuildContext context,
+    required Widget child,
+    required VoidCallback onTap,
   }) {
     return Material(
       color: Colors.transparent,
@@ -43,10 +43,10 @@ class AuthScreen extends StatelessWidget {
   }
 
   Widget _socialButton({
-    @required BuildContext context,
-    @required IconData icon,
-    @required String text,
-    @required VoidCallback onTap,
+    required BuildContext context,
+    required IconData icon,
+    required String text,
+    required VoidCallback onTap,
   }) {
     return _glassButton(
       context: context,
@@ -74,9 +74,9 @@ class AuthScreen extends StatelessWidget {
   }
 
   Widget _primaryButton({
-    @required BuildContext context,
-    @required String text,
-    @required VoidCallback onTap,
+    required BuildContext context,
+    required String text,
+    required VoidCallback onTap,
   }) {
     return Material(
       color: Colors.transparent,

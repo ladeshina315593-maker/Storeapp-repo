@@ -6,14 +6,14 @@ class OrderRepository {
   final FirebaseAuth _auth;
 
   OrderRepository({
-    FirebaseFirestore firestore,
-    FirebaseAuth auth,
+    FirebaseFirestore? firestore,
+    FirebaseAuth? auth,
   })  : _firestore = firestore ?? FirebaseFirestore.instance,
         _auth = auth ?? FirebaseAuth.instance;
 
   /// Get the currently authenticated user's UID.
   String get _userId {
-    final User user = _auth.currentUser;
+    final User? user = _auth.currentUser;
 
     if (user == null) {
       throw Exception('User is not authenticated.');
@@ -159,8 +159,8 @@ class OrderRepository {
   Future<void> updatePaymentStatus({
     required String orderId,
     required String paymentStatus,
-    String paymentMethod,
-    String transactionId,
+    String? paymentMethod,
+    String? transactionId,
   }) async {
     try {
       final Map<String, dynamic> updates = {
@@ -186,8 +186,8 @@ class OrderRepository {
   Future<void> assignDelivery({
     required String orderId,
     required String riderId,
-    String riderName,
-    String riderPhone,
+    String? riderName,
+    String? riderPhone,
   }) async {
     try {
       await _orders.doc(orderId).update({

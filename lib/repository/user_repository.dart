@@ -164,10 +164,10 @@ class UserRepository {
   // ---------------------------------------------------------------------------
 
   Future<UserCredential?> signInWithGoogle() async {
-    final GoogleSignIn googleSignIn = GoogleSignIn();
+    final GoogleSignIn googleSignIn = GoogleSignIn.instance;
 
     final GoogleSignInAccount? googleUser =
-        await googleSignIn.signIn();
+        await googleSignIn.authenticate();
 
     if (googleUser == null) {
       return null;
@@ -177,7 +177,7 @@ class UserRepository {
         await googleUser.authentication;
 
     final credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
+      accessToken: (await googleUser.authorizationClient.authorizationForScopes(['email']))?.accessToken,
       idToken: googleAuth.idToken,
     );
 
@@ -417,7 +417,7 @@ class UserRepository {
   // ---------------------------------------------------------------------------
 
   Future<void> logout() async {
-    await GoogleSignIn().signOut();
+    await GoogleSignIn.instance.signOut();
 
     try {
       await FacebookAuth.instance.logOut();

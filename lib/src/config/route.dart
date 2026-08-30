@@ -42,8 +42,11 @@ class Routes {
 
       '/orders': (_) => OrdersPage(),
 
-      '/order-details': (_) =>
-          OrderDetailsPage(),
+      '/order-details': (context) {
+        final orderId =
+            ModalRoute.of(context)!.settings.arguments as String;
+        return OrderDetailsPage(orderId: orderId);
+      },
 
       // ==============================
       // COMMUNICATION
@@ -52,7 +55,11 @@ class Routes {
       '/notifications': (_) =>
           NotificationsPage(),
 
-      '/chat': (_) => ChatPage(),
+      '/chat': (context) {
+        final chatId =
+            ModalRoute.of(context)!.settings.arguments as String;
+        return ChatPage(chatId: chatId);
+      },
 
       // ==============================
       // SETTINGS

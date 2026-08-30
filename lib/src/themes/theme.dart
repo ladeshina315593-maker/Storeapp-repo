@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'light_color.dart';
 
 class AppTheme {
   const AppTheme();
@@ -19,18 +18,16 @@ class AppTheme {
 
     scaffoldBackgroundColor: grapeLightPurple,
 
-    backgroundColor: grapeLightPurple,
-
+  
     primaryColor: grapePurple,
 
     colorScheme: const ColorScheme.light(
       primary: grapePurple,
       secondary: grapeSoftPurple,
-      background: grapeLightPurple,
       surface: Colors.white,
     ),
 
-    cardTheme: const CardTheme(
+    cardTheme: const CardThemeData(
       color: glassWhite,
       elevation: 0,
       margin: EdgeInsets.zero,
@@ -51,25 +48,25 @@ class AppTheme {
     ),
 
     textTheme: const TextTheme(
-      bodyText1: TextStyle(
+      bodyLarge: TextStyle(
         color: darkText,
         fontSize: 14,
       ),
-      bodyText2: TextStyle(
+      bodyMedium: TextStyle(
         color: mutedText,
         fontSize: 13,
       ),
-      headline1: TextStyle(
+      headlineLarge: TextStyle(
         color: darkText,
         fontSize: 28,
         fontWeight: FontWeight.w800,
       ),
-      headline2: TextStyle(
+      headlineMedium: TextStyle(
         color: darkText,
         fontSize: 24,
         fontWeight: FontWeight.w800,
       ),
-      headline3: TextStyle(
+      headlineSmall: TextStyle(
         color: darkText,
         fontSize: 20,
         fontWeight: FontWeight.w700,
@@ -77,7 +74,7 @@ class AppTheme {
     ),
 
     primaryTextTheme: const TextTheme(
-      bodyText1: TextStyle(
+      bodyLarge: TextStyle(
         color: darkText,
       ),
     ),
@@ -86,7 +83,6 @@ class AppTheme {
       color: grapePurple,
     ),
 
-    bottomAppBarColor: Colors.white,
 
     dividerColor: Color(0xFFE8DDF5),
 
@@ -121,7 +117,7 @@ class AppTheme {
 
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        primary: grapePurple,
+        backgroundColor: grapePurple,
         elevation: 4,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
@@ -216,7 +212,7 @@ class AppTheme {
       color: glassWhite,
       borderRadius: BorderRadius.circular(radius),
       border: Border.all(
-        color: Colors.white.withOpacity(0.85),
+        color: Colors.white.withValues(alpha: 0.85),
         width: 1.2,
       ),
       boxShadow: shadow,

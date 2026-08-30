@@ -4,7 +4,7 @@ class ProductRepository {
   final FirebaseFirestore _firestore;
 
   ProductRepository({
-    FirebaseFirestore firestore,
+    FirebaseFirestore? firestore,
   }) : _firestore = firestore ?? FirebaseFirestore.instance;
 
   // Firestore collection:

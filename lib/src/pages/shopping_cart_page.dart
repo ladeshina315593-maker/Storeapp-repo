@@ -6,7 +6,7 @@ import 'package:flutter_ecommerce_app/src/themes/theme.dart';
 import 'package:flutter_ecommerce_app/src/widgets/title_text.dart';
 
 class ShoppingCartPage extends StatelessWidget {
-  const ShoppingCartPage({Key key}) : super(key: key);
+  const ShoppingCartPage({super.key});
 
   Widget _cartItems() {
     return Column(
@@ -216,7 +216,7 @@ class ShoppingCartPage extends StatelessWidget {
     double price = 0;
 
     AppData.cartList.forEach((product) {
-      price += product.price * product.id;
+      price += product.price;
     });
 
     return price;

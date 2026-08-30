@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
-  const ProfileSetupScreen({Key key}) : super(key: key);
+  const ProfileSetupScreen({super.key});
 
   @override
   State<ProfileSetupScreen> createState() =>

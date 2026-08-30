@@ -6,14 +6,14 @@ class CartRepository {
   final FirebaseAuth _auth;
 
   CartRepository({
-    FirebaseFirestore firestore,
-    FirebaseAuth auth,
+    FirebaseFirestore? firestore,
+    FirebaseAuth? auth,
   })  : _firestore = firestore ?? FirebaseFirestore.instance,
         _auth = auth ?? FirebaseAuth.instance;
 
   /// Current authenticated user's UID.
   String get _userId {
-    final User user = _auth.currentUser;
+    final User? user = _auth.currentUser;
 
     if (user == null) {
       throw Exception('User is not authenticated.');
@@ -65,9 +65,9 @@ class CartRepository {
     required String productId,
     required String name,
     required double price,
-    String imageUrl,
+    String? imageUrl,
     int quantity = 1,
-    Map<String, dynamic> options,
+    Map<String, dynamic>? options,
   }) async {
     try {
       if (quantity <= 0) {

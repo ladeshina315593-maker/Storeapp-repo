@@ -20,7 +20,7 @@ import 'package:flutter_ecommerce_app/src/themes/theme.dart';
 /// without changing the UI structure of this page.
 
 class FavouritePage extends StatefulWidget {
-  const FavouritePage({Key key}) : super(key: key);
+  const FavouritePage({Key? key}) : super(key: key);
 
   @override
   _FavouritePageState createState() => _FavouritePageState();
@@ -180,7 +180,7 @@ class _FavouritePageState extends State<FavouritePage> {
 
   Widget _glassIcon(
     IconData icon, {
-    Color color,
+    Color? color,
   }) {
     return Container(
       height: 48,
@@ -475,9 +475,9 @@ class FavouriteProduct {
   final String image;
 
   FavouriteProduct({
-    @required this.id,
-    @required this.name,
-    @required this.price,
+    required this.id,
+    required this.name,
+    required this.price,
     this.image = '',
   });
 

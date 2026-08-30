@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginScreen extends StatefulWidget {
-  LoginScreen({Key key}) : super(key: key);
+  LoginScreen({Key? key}) : super(key: key);
 
   @override
   _LoginScreenState createState() => _LoginScreenState();
@@ -35,7 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
   // ------------------------------------------------------------
 
   Future<void> _loginWithEmail() async {
-    if (!_formKey.currentState.validate()) {
+    if (_formKey.currentState?.validate() != true) {
       return;
     }
 
@@ -188,12 +188,12 @@ class _LoginScreenState extends State<LoginScreen> {
   // ------------------------------------------------------------
 
   Widget _glassField({
-    TextEditingController controller,
-    String hint,
-    IconData icon,
+    TextEditingController? controller,
+    String? hint,
+    required IconData icon,
     bool obscureText = false,
-    Widget suffix,
-    String Function(String) validator,
+    Widget? suffix,
+    String? Function(String?)? validator,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -247,9 +247,9 @@ class _LoginScreenState extends State<LoginScreen> {
   // ------------------------------------------------------------
 
   Widget _socialButton({
-    Widget icon,
-    String text,
-    VoidCallback onTap,
+    required Widget icon,
+    required String text,
+    VoidCallback? onTap,
   }) {
     return Material(
       color: Colors.transparent,
