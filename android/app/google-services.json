@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "509804947621",
+    "project_id": "grapego-88b27",
+    "storage_bucket": "grapego-88b27.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:509804947621:android:1f5e0dd35b3a49be01454c",
+        "android_client_info": {
+          "package_name": "com.thealphamerc.flutter_ecommerce_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCrj97Ncl47W1l1nhC_val3Bf1bZtLtk0A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
