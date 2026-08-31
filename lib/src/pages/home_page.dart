@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/gestures.dart';
@@ -20,15 +22,18 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance;
+
+  final FirebaseAuth _auth =
+      FirebaseAuth.instance;
 
   final TextEditingController _searchController =
       TextEditingController();
 
-  final ImagePicker _imagePicker = ImagePicker();
+  final ImagePicker _imagePicker =
+      ImagePicker();
 
-  String selectedFilter = 'All';
   String selectedCategory = 'All';
 
   XFile? _cameraImage;
@@ -43,10 +48,26 @@ class _MyHomePageState extends State<MyHomePage> {
     'Other',
   ];
 
-  static const Color pikkXBlack = Color(0xFF050505);
-  static const Color pikkXWhite = Color(0xFFFFFFFF);
-  static const Color pikkXNavy = Color(0xFF10233F);
-  static const Color pikkXBackground = Color(0xFFF7F7F7);
+  // ============================================================
+  // pikkX IDENTITY
+  // BLACK + WHITE + SMALL NAVY ACCENT
+  // NO PURPLE
+  // ============================================================
+
+  static const Color pikkXBlack =
+      Color(0xFF050505);
+
+  static const Color pikkXWhite =
+      Color(0xFFFFFFFF);
+
+  static const Color pikkXNavy =
+      Color(0xFF10233F);
+
+  static const Color pikkXBackground =
+      Color(0xFFF7F7F7);
+
+  static const Color pikkXGlass =
+      Color(0xCCFFFFFF);
 
   // ============================================================
   // LIFECYCLE
@@ -62,15 +83,18 @@ class _MyHomePageState extends State<MyHomePage> {
   // AUTH
   // ============================================================
 
-  User? get _currentUser => _auth.currentUser;
+  User? get _currentUser =>
+      _auth.currentUser;
 
-  String get _userId => _currentUser?.uid ?? '';
+  String get _userId =>
+      _currentUser?.uid ?? '';
 
   // ============================================================
   // FIRESTORE PRODUCTS
   // ============================================================
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> _productsStream() {
+  Stream<QuerySnapshot<Map<String, dynamic>>>
+      _productsStream() {
     return _firestore
         .collection('products')
         .snapshots();
@@ -80,7 +104,8 @@ class _MyHomePageState extends State<MyHomePage> {
   // USER PROFILE
   // ============================================================
 
-  Stream<DocumentSnapshot<Map<String, dynamic>>> _userProfileStream() {
+  Stream<DocumentSnapshot<Map<String, dynamic>>>
+      _userProfileStream() {
     if (_userId.isEmpty) {
       return const Stream.empty();
     }
@@ -95,7 +120,8 @@ class _MyHomePageState extends State<MyHomePage> {
   // NOTIFICATIONS
   // ============================================================
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> _notificationsStream() {
+  Stream<QuerySnapshot<Map<String, dynamic>>>
+      _notificationsStream() {
     if (_userId.isEmpty) {
       return const Stream.empty();
     }
@@ -108,12 +134,30 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   // ============================================================
-  // CAMERA / VISUAL SEARCH
+  // FAVOURITES STREAM
+  // ============================================================
+
+  Stream<QuerySnapshot<Map<String, dynamic>>>
+      _favouritesStream() {
+    if (_userId.isEmpty) {
+      return const Stream.empty();
+    }
+
+    return _firestore
+        .collection('users')
+        .doc(_userId)
+        .collection('favorites')
+        .snapshots();
+  }
+
+  // ============================================================
+  // CAMERA
   // ============================================================
 
   Future<void> _openCamera() async {
     try {
-      final XFile? image = await _imagePicker.pickImage(
+      final XFile? image =
+          await _imagePicker.pickImage(
         source: ImageSource.camera,
         imageQuality: 85,
       );
@@ -130,7 +174,9 @@ class _MyHomePageState extends State<MyHomePage> {
         'Product image captured.',
       );
     } catch (e) {
-      debugPrint('Camera error: $e');
+      debugPrint(
+        'Camera error: $e',
+      );
 
       if (!mounted) return;
 
@@ -148,7 +194,8 @@ class _MyHomePageState extends State<MyHomePage> {
     String productId,
     Map<String, dynamic> product,
   ) async {
-    final User? user = _currentUser;
+    final User? user =
+        _currentUser;
 
     if (user == null) {
       _showMessage(
@@ -158,44 +205,76 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     try {
-      final cartReference = _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('cart')
-          .doc(productId);
+      final cartReference =
+          _firestore
+              .collection('users')
+              .doc(user.uid)
+              .collection('cart')
+              .doc(productId);
 
-      final existing = await cartReference.get();
+      final existing =
+          await cartReference.get();
 
-      final price = _toDouble(product['price']);
+      final price =
+          _toDouble(product['price']);
 
       if (existing.exists) {
-        final existingData = existing.data();
+        final existingData =
+            existing.data();
 
         final currentQuantity =
-            _toInt(existingData?['quantity'], fallback: 1);
+            _toInt(
+          existingData?['quantity'],
+          fallback: 1,
+        );
 
         await cartReference.update({
-          'quantity': currentQuantity + 1,
-          'updatedAt': FieldValue.serverTimestamp(),
+          'quantity':
+              currentQuantity + 1,
+          'updatedAt':
+              FieldValue.serverTimestamp(),
         });
       } else {
         await cartReference.set({
-          'productId': productId,
-          'name': product['name'] ?? 'Product',
-          'price': price,
-          'imageUrl': product['imageUrl'] ?? '',
-          'quantity': 1,
-          'sellerId': product['sellerId'] ?? '',
-          'category': product['category'] ?? '',
-          'description': product['description'] ?? '',
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
+          'productId':
+              productId,
+          'name':
+              product['name'] ??
+                  'Product',
+          'price':
+              price,
+          'imageUrl':
+              product['imageUrl'] ??
+                  product['image'] ??
+                  '',
+          'quantity':
+              1,
+          'sellerId':
+              product['sellerId'] ??
+                  '',
+          'sellerName':
+              product['sellerName'] ??
+                  '',
+          'category':
+              product['category'] ??
+                  '',
+          'description':
+              product['description'] ??
+                  '',
+          'createdAt':
+              FieldValue.serverTimestamp(),
+          'updatedAt':
+              FieldValue.serverTimestamp(),
         });
       }
 
-      _showMessage('Added to cart.');
+      _showMessage(
+        'Added to cart.',
+      );
     } catch (e) {
-      debugPrint('Add to cart error: $e');
+      debugPrint(
+        'Add to cart error: $e',
+      );
 
       _showMessage(
         'Could not add product to cart.',
@@ -211,7 +290,8 @@ class _MyHomePageState extends State<MyHomePage> {
     String productId,
     Map<String, dynamic> product,
   ) async {
-    final User? user = _currentUser;
+    final User? user =
+        _currentUser;
 
     if (user == null) {
       _showMessage(
@@ -221,13 +301,15 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     try {
-      final reference = _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('favorites')
-          .doc(productId);
+      final reference =
+          _firestore
+              .collection('users')
+              .doc(user.uid)
+              .collection('favorites')
+              .doc(productId);
 
-      final existing = await reference.get();
+      final existing =
+          await reference.get();
 
       if (existing.exists) {
         await reference.delete();
@@ -237,14 +319,37 @@ class _MyHomePageState extends State<MyHomePage> {
         );
       } else {
         await reference.set({
-          'productId': productId,
-          'name': product['name'] ?? 'Product',
-          'price': _toDouble(product['price']),
-          'imageUrl': product['imageUrl'] ?? '',
-          'category': product['category'] ?? '',
-          'sellerId': product['sellerId'] ?? '',
-          'description': product['description'] ?? '',
-          'createdAt': FieldValue.serverTimestamp(),
+          'productId':
+              productId,
+          'name':
+              product['name'] ??
+                  'Product',
+          'price':
+              _toDouble(
+                product['price'],
+              ),
+          'imageUrl':
+              product['imageUrl'] ??
+                  product['image'] ??
+                  '',
+          'image':
+              product['image'] ??
+                  product['imageUrl'] ??
+                  '',
+          'category':
+              product['category'] ??
+                  '',
+          'sellerId':
+              product['sellerId'] ??
+                  '',
+          'sellerName':
+              product['sellerName'] ??
+                  '',
+          'description':
+              product['description'] ??
+                  '',
+          'createdAt':
+              FieldValue.serverTimestamp(),
         });
 
         _showMessage(
@@ -252,7 +357,9 @@ class _MyHomePageState extends State<MyHomePage> {
         );
       }
     } catch (e) {
-      debugPrint('Favourite error: $e');
+      debugPrint(
+        'Favourite error: $e',
+      );
 
       _showMessage(
         'Could not update favourite.',
@@ -268,14 +375,18 @@ class _MyHomePageState extends State<MyHomePage> {
     Map<String, dynamic> product,
   ) {
     final search =
-        _searchController.text.trim().toLowerCase();
+        _searchController.text
+            .trim()
+            .toLowerCase();
 
     if (search.isEmpty) {
       return true;
     }
 
     final name =
-        (product['name'] ?? '').toString().toLowerCase();
+        (product['name'] ?? '')
+            .toString()
+            .toLowerCase();
 
     final description =
         (product['description'] ?? '')
@@ -299,35 +410,14 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   // ============================================================
-  // FILTER
-  // ============================================================
-
-  bool _matchesFilter(
-    Map<String, dynamic> product,
-  ) {
-    if (selectedFilter == 'All') {
-      return true;
-    }
-
-    if (selectedFilter == 'Trending Now') {
-      return product['isTrending'] == true;
-    }
-
-    if (selectedFilter == 'Featured') {
-      return product['isFeatured'] == true;
-    }
-
-    return true;
-  }
-
-  // ============================================================
   // CATEGORY
   // ============================================================
 
   bool _matchesCategory(
     Map<String, dynamic> product,
   ) {
-    if (selectedCategory == 'All') {
+    if (selectedCategory ==
+        'All') {
       return true;
     }
 
@@ -344,7 +434,9 @@ class _MyHomePageState extends State<MyHomePage> {
   // HELPERS
   // ============================================================
 
-  double _toDouble(dynamic value) {
+  double _toDouble(
+    dynamic value,
+  ) {
     if (value is num) {
       return value.toDouble();
     }
@@ -369,8 +461,43 @@ class _MyHomePageState extends State<MyHomePage> {
         fallback;
   }
 
-  String _formatPrice(dynamic value) {
+  String _formatPrice(
+    dynamic value,
+  ) {
     return '₦${_toDouble(value).toStringAsFixed(2)}';
+  }
+
+  // ============================================================
+  // GLASS DECORATION
+  // ============================================================
+
+  BoxDecoration _glassDecoration({
+    double radius = 20,
+    Color? color,
+    bool navyBorder = false,
+  }) {
+    return BoxDecoration(
+      color:
+          color ?? pikkXGlass,
+      borderRadius:
+          BorderRadius.circular(
+        radius,
+      ),
+      border: Border.all(
+        color: navyBorder
+            ? pikkXNavy.withOpacity(.10)
+            : pikkXWhite.withOpacity(.82),
+      ),
+      boxShadow: [
+        BoxShadow(
+          color:
+              pikkXBlack.withOpacity(.045),
+          blurRadius: 18,
+          offset:
+              const Offset(0, 7),
+        ),
+      ],
+    );
   }
 
   // ============================================================
@@ -379,7 +506,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _header() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
+      padding:
+          const EdgeInsets.fromLTRB(
         20,
         14,
         20,
@@ -387,84 +515,88 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       child: Row(
         children: [
-          // ----------------------------------------------------
-          // LOGO - UPPER LEFT
-          // ----------------------------------------------------
-
+          // LOGO
           Container(
             width: 48,
             height: 48,
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: pikkXWhite,
-              borderRadius:
-                  BorderRadius.circular(15),
-              boxShadow: [
-                BoxShadow(
-                  color:
-                      pikkXBlack.withOpacity(.06),
-                  blurRadius: 15,
-                  offset:
-                      const Offset(0, 5),
-                ),
-              ],
+            padding:
+                const EdgeInsets.all(7),
+            decoration:
+                _glassDecoration(
+              radius: 15,
+              color:
+                  pikkXWhite,
+              navyBorder: true,
             ),
-            child: Image.asset(
+            child:
+                Image.asset(
               'assets/images/pikkx_icon(1).png',
-              fit: BoxFit.contain,
+              fit:
+                  BoxFit.contain,
               errorBuilder:
                   (_, __, ___) {
                 return const Icon(
-                  Icons.shopping_bag_rounded,
-                  color: pikkXNavy,
+                  Icons
+                      .shopping_bag_rounded,
+                  color:
+                      pikkXNavy,
                 );
               },
             ),
           ),
 
-          const SizedBox(width: 12),
+          const SizedBox(
+            width: 12,
+          ),
 
           Expanded(
             child: Column(
               crossAxisAlignment:
-                  CrossAxisAlignment.start,
+                  CrossAxisAlignment
+                      .start,
               children: [
                 Text(
                   'Welcome to',
-                  style: TextStyle(
-                    color:
-                        LightColor.mutedText,
+                  style:
+                      TextStyle(
+                    color: LightColor
+                        .mutedText,
                     fontSize: 12,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(
+                  height: 2,
+                ),
                 const Text(
                   'pikkX',
-                  style: TextStyle(
-                    color: pikkXBlack,
+                  style:
+                      TextStyle(
+                    color:
+                        pikkXBlack,
                     fontSize: 25,
                     fontWeight:
                         FontWeight.w900,
-                    letterSpacing: -.8,
+                    letterSpacing:
+                        -.8,
                   ),
                 ),
               ],
             ),
           ),
 
-          // ----------------------------------------------------
           // NOTIFICATIONS
-          // ----------------------------------------------------
-
           StreamBuilder<
               QuerySnapshot<
-                  Map<String, dynamic>>>(
-            stream: _notificationsStream(),
+                  Map<String,
+                      dynamic>>>(
+            stream:
+                _notificationsStream(),
             builder:
                 (context, snapshot) {
               int unread = 0;
 
-              if (snapshot.hasData) {
+              if (snapshot
+                  .hasData) {
                 unread = snapshot
                     .data!
                     .docs
@@ -487,7 +619,6 @@ class _MyHomePageState extends State<MyHomePage> {
                     onTap:
                         _openNotifications,
                   ),
-
                   if (unread > 0)
                     Positioned(
                       right: -2,
@@ -509,8 +640,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         ),
                         child:
                             Text(
-                          unread >
-                                  9
+                          unread > 9
                               ? '9+'
                               : '$unread',
                           style:
@@ -531,25 +661,28 @@ class _MyHomePageState extends State<MyHomePage> {
             },
           ),
 
-          const SizedBox(width: 8),
+          const SizedBox(
+            width: 8,
+          ),
 
-          // ----------------------------------------------------
           // PROFILE
-          // ----------------------------------------------------
-
           StreamBuilder<
               DocumentSnapshot<
-                  Map<String, dynamic>>>(
+                  Map<String,
+                      dynamic>>>(
             stream:
                 _userProfileStream(),
             builder:
                 (context, snapshot) {
               final data =
-                  snapshot.data?.data();
+                  snapshot.data
+                      ?.data();
 
               final imageUrl =
                   data?['photoUrl']
                           ?.toString() ??
+                      _currentUser
+                          ?.photoURL ??
                       '';
 
               return _profileButton(
@@ -573,27 +706,17 @@ class _MyHomePageState extends State<MyHomePage> {
     return Container(
       width: 46,
       height: 46,
-      decoration: BoxDecoration(
-        color: pikkXWhite,
-        borderRadius:
-            BorderRadius.circular(15),
-        border: Border.all(
-          color:
-              pikkXNavy.withOpacity(.08),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color:
-                pikkXBlack.withOpacity(.035),
-            blurRadius: 12,
-            offset:
-                const Offset(0, 5),
-          ),
-        ],
+      decoration:
+          _glassDecoration(
+        radius: 15,
+        color:
+            pikkXWhite.withOpacity(.82),
+        navyBorder: true,
       ),
       child: Icon(
         icon,
-        color: pikkXNavy,
+        color:
+            pikkXNavy,
         size: 23,
       ),
     ).ripple(
@@ -613,24 +736,14 @@ class _MyHomePageState extends State<MyHomePage> {
     return Container(
       width: 46,
       height: 46,
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: pikkXWhite,
-        borderRadius:
-            BorderRadius.circular(15),
-        border: Border.all(
-          color:
-              pikkXNavy.withOpacity(.08),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color:
-                pikkXBlack.withOpacity(.035),
-            blurRadius: 12,
-            offset:
-                const Offset(0, 5),
-          ),
-        ],
+      padding:
+          const EdgeInsets.all(2),
+      decoration:
+          _glassDecoration(
+        radius: 15,
+        color:
+            pikkXWhite,
+        navyBorder: true,
       ),
       child: ClipRRect(
         borderRadius:
@@ -638,19 +751,24 @@ class _MyHomePageState extends State<MyHomePage> {
         child: imageUrl.isNotEmpty
             ? Image.network(
                 imageUrl,
-                fit: BoxFit.cover,
+                fit:
+                    BoxFit.cover,
                 errorBuilder:
                     (_, __, ___) {
                   return const Icon(
-                    Icons.person_outline_rounded,
-                    color: pikkXNavy,
+                    Icons
+                        .person_outline_rounded,
+                    color:
+                        pikkXNavy,
                     size: 24,
                   );
                 },
               )
             : const Icon(
-                Icons.person_outline_rounded,
-                color: pikkXNavy,
+                Icons
+                    .person_outline_rounded,
+                color:
+                    pikkXNavy,
                 size: 24,
               ),
       ),
@@ -667,104 +785,114 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _search() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
+      padding:
+          const EdgeInsets.fromLTRB(
         20,
         4,
         20,
         14,
       ),
-      child: Container(
-        height: 56,
-        decoration: BoxDecoration(
-          color: pikkXWhite,
-          borderRadius:
-              BorderRadius.circular(18),
-          border: Border.all(
-            color:
-                pikkXNavy.withOpacity(.08),
+      child: ClipRRect(
+        borderRadius:
+            BorderRadius.circular(19),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(
+            sigmaX: 10,
+            sigmaY: 10,
           ),
-          boxShadow: [
-            BoxShadow(
+          child: Container(
+            height: 56,
+            decoration:
+                _glassDecoration(
+              radius: 19,
               color:
-                  pikkXBlack.withOpacity(.045),
-              blurRadius: 18,
-              offset:
-                  const Offset(0, 7),
+                  pikkXWhite.withOpacity(.76),
+              navyBorder: true,
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-            const SizedBox(width: 16),
-
-            const Icon(
-              Icons.search_rounded,
-              color: pikkXNavy,
-              size: 24,
-            ),
-
-            const SizedBox(width: 10),
-
-            Expanded(
-              child: TextField(
-                controller:
-                    _searchController,
-                onChanged: (_) {
-                  setState(() {});
-                },
-                decoration:
-                    InputDecoration(
-                  border:
-                      InputBorder.none,
-                  hintText:
-                      'Search products...',
-                  hintStyle:
-                      TextStyle(
-                    color:
-                        LightColor
-                            .mutedText,
-                    fontSize: 13,
+            child: Row(
+              children: [
+                const SizedBox(
+                  width: 16,
+                ),
+                const Icon(
+                  Icons.search_rounded,
+                  color:
+                      pikkXNavy,
+                  size: 24,
+                ),
+                const SizedBox(
+                  width: 10,
+                ),
+                Expanded(
+                  child:
+                      TextField(
+                    controller:
+                        _searchController,
+                    onChanged:
+                        (_) {
+                      setState(
+                        () {},
+                      );
+                    },
+                    decoration:
+                        InputDecoration(
+                      border:
+                          InputBorder.none,
+                      hintText:
+                          'Search products...',
+                      hintStyle:
+                          TextStyle(
+                        color:
+                            LightColor
+                                .mutedText,
+                        fontSize:
+                            13,
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                GestureDetector(
+                  onTap:
+                      _openCamera,
+                  child:
+                      Container(
+                    margin:
+                        const EdgeInsets
+                            .only(
+                      right: 6,
+                    ),
+                    width: 44,
+                    height: 44,
+                    decoration:
+                        BoxDecoration(
+                      color:
+                          pikkXNavy,
+                      borderRadius:
+                          BorderRadius
+                              .circular(
+                        14,
+                      ),
+                    ),
+                    child:
+                        const Icon(
+                      Icons
+                          .camera_alt_outlined,
+                      color:
+                          pikkXWhite,
+                      size: 21,
+                    ),
+                  ),
+                ),
+              ],
             ),
-
-            // --------------------------------------------------
-            // CAMERA
-            // --------------------------------------------------
-
-            GestureDetector(
-              onTap: _openCamera,
-              child: Container(
-                margin:
-                    const EdgeInsets.only(
-                  right: 6,
-                ),
-                width: 44,
-                height: 44,
-                decoration:
-                    BoxDecoration(
-                  color: pikkXNavy,
-                  borderRadius:
-                      BorderRadius
-                          .circular(14),
-                ),
-                child: const Icon(
-                  Icons
-                      .camera_alt_outlined,
-                  color: pikkXWhite,
-                  size: 21,
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 
   // ============================================================
-  // QUICK FILTERS
+  // CATEGORY FILTERS
   // ============================================================
 
   Widget _quickFilters() {
@@ -807,7 +935,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   AnimatedContainer(
                 duration:
                     const Duration(
-                  milliseconds: 180,
+                  milliseconds:
+                      180,
                 ),
                 padding:
                     const EdgeInsets
@@ -820,26 +949,50 @@ class _MyHomePageState extends State<MyHomePage> {
                     BoxDecoration(
                   color: selected
                       ? pikkXNavy
-                      : pikkXWhite,
+                      : pikkXWhite
+                          .withOpacity(.82),
                   borderRadius:
                       BorderRadius
-                          .circular(14),
+                          .circular(
+                    14,
+                  ),
                   border:
                       Border.all(
-                    color: selected
-                        ? pikkXNavy
-                        : pikkXNavy
-                            .withOpacity(
-                                .09),
+                    color:
+                        selected
+                            ? pikkXNavy
+                            : pikkXNavy
+                                .withOpacity(
+                                .09,
+                              ),
                   ),
+                  boxShadow: [
+                    if (!selected)
+                      BoxShadow(
+                        color:
+                            pikkXBlack
+                                .withOpacity(
+                          .025,
+                        ),
+                        blurRadius:
+                            10,
+                        offset:
+                            const Offset(
+                          0,
+                          4,
+                        ),
+                      ),
+                  ],
                 ),
                 child: Text(
                   category,
-                  style: TextStyle(
+                  style:
+                      TextStyle(
                     color: selected
                         ? pikkXWhite
                         : pikkXNavy,
-                    fontSize: 12,
+                    fontSize:
+                        12,
                     fontWeight:
                         FontWeight.w700,
                   ),
@@ -853,7 +1006,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   // ============================================================
-  // PROMO
+  // PROMO BANNER
   // ============================================================
 
   Widget _promoBanner() {
@@ -865,68 +1018,112 @@ class _MyHomePageState extends State<MyHomePage> {
         20,
         6,
       ),
-      child: Container(
-        height: 138,
-        padding:
-            const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: pikkXNavy,
-          borderRadius:
-              BorderRadius.circular(25),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                mainAxisAlignment:
-                    MainAxisAlignment
-                        .center,
-                crossAxisAlignment:
-                    CrossAxisAlignment
-                        .start,
-                children: [
-                  const Text(
-                    'Shop beyond\nshopping.',
-                    style: TextStyle(
-                      color: pikkXWhite,
-                      fontSize: 21,
-                      height: 1.05,
-                      fontWeight:
-                          FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(
-                    height: 8,
-                  ),
-                  Text(
-                    'Discover products made for you.',
-                    style: TextStyle(
-                      color: pikkXWhite
-                          .withOpacity(.72),
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
+      child: ClipRRect(
+        borderRadius:
+            BorderRadius.circular(25),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(
+            sigmaX: 8,
+            sigmaY: 8,
+          ),
+          child: Container(
+            height: 138,
+            padding:
+                const EdgeInsets.all(20),
+            decoration:
+                BoxDecoration(
+              color:
+                  pikkXNavy,
+              borderRadius:
+                  BorderRadius.circular(
+                25,
+              ),
+              border:
+                  Border.all(
+                color:
+                    pikkXWhite.withOpacity(
+                  .10,
+                ),
               ),
             ),
-            Container(
-              width: 65,
-              height: 65,
-              decoration:
-                  BoxDecoration(
-                color: pikkXWhite
-                    .withOpacity(.10),
-                shape:
-                    BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons
-                    .shopping_bag_outlined,
-                color: pikkXWhite,
-                size: 31,
-              ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment:
+                        MainAxisAlignment
+                            .center,
+                    crossAxisAlignment:
+                        CrossAxisAlignment
+                            .start,
+                    children: [
+                      const Text(
+                        'Shop beyond\nshopping.',
+                        style:
+                            TextStyle(
+                          color:
+                              pikkXWhite,
+                          fontSize:
+                              21,
+                          height:
+                              1.05,
+                          fontWeight:
+                              FontWeight
+                                  .w900,
+                        ),
+                      ),
+                      const SizedBox(
+                        height: 8,
+                      ),
+                      Text(
+                        'Discover products made for you.',
+                        style:
+                            TextStyle(
+                          color:
+                              pikkXWhite
+                                  .withOpacity(
+                            .72,
+                          ),
+                          fontSize:
+                              11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 65,
+                  height: 65,
+                  decoration:
+                      BoxDecoration(
+                    color:
+                        pikkXWhite
+                            .withOpacity(
+                      .10,
+                    ),
+                    shape:
+                        BoxShape.circle,
+                    border:
+                        Border.all(
+                      color:
+                          pikkXWhite
+                              .withOpacity(
+                        .12,
+                      ),
+                    ),
+                  ),
+                  child:
+                      const Icon(
+                    Icons
+                        .shopping_bag_outlined,
+                    color:
+                        pikkXWhite,
+                    size: 31,
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -940,7 +1137,8 @@ class _MyHomePageState extends State<MyHomePage> {
     return StreamBuilder<
         QuerySnapshot<
             Map<String, dynamic>>>(
-      stream: _productsStream(),
+      stream:
+          _productsStream(),
       builder:
           (context, snapshot) {
         if (snapshot.connectionState ==
@@ -951,7 +1149,8 @@ class _MyHomePageState extends State<MyHomePage> {
             child: Center(
               child:
                   CircularProgressIndicator(
-                color: pikkXNavy,
+                color:
+                    pikkXNavy,
               ),
             ),
           );
@@ -966,38 +1165,31 @@ class _MyHomePageState extends State<MyHomePage> {
         }
 
         final documents =
-            snapshot.data?.docs ?? [];
+            snapshot.data?.docs ??
+                [];
 
         final products =
-            documents.where((doc) {
-          final data =
-              doc.data();
+            documents.where(
+          (doc) {
+            final data =
+                doc.data();
 
-          return _matchesSearch(
-                data,
-              ) &&
-              _matchesFilter(
-                data,
-              ) &&
-              _matchesCategory(
-                data,
-              );
-        }).toList();
+            return _matchesSearch(
+                  data,
+                ) &&
+                _matchesCategory(
+                  data,
+                );
+          },
+        ).toList();
 
-        // Newest products first.
         products.sort(
           (a, b) {
-            final aData =
-                a.data();
-
-            final bData =
-                b.data();
-
             final aTime =
-                aData['createdAt'];
+                a.data()['createdAt'];
 
             final bTime =
-                bData['createdAt'];
+                b.data()['createdAt'];
 
             if (aTime is Timestamp &&
                 bTime is Timestamp) {
@@ -1010,77 +1202,126 @@ class _MyHomePageState extends State<MyHomePage> {
           },
         );
 
-        return Column(
-          crossAxisAlignment:
-              CrossAxisAlignment
-                  .start,
-          children: [
-            Padding(
-              padding:
-                  const EdgeInsets
-                      .fromLTRB(
-                20,
-                24,
-                20,
-                8,
-              ),
-              child: Row(
-                children: [
-                  const Text(
-                    'Popular Products',
-                    style: TextStyle(
-                      color: pikkXBlack,
-                      fontSize: 19,
-                      fontWeight:
-                          FontWeight.w900,
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    '${products.length}',
-                    style:
-                        const TextStyle(
-                      color: pikkXNavy,
-                      fontWeight:
-                          FontWeight.w800,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+        return StreamBuilder<
+            QuerySnapshot<
+                Map<String,
+                    dynamic>>>(
+          stream:
+              _favouritesStream(),
+          builder:
+              (context, favouriteSnapshot) {
+            final favouriteIds =
+                <String>{};
 
-            if (products.isEmpty)
-              _emptyProducts()
-            else
-              SizedBox(
-                height: 292,
-                child:
-                    ListView.builder(
+            if (favouriteSnapshot
+                .hasData) {
+              for (final doc
+                  in favouriteSnapshot
+                      .data!
+                      .docs) {
+                favouriteIds.add(
+                  doc.id,
+                );
+
+                final data =
+                    doc.data();
+
+                final productId =
+                    data['productId']
+                        ?.toString();
+
+                if (productId !=
+                        null &&
+                    productId.isNotEmpty) {
+                  favouriteIds.add(
+                    productId,
+                  );
+                }
+              }
+            }
+
+            return Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment
+                      .start,
+              children: [
+                Padding(
                   padding:
                       const EdgeInsets
-                          .only(
-                    left: 20,
-                    right: 10,
+                          .fromLTRB(
+                    20,
+                    24,
+                    20,
+                    8,
                   ),
-                  scrollDirection:
-                      Axis.horizontal,
-                  physics:
-                      const BouncingScrollPhysics(),
-                  itemCount:
-                      products.length,
-                  itemBuilder:
-                      (context, index) {
-                    final document =
-                        products[index];
-
-                    return _productCard(
-                      document.id,
-                      document.data(),
-                    );
-                  },
+                  child: Row(
+                    children: [
+                      const Text(
+                        'Popular Products',
+                        style:
+                            TextStyle(
+                          color:
+                              pikkXBlack,
+                          fontSize:
+                              19,
+                          fontWeight:
+                              FontWeight
+                                  .w900,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '${products.length}',
+                        style:
+                            const TextStyle(
+                          color:
+                              pikkXNavy,
+                          fontWeight:
+                              FontWeight
+                                  .w800,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-          ],
+                if (products.isEmpty)
+                  _emptyProducts()
+                else
+                  SizedBox(
+                    height: 292,
+                    child:
+                        ListView.builder(
+                      padding:
+                          const EdgeInsets
+                              .only(
+                        left: 20,
+                        right: 10,
+                      ),
+                      scrollDirection:
+                          Axis.horizontal,
+                      physics:
+                          const BouncingScrollPhysics(),
+                      itemCount:
+                          products.length,
+                      itemBuilder:
+                          (context, index) {
+                        final document =
+                            products[index];
+
+                        return _productCard(
+                          document.id,
+                          document.data(),
+                          favouriteIds
+                              .contains(
+                            document.id,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            );
+          },
         );
       },
     );
@@ -1093,16 +1334,22 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget _productCard(
     String productId,
     Map<String, dynamic> product,
+    bool isFavourite,
   ) {
     final name =
-        product['name']?.toString() ??
+        product['name']
+                ?.toString() ??
             'Product';
 
     final price =
-        _toDouble(product['price']);
+        _toDouble(
+      product['price'],
+    );
 
     final imageUrl =
         product['imageUrl']
+                ?.toString() ??
+            product['image']
                 ?.toString() ??
             '';
 
@@ -1124,26 +1371,11 @@ class _MyHomePageState extends State<MyHomePage> {
         bottom: 15,
       ),
       decoration:
-          BoxDecoration(
-        color: pikkXWhite,
-        borderRadius:
-            BorderRadius.circular(
-          23,
-        ),
-        border:
-            Border.all(
-          color: pikkXNavy
-              .withOpacity(.07),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: pikkXBlack
-                .withOpacity(.055),
-            blurRadius: 16,
-            offset:
-                const Offset(0, 7),
-          ),
-        ],
+          _glassDecoration(
+        radius: 23,
+        color:
+            pikkXWhite.withOpacity(.82),
+        navyBorder: true,
       ),
       child: Column(
         children: [
@@ -1187,8 +1419,8 @@ class _MyHomePageState extends State<MyHomePage> {
                             child:
                                 Image.network(
                               imageUrl,
-                              fit: BoxFit
-                                  .cover,
+                              fit:
+                                  BoxFit.cover,
                               errorBuilder:
                                   (_, __, ___) =>
                                       _productPlaceholder(),
@@ -1198,25 +1430,29 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 ),
 
-                // ------------------------------------------------
                 // FAVOURITE
-                // ------------------------------------------------
-
                 Positioned(
                   top: 10,
                   right: 10,
                   child:
                       Container(
-                    width: 38,
-                    height: 38,
+                    width: 39,
+                    height: 39,
                     decoration:
                         BoxDecoration(
-                      color: pikkXWhite
-                          .withOpacity(
-                              .92),
+                      color:
+                          pikkXWhite.withOpacity(
+                        .92,
+                      ),
                       shape:
-                          BoxShape
-                              .circle,
+                          BoxShape.circle,
+                      border:
+                          Border.all(
+                        color:
+                            pikkXNavy.withOpacity(
+                          .08,
+                        ),
+                      ),
                     ),
                     child:
                         IconButton(
@@ -1229,20 +1465,21 @@ class _MyHomePageState extends State<MyHomePage> {
                         product,
                       ),
                       icon:
-                          const Icon(
-                        Icons
-                            .favorite_border_rounded,
+                          Icon(
+                        isFavourite
+                            ? Icons
+                                .favorite_rounded
+                            : Icons
+                                .favorite_border_rounded,
                         color:
-                            pikkXNavy,
-                        size: 19,
+                            isFavourite
+                                ? pikkXNavy
+                                : pikkXBlack,
+                        size: 20,
                       ),
                     ),
                   ),
                 ),
-
-                // ------------------------------------------------
-                // FEATURED
-                // ------------------------------------------------
 
                 if (featured)
                   Positioned(
@@ -1312,8 +1549,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         pikkXBlack,
                     fontSize: 14,
                     fontWeight:
-                        FontWeight
-                            .w800,
+                        FontWeight.w800,
                   ),
                 ),
 
@@ -1325,7 +1561,8 @@ class _MyHomePageState extends State<MyHomePage> {
                             .only(
                       top: 2,
                     ),
-                    child: Text(
+                    child:
+                        Text(
                       sellerName,
                       maxLines: 1,
                       overflow:
@@ -1354,8 +1591,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         pikkXNavy,
                     fontSize: 14,
                     fontWeight:
-                        FontWeight
-                            .w900,
+                        FontWeight.w900,
                   ),
                 ),
 
@@ -1423,11 +1659,14 @@ class _MyHomePageState extends State<MyHomePage> {
     Map<String, dynamic> product,
   ) {
     final name =
-        product['name']?.toString() ??
+        product['name']
+                ?.toString() ??
             'Product';
 
     final price =
-        _toDouble(product['price']);
+        _toDouble(
+      product['price'],
+    );
 
     final description =
         product['description']
@@ -1436,6 +1675,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
     final imageUrl =
         product['imageUrl']
+                ?.toString() ??
+            product['image']
                 ?.toString() ??
             '';
 
@@ -1453,240 +1694,283 @@ class _MyHomePageState extends State<MyHomePage> {
       context: context,
       backgroundColor:
           Colors.transparent,
-      isScrollControlled: true,
+      isScrollControlled:
+          true,
       builder: (context) {
-        return Container(
-          padding:
-              const EdgeInsets.all(
-            20,
-          ),
-          decoration:
-              const BoxDecoration(
-            color: pikkXWhite,
-            borderRadius:
-                BorderRadius.vertical(
-              top: Radius.circular(
-                30,
-              ),
+        return ClipRRect(
+          borderRadius:
+              const BorderRadius
+                  .vertical(
+            top: Radius.circular(
+              30,
             ),
           ),
-          child: SafeArea(
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize:
-                    MainAxisSize.min,
-                crossAxisAlignment:
-                    CrossAxisAlignment
-                        .start,
-                children: [
-                  if (imageUrl
-                      .isNotEmpty)
-                    ClipRRect(
-                      borderRadius:
-                          BorderRadius
-                              .circular(
-                        20,
-                      ),
-                      child:
-                          Image.network(
-                        imageUrl,
-                        height: 190,
-                        width:
-                            double.infinity,
-                        fit: BoxFit
-                            .cover,
-                        errorBuilder:
-                            (_, __, ___) =>
-                                _productPlaceholder(),
-                      ),
-                    ),
-
-                  const SizedBox(
-                    height: 15,
+          child: BackdropFilter(
+            filter:
+                ImageFilter.blur(
+              sigmaX: 12,
+              sigmaY: 12,
+            ),
+            child: Container(
+              padding:
+                  const EdgeInsets.all(
+                20,
+              ),
+              decoration:
+                  BoxDecoration(
+                color:
+                    pikkXWhite.withOpacity(
+                  .96,
+                ),
+                borderRadius:
+                    const BorderRadius
+                        .vertical(
+                  top:
+                      Radius.circular(
+                    30,
                   ),
-
-                  Text(
-                    name,
-                    style:
-                        const TextStyle(
-                      color:
-                          pikkXBlack,
-                      fontSize: 20,
-                      fontWeight:
-                          FontWeight
-                              .w900,
-                    ),
+                ),
+                border:
+                    Border.all(
+                  color:
+                      pikkXNavy.withOpacity(
+                    .08,
                   ),
-
-                  const SizedBox(
-                    height: 6,
-                  ),
-
-                  Text(
-                    _formatPrice(
-                      price,
-                    ),
-                    style:
-                        const TextStyle(
-                      color:
-                          pikkXNavy,
-                      fontSize: 18,
-                      fontWeight:
-                          FontWeight
-                              .w900,
-                    ),
-                  ),
-
-                  if (category
-                      .isNotEmpty)
-                    Padding(
-                      padding:
-                          const EdgeInsets
-                              .only(
-                        top: 8,
-                      ),
-                      child: Text(
-                        category,
-                        style:
-                            TextStyle(
-                          color: LightColor
-                              .mutedText,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-
-                  if (seller
-                      .isNotEmpty)
-                    Padding(
-                      padding:
-                          const EdgeInsets
-                              .only(
-                        top: 3,
-                      ),
-                      child: Text(
-                        'Seller: $seller',
-                        style:
-                            TextStyle(
-                          color: LightColor
-                              .mutedText,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-
-                  const SizedBox(
-                    height: 10,
-                  ),
-
-                  Text(
-                    description,
-                    style:
-                        TextStyle(
-                      color: LightColor
-                          .mutedText,
-                      height: 1.4,
-                    ),
-                  ),
-
-                  const SizedBox(
-                    height: 18,
-                  ),
-
-                  Row(
+                ),
+              ),
+              child: SafeArea(
+                child:
+                    SingleChildScrollView(
+                  child:
+                      Column(
+                    mainAxisSize:
+                        MainAxisSize.min,
+                    crossAxisAlignment:
+                        CrossAxisAlignment
+                            .start,
                     children: [
-                      Expanded(
-                        child:
-                            OutlinedButton(
-                          onPressed:
-                              () =>
-                                  _toggleFavourite(
-                            productId,
-                            product,
-                          ),
-                          style:
-                              OutlinedButton
-                                  .styleFrom(
-                            foregroundColor:
-                                pikkXNavy,
-                            side:
-                                const BorderSide(
-                              color:
-                                  pikkXNavy,
-                            ),
-                            shape:
-                                RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius
-                                      .circular(
-                                16,
-                              ),
-                            ),
+                      if (imageUrl
+                          .isNotEmpty)
+                        ClipRRect(
+                          borderRadius:
+                              BorderRadius
+                                  .circular(
+                            20,
                           ),
                           child:
-                              const Icon(
-                            Icons
-                                .favorite_border_rounded,
+                              Image.network(
+                            imageUrl,
+                            height:
+                                190,
+                            width:
+                                double.infinity,
+                            fit: BoxFit
+                                .cover,
+                            errorBuilder:
+                                (_, __, ___) =>
+                                    _productPlaceholder(),
                           ),
+                        ),
+
+                      const SizedBox(
+                        height: 15,
+                      ),
+
+                      Text(
+                        name,
+                        style:
+                            const TextStyle(
+                          color:
+                              pikkXBlack,
+                          fontSize:
+                              20,
+                          fontWeight:
+                              FontWeight
+                                  .w900,
                         ),
                       ),
 
                       const SizedBox(
-                        width: 10,
+                        height: 6,
                       ),
 
-                      Expanded(
-                        flex: 3,
-                        child:
-                            SizedBox(
-                          height: 52,
-                          child:
-                              ElevatedButton(
-                            onPressed:
-                                () {
-                              Navigator.pop(
-                                context,
-                              );
+                      Text(
+                        _formatPrice(
+                          price,
+                        ),
+                        style:
+                            const TextStyle(
+                          color:
+                              pikkXNavy,
+                          fontSize:
+                              18,
+                          fontWeight:
+                              FontWeight
+                                  .w900,
+                        ),
+                      ),
 
-                              _addToCart(
-                                productId,
-                                product,
-                              );
-                            },
+                      if (category
+                          .isNotEmpty)
+                        Padding(
+                          padding:
+                              const EdgeInsets
+                                  .only(
+                            top: 8,
+                          ),
+                          child:
+                              Text(
+                            category,
                             style:
-                                ElevatedButton
-                                    .styleFrom(
-                              backgroundColor:
-                                  pikkXBlack,
-                              foregroundColor:
-                                  pikkXWhite,
-                              elevation:
-                                  0,
-                              shape:
-                                  RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius
-                                        .circular(
-                                  16,
-                                ),
-                              ),
-                            ),
-                            child:
-                                const Text(
-                              'Add to Cart',
-                              style:
-                                  TextStyle(
-                                fontWeight:
-                                    FontWeight
-                                        .w800,
-                              ),
+                                TextStyle(
+                              color:
+                                  LightColor
+                                      .mutedText,
+                              fontSize:
+                                  11,
                             ),
                           ),
                         ),
+
+                      if (seller
+                          .isNotEmpty)
+                        Padding(
+                          padding:
+                              const EdgeInsets
+                                  .only(
+                            top: 3,
+                          ),
+                          child:
+                              Text(
+                            'Seller: $seller',
+                            style:
+                                TextStyle(
+                              color:
+                                  LightColor
+                                      .mutedText,
+                              fontSize:
+                                  11,
+                            ),
+                          ),
+                        ),
+
+                      const SizedBox(
+                        height: 10,
+                      ),
+
+                      Text(
+                        description,
+                        style:
+                            TextStyle(
+                          color:
+                              LightColor
+                                  .mutedText,
+                          height: 1.4,
+                        ),
+                      ),
+
+                      const SizedBox(
+                        height: 18,
+                      ),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child:
+                                OutlinedButton(
+                              onPressed:
+                                  () =>
+                                      _toggleFavourite(
+                                productId,
+                                product,
+                              ),
+                              style:
+                                  OutlinedButton
+                                      .styleFrom(
+                                foregroundColor:
+                                    pikkXNavy,
+                                side:
+                                    const BorderSide(
+                                  color:
+                                      pikkXNavy,
+                                ),
+                                shape:
+                                    RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius
+                                          .circular(
+                                    16,
+                                  ),
+                                ),
+                              ),
+                              child:
+                                  const Icon(
+                                Icons
+                                    .favorite_border_rounded,
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(
+                            width: 10,
+                          ),
+
+                          Expanded(
+                            flex: 3,
+                            child:
+                                SizedBox(
+                              height:
+                                  52,
+                              child:
+                                  ElevatedButton(
+                                onPressed:
+                                    () {
+                                  Navigator
+                                      .pop(
+                                    context,
+                                  );
+
+                                  _addToCart(
+                                    productId,
+                                    product,
+                                  );
+                                },
+                                style:
+                                    ElevatedButton
+                                        .styleFrom(
+                                  backgroundColor:
+                                      pikkXBlack,
+                                  foregroundColor:
+                                      pikkXWhite,
+                                  elevation:
+                                      0,
+                                  shape:
+                                      RoundedRectangleBorder(
+                                    borderRadius:
+                                        BorderRadius
+                                            .circular(
+                                      16,
+                                    ),
+                                  ),
+                                ),
+                                child:
+                                    const Text(
+                                  'Add to Cart',
+                                  style:
+                                      TextStyle(
+                                    fontWeight:
+                                        FontWeight
+                                            .w800,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -1714,55 +1998,60 @@ class _MyHomePageState extends State<MyHomePage> {
       context: context,
       backgroundColor:
           Colors.transparent,
-      isScrollControlled: true,
+      isScrollControlled:
+          true,
       builder: (context) {
-        return StreamBuilder<
-            DocumentSnapshot<
-                Map<String, dynamic>>>(
-          stream:
-              _userProfileStream(),
-          builder:
-              (context, snapshot) {
-            final data =
-                snapshot.data?.data();
-
-            final name =
-                data?['name']
-                        ?.toString() ??
-                    data?['displayName']
-                        ?.toString() ??
-                    user.displayName ??
-                    'pikkX User';
-
-            final email =
-                data?['email']
-                        ?.toString() ??
-                    user.email ??
-                    '';
-
-            final photoUrl =
-                data?['photoUrl']
-                        ?.toString() ??
-                    user.photoURL ??
-                    '';
-
-            return Container(
-              padding:
-                  const EdgeInsets.all(
-                22,
+        return Container(
+          padding:
+              const EdgeInsets.all(
+            22,
+          ),
+          decoration:
+              const BoxDecoration(
+            color:
+                pikkXWhite,
+            borderRadius:
+                BorderRadius.vertical(
+              top: Radius.circular(
+                30,
               ),
-              decoration:
-                  const BoxDecoration(
-                color: pikkXWhite,
-                borderRadius:
-                    BorderRadius.vertical(
-                  top: Radius.circular(
-                    30,
-                  ),
-                ),
-              ),
-              child: SafeArea(
-                child: Column(
+            ),
+          ),
+          child: SafeArea(
+            child:
+                StreamBuilder<
+                    DocumentSnapshot<
+                        Map<String,
+                            dynamic>>>(
+              stream:
+                  _userProfileStream(),
+              builder:
+                  (context, snapshot) {
+                final data =
+                    snapshot.data
+                        ?.data();
+
+                final name =
+                    data?['name']
+                            ?.toString() ??
+                        data?['displayName']
+                            ?.toString() ??
+                        user.displayName ??
+                        'pikkX User';
+
+                final email =
+                    data?['email']
+                            ?.toString() ??
+                        user.email ??
+                        '';
+
+                final photoUrl =
+                    data?['photoUrl']
+                            ?.toString() ??
+                        user.photoURL ??
+                        '';
+
+                return Column(
                   mainAxisSize:
                       MainAxisSize.min,
                   children: [
@@ -1787,16 +2076,17 @@ class _MyHomePageState extends State<MyHomePage> {
                               )
                             : null,
                       ),
-                      child: photoUrl
-                              .isEmpty
-                          ? const Icon(
-                              Icons
-                                  .person_outline_rounded,
-                              color:
-                                  pikkXNavy,
-                              size: 35,
-                            )
-                          : null,
+                      child:
+                          photoUrl.isEmpty
+                              ? const Icon(
+                                  Icons
+                                      .person_outline_rounded,
+                                  color:
+                                      pikkXNavy,
+                                  size:
+                                      35,
+                                )
+                              : null,
                     ),
 
                     const SizedBox(
@@ -1809,7 +2099,8 @@ class _MyHomePageState extends State<MyHomePage> {
                           const TextStyle(
                         color:
                             pikkXBlack,
-                        fontSize: 20,
+                        fontSize:
+                            20,
                         fontWeight:
                             FontWeight
                                 .w900,
@@ -1824,13 +2115,16 @@ class _MyHomePageState extends State<MyHomePage> {
                                 .only(
                           top: 4,
                         ),
-                        child: Text(
+                        child:
+                            Text(
                           email,
                           style:
                               TextStyle(
-                            color: LightColor
-                                .mutedText,
-                            fontSize: 12,
+                            color:
+                                LightColor
+                                    .mutedText,
+                            fontSize:
+                                12,
                           ),
                         ),
                       ),
@@ -1840,10 +2134,12 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
 
                     _profileAction(
-                      Icons.person_outline_rounded,
+                      Icons
+                          .person_outline_rounded,
                       'Profile',
                       () {
-                        Navigator.pop(
+                        Navigator
+                            .pop(
                           context,
                         );
 
@@ -1858,10 +2154,12 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
 
                     _profileAction(
-                      Icons.favorite_border_rounded,
+                      Icons
+                          .favorite_border_rounded,
                       'My Favourites',
                       () {
-                        Navigator.pop(
+                        Navigator
+                            .pop(
                           context,
                         );
 
@@ -1876,10 +2174,12 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
 
                     _profileAction(
-                      Icons.logout_rounded,
+                      Icons
+                          .logout_rounded,
                       'Sign Out',
                       () async {
-                        Navigator.pop(
+                        Navigator
+                            .pop(
                           context,
                         );
 
@@ -1896,10 +2196,10 @@ class _MyHomePageState extends State<MyHomePage> {
                       },
                     ),
                   ],
-                ),
-              ),
-            );
-          },
+                );
+              },
+            ),
+          ),
         );
       },
     );
@@ -1911,23 +2211,26 @@ class _MyHomePageState extends State<MyHomePage> {
     VoidCallback onTap,
   ) {
     return Container(
-      width: double.infinity,
+      width:
+          double.infinity,
       decoration:
-          BoxDecoration(
+          _glassDecoration(
+        radius: 16,
         color:
             pikkXBackground,
-        borderRadius:
-            BorderRadius.circular(
-          16,
-        ),
+        navyBorder: true,
       ),
-      child: ListTile(
+      child:
+          ListTile(
         onTap: onTap,
-        leading: Icon(
+        leading:
+            Icon(
           icon,
-          color: pikkXNavy,
+          color:
+              pikkXNavy,
         ),
-        title: Text(
+        title:
+            Text(
           title,
           style:
               const TextStyle(
@@ -1967,17 +2270,19 @@ class _MyHomePageState extends State<MyHomePage> {
       context: context,
       backgroundColor:
           Colors.transparent,
-      isScrollControlled: true,
+      isScrollControlled:
+          true,
       builder: (context) {
         return Container(
           height:
-              MediaQuery.of(context)
-                      .size
-                      .height *
+              MediaQuery.of(
+                    context,
+                  ).size.height *
                   .72,
           decoration:
               const BoxDecoration(
-            color: pikkXWhite,
+            color:
+                pikkXWhite,
             borderRadius:
                 BorderRadius.vertical(
               top: Radius.circular(
@@ -1996,30 +2301,34 @@ class _MyHomePageState extends State<MyHomePage> {
                     20,
                     14,
                   ),
-                  child: Row(
-                    children: [
-                      Text(
-                        'Notifications',
-                        style:
-                            TextStyle(
-                          color:
-                              pikkXBlack,
-                          fontSize:
-                              20,
-                          fontWeight:
-                              FontWeight
-                                  .w900,
-                        ),
+                  child:
+                      Align(
+                    alignment:
+                        Alignment
+                            .centerLeft,
+                    child:
+                        Text(
+                      'Notifications',
+                      style:
+                          TextStyle(
+                        color:
+                            pikkXBlack,
+                        fontSize:
+                            20,
+                        fontWeight:
+                            FontWeight
+                                .w900,
                       ),
-                    ],
+                    ),
                   ),
                 ),
 
                 Expanded(
-                  child: StreamBuilder<
-                      QuerySnapshot<
-                          Map<String,
-                              dynamic>>>(
+                  child:
+                      StreamBuilder<
+                          QuerySnapshot<
+                              Map<String,
+                                  dynamic>>>(
                     stream:
                         _notificationsStream(),
                     builder:
@@ -2046,8 +2355,9 @@ class _MyHomePageState extends State<MyHomePage> {
                             'Unable to load notifications.',
                             style:
                                 TextStyle(
-                              color: LightColor
-                                  .mutedText,
+                              color:
+                                  LightColor
+                                      .mutedText,
                             ),
                           ),
                         );
@@ -2061,7 +2371,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
                       if (docs.isEmpty) {
                         return Center(
-                          child: Column(
+                          child:
+                              Column(
                             mainAxisSize:
                                 MainAxisSize
                                     .min,
@@ -2071,7 +2382,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                     .notifications_none_rounded,
                                 color:
                                     pikkXNavy,
-                                size: 48,
+                                size:
+                                    48,
                               ),
                               const SizedBox(
                                 height:
@@ -2136,22 +2448,15 @@ class _MyHomePageState extends State<MyHomePage> {
                                   10,
                             ),
                             decoration:
-                                BoxDecoration(
-                              color: read
-                                  ? pikkXBackground
-                                  : pikkXWhite,
-                              borderRadius:
-                                  BorderRadius
-                                      .circular(
-                                17,
-                              ),
-                              border:
-                                  Border.all(
-                                color:
-                                    pikkXNavy.withOpacity(
-                                  .07,
-                                ),
-                              ),
+                                _glassDecoration(
+                              radius:
+                                  17,
+                              color:
+                                  read
+                                      ? pikkXBackground
+                                      : pikkXWhite,
+                              navyBorder:
+                                  true,
                             ),
                             child:
                                 ListTile(
@@ -2252,9 +2557,11 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget _productPlaceholder() {
     return const Center(
       child: Icon(
-        Icons.shopping_bag_outlined,
+        Icons
+            .shopping_bag_outlined,
         size: 48,
-        color: pikkXNavy,
+        color:
+            pikkXNavy,
       ),
     );
   }
@@ -2279,18 +2586,19 @@ class _MyHomePageState extends State<MyHomePage> {
       width:
           double.infinity,
       decoration:
-          BoxDecoration(
-        color: pikkXWhite,
-        borderRadius:
-            BorderRadius.circular(
-          20,
-        ),
+          _glassDecoration(
+        radius: 20,
+        color:
+            pikkXWhite.withOpacity(.82),
+        navyBorder: true,
       ),
       child: Column(
         children: [
           const Icon(
-            Icons.search_off_rounded,
-            color: pikkXNavy,
+            Icons
+                .search_off_rounded,
+            color:
+                pikkXNavy,
             size: 38,
           ),
           const SizedBox(
@@ -2317,9 +2625,11 @@ class _MyHomePageState extends State<MyHomePage> {
             'Products added to Firebase will appear here.',
             textAlign:
                 TextAlign.center,
-            style: TextStyle(
-              color: LightColor
-                  .mutedText,
+            style:
+                TextStyle(
+              color:
+                  LightColor
+                      .mutedText,
               fontSize: 11,
             ),
           ),
@@ -2343,18 +2653,19 @@ class _MyHomePageState extends State<MyHomePage> {
         20,
       ),
       decoration:
-          BoxDecoration(
-        color: pikkXWhite,
-        borderRadius:
-            BorderRadius.circular(
-          20,
-        ),
+          _glassDecoration(
+        radius: 20,
+        color:
+            pikkXWhite.withOpacity(.82),
+        navyBorder: true,
       ),
       child: Column(
         children: [
           const Icon(
-            Icons.cloud_off_rounded,
-            color: pikkXNavy,
+            Icons
+                .cloud_off_rounded,
+            color:
+                pikkXNavy,
             size: 38,
           ),
           const SizedBox(
@@ -2380,7 +2691,8 @@ class _MyHomePageState extends State<MyHomePage> {
             style:
                 TextStyle(
               color:
-                  LightColor.mutedText,
+                  LightColor
+                      .mutedText,
               fontSize: 11,
             ),
           ),
@@ -2431,7 +2743,8 @@ class _MyHomePageState extends State<MyHomePage> {
     return Container(
       color:
           pikkXBackground,
-      child: SizedBox(
+      child:
+          SizedBox(
         height:
             MediaQuery.of(
                   context,
@@ -2444,7 +2757,8 @@ class _MyHomePageState extends State<MyHomePage> {
           dragStartBehavior:
               DragStartBehavior
                   .down,
-          child: Column(
+          child:
+              Column(
             crossAxisAlignment:
                 CrossAxisAlignment
                     .start,
