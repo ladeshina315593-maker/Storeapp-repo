@@ -4,19 +4,23 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-class ChatPage extends StatefulWidget {
-  final String chatId;
-  final String? otherUserName;
+import 'package:flutter_ecommerce_app/src/themes/theme.dart';
 
+class ChatPage extends StatefulWidget {
   const ChatPage({
     super.key,
-    required this.chatId,
+    this.chatId,
     this.otherUserName,
   });
 
+  /// Null = Chat Inbox.
+  /// A value = Individual conversation.
+  final String? chatId;
+
+  final String? otherUserName;
+
   @override
-  State<ChatPage> createState() =>
-      _ChatPageState();
+  State<ChatPage> createState() => _ChatPageState();
 }
 
 class _ChatPageState extends State<ChatPage> {
@@ -26,17 +30,25 @@ class _ChatPageState extends State<ChatPage> {
   final FirebaseAuth _auth =
       FirebaseAuth.instance;
 
-  final TextEditingController
-      _messageController =
+  final TextEditingController _messageController =
       TextEditingController();
 
-  bool isSending = false;
+  bool _isSending = false;
 
-  String? get userId =>
-      _auth.currentUser?.uid;
+  User? get _currentUser => _auth.currentUser;
+
+  String? get _userId => _currentUser?.uid;
+
+  bool get _isConversation =>
+      widget.chatId != null &&
+      widget.chatId!.trim().isNotEmpty;
 
   CollectionReference<Map<String, dynamic>>
-      get messagesRef {
+      get _messagesRef {
+    if (!_isConversation) {
+      throw StateError('No chat ID provided.');
+    }
+
     return _firestore
         .collection('chats')
         .doc(widget.chatId)
@@ -49,26 +61,35 @@ class _ChatPageState extends State<ChatPage> {
     super.dispose();
   }
 
+  // ============================================================
+  // SEND MESSAGE
+  // ============================================================
+
   Future<void> _sendMessage() async {
     final text =
         _messageController.text.trim();
 
     if (text.isEmpty ||
-        userId == null ||
-        isSending) {
+        _userId == null ||
+        !_isConversation ||
+        _isSending) {
       return;
     }
 
     setState(() {
-      isSending = true;
+      _isSending = true;
     });
 
     try {
+      final chatRef = _firestore
+          .collection('chats')
+          .doc(widget.chatId);
+
       final messageRef =
-          messagesRef.doc();
+          chatRef.collection('messages').doc();
 
       await messageRef.set({
-        'senderId': userId,
+        'senderId': _userId,
         'text': text,
         'type': 'text',
         'createdAt':
@@ -76,60 +97,334 @@ class _ChatPageState extends State<ChatPage> {
         'read': false,
       });
 
-      await _firestore
-          .collection('chats')
-          .doc(widget.chatId)
-          .set({
-        'participants':
-            FieldValue.arrayUnion([
-          userId,
-        ]),
-        'lastMessage': text,
-        'lastMessageSenderId':
-            userId,
-        'updatedAt':
-            FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      await chatRef.set(
+        {
+          'lastMessage': text,
+          'lastMessageSenderId': _userId,
+          'updatedAt':
+              FieldValue.serverTimestamp(),
+          'participants':
+              FieldValue.arrayUnion([
+            _userId,
+          ]),
+        },
+        SetOptions(merge: true),
+      );
 
       _messageController.clear();
     } catch (e) {
       debugPrint(
         'Send message error: $e',
       );
+
+      if (mounted) {
+        _showMessage(
+          'Could not send message.',
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
-          isSending = false;
+          _isSending = false;
         });
       }
     }
   }
 
+  // ============================================================
+  // CHAT INBOX
+  // ============================================================
+
+  Stream<QuerySnapshot<Map<String, dynamic>>>
+      _chatStream() {
+    return _firestore
+        .collection('chats')
+        .where(
+          'participants',
+          arrayContains: _userId,
+        )
+        .orderBy(
+          'updatedAt',
+          descending: true,
+        )
+        .snapshots();
+  }
+
+  // ============================================================
+  // OPEN CHAT
+  // ============================================================
+
+  void _openChat(
+    String chatId,
+    String? name,
+  ) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatPage(
+          chatId: chatId,
+          otherUserName: name,
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
+
   @override
   Widget build(BuildContext context) {
+    if (!_isConversation) {
+      return _buildInbox();
+    }
+
+    return _buildConversation();
+  }
+
+  // ============================================================
+  // CHAT INBOX
+  // ============================================================
+
+  Widget _buildInbox() {
     return Scaffold(
       backgroundColor:
-          const Color(0xFFF8F5FF),
+          AppTheme.lightBackground,
       appBar: AppBar(
-        backgroundColor:
-            Colors.transparent,
+        backgroundColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
         centerTitle: true,
-        title: Text(
-          widget.otherUserName ??
-              'Chat',
-          style: const TextStyle(
-            color:
-                Color(0xFF1D2635),
-            fontSize: 20,
-            fontWeight:
-                FontWeight.w700,
+        title: const Text(
+          'Chat',
+          style: TextStyle(
+            color: AppTheme.darkText,
+            fontSize: 21,
+            fontWeight: FontWeight.w800,
           ),
         ),
+      ),
+      body: _userId == null
+          ? _buildSignInState()
+          : StreamBuilder<
+              QuerySnapshot<Map<String, dynamic>>>(
+              stream: _chatStream(),
+              builder: (
+                context,
+                snapshot,
+              ) {
+                if (snapshot.connectionState ==
+                    ConnectionState.waiting) {
+                  return const Center(
+                    child:
+                        CircularProgressIndicator(
+                      color: AppTheme.pikkXNavy,
+                    ),
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  debugPrint(
+                    'Chat stream error: '
+                    '${snapshot.error}',
+                  );
+
+                  return _buildErrorState();
+                }
+
+                final chats =
+                    snapshot.data?.docs ?? [];
+
+                if (chats.isEmpty) {
+                  return _buildEmptyInbox();
+                }
+
+                return ListView.builder(
+                  physics:
+                      const BouncingScrollPhysics(),
+                  padding:
+                      const EdgeInsets.fromLTRB(
+                    16,
+                    5,
+                    16,
+                    100,
+                  ),
+                  itemCount: chats.length,
+                  itemBuilder:
+                      (context, index) {
+                    final doc =
+                        chats[index];
+
+                    final data =
+                        doc.data();
+
+                    return Padding(
+                      padding:
+                          const EdgeInsets.only(
+                        bottom: 12,
+                      ),
+                      child: _buildChatTile(
+                        doc.id,
+                        data,
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+    );
+  }
+
+  // ============================================================
+  // CHAT TILE
+  // ============================================================
+
+  Widget _buildChatTile(
+    String chatId,
+    Map<String, dynamic> data,
+  ) {
+    final name =
+        data['otherUserName']?.toString();
+
+    final lastMessage =
+        data['lastMessage']
+                ?.toString()
+                .trim() ??
+            'Start a conversation';
+
+    final displayName =
+        name == null || name.isEmpty
+            ? 'Chat'
+            : name;
+
+    return _glass(
+      radius: 23,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            _openChat(
+              chatId,
+              name,
+            );
+          },
+          borderRadius:
+              BorderRadius.circular(23),
+          child: Padding(
+            padding:
+                const EdgeInsets.all(15),
+            child: Row(
+              children: [
+                _chatAvatar(displayName),
+
+                const SizedBox(width: 13),
+
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        displayName,
+                        maxLines: 1,
+                        overflow:
+                            TextOverflow.ellipsis,
+                        style:
+                            const TextStyle(
+                          color:
+                              AppTheme.darkText,
+                          fontSize: 15,
+                          fontWeight:
+                              FontWeight.w800,
+                        ),
+                      ),
+
+                      const SizedBox(height: 5),
+
+                      Text(
+                        lastMessage,
+                        maxLines: 1,
+                        overflow:
+                            TextOverflow.ellipsis,
+                        style:
+                            const TextStyle(
+                          color:
+                              AppTheme.mutedText,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(width: 8),
+
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration:
+                      BoxDecoration(
+                    color: AppTheme.pikkXBlack,
+                    borderRadius:
+                        BorderRadius.circular(
+                      12,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons
+                        .arrow_forward_ios_rounded,
+                    color: Colors.white,
+                    size: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // CONVERSATION
+  // ============================================================
+
+  Widget _buildConversation() {
+    return Scaffold(
+      backgroundColor:
+          AppTheme.lightBackground,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
         iconTheme:
             const IconThemeData(
-          color:
-              Color(0xFF1D2635),
+          color: AppTheme.darkText,
+        ),
+        title: Row(
+          children: [
+            _smallAvatar(),
+
+            const SizedBox(width: 10),
+
+            Expanded(
+              child: Text(
+                widget.otherUserName ??
+                    'Chat',
+                maxLines: 1,
+                overflow:
+                    TextOverflow.ellipsis,
+                style:
+                    const TextStyle(
+                  color:
+                      AppTheme.darkText,
+                  fontSize: 19,
+                  fontWeight:
+                      FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
       body: Column(
@@ -138,7 +433,7 @@ class _ChatPageState extends State<ChatPage> {
             child: StreamBuilder<
                 QuerySnapshot<
                     Map<String, dynamic>>>(
-              stream: messagesRef
+              stream: _messagesRef
                   .orderBy(
                     'createdAt',
                     descending: false,
@@ -152,9 +447,13 @@ class _ChatPageState extends State<ChatPage> {
                     child:
                         CircularProgressIndicator(
                       color:
-                          Color(0xFFB98BEF),
+                          AppTheme.pikkXNavy,
                     ),
                   );
+                }
+
+                if (snapshot.hasError) {
+                  return _buildErrorState();
                 }
 
                 final messages =
@@ -162,32 +461,30 @@ class _ChatPageState extends State<ChatPage> {
                         [];
 
                 if (messages.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'Start the conversation',
-                      style: TextStyle(
-                        color:
-                            Color(0xFF797878),
-                      ),
-                    ),
-                  );
+                  return _buildStartConversation();
                 }
 
                 return ListView.builder(
+                  physics:
+                      const BouncingScrollPhysics(),
                   padding:
-                      const EdgeInsets.all(16),
+                      const EdgeInsets.fromLTRB(
+                    16,
+                    12,
+                    16,
+                    12,
+                  ),
                   itemCount:
                       messages.length,
                   itemBuilder:
                       (context, index) {
                     final message =
-                        messages[index]
-                            .data();
+                        messages[index].data();
 
                     final isMine =
                         message[
                                 'senderId'] ==
-                            userId;
+                            _userId;
 
                     return _messageBubble(
                       message,
@@ -198,16 +495,24 @@ class _ChatPageState extends State<ChatPage> {
               },
             ),
           ),
+
           _messageInput(),
         ],
       ),
     );
   }
 
+  // ============================================================
+  // MESSAGE BUBBLE
+  // ============================================================
+
   Widget _messageBubble(
     Map<String, dynamic> message,
     bool isMine,
   ) {
+    final text =
+        message['text']?.toString() ?? '';
+
     return Align(
       alignment: isMine
           ? Alignment.centerRight
@@ -215,7 +520,7 @@ class _ChatPageState extends State<ChatPage> {
       child: Container(
         constraints:
             const BoxConstraints(
-          maxWidth: 290,
+          maxWidth: 295,
         ),
         margin:
             const EdgeInsets.only(
@@ -226,39 +531,61 @@ class _ChatPageState extends State<ChatPage> {
           horizontal: 15,
           vertical: 11,
         ),
-        decoration:
-            BoxDecoration(
+        decoration: BoxDecoration(
           color: isMine
-              ? const Color(
-                  0xFFB98BEF,
-                )
-              : Colors.white
-                  .withOpacity(0.78),
+              ? AppTheme.pikkXBlack
+              : Colors.white.withOpacity(0.72),
           borderRadius:
-              BorderRadius.circular(19),
-          border: isMine
-              ? null
-              : Border.all(
-                  color: Colors.white
-                      .withOpacity(0.9),
-                ),
+              BorderRadius.only(
+            topLeft:
+                const Radius.circular(20),
+            topRight:
+                const Radius.circular(20),
+            bottomLeft:
+                Radius.circular(
+              isMine ? 20 : 5,
+            ),
+            bottomRight:
+                Radius.circular(
+              isMine ? 5 : 20,
+            ),
+          ),
+          border: Border.all(
+            color: isMine
+                ? AppTheme.pikkXNavy
+                    .withOpacity(0.35)
+                : Colors.white
+                    .withOpacity(0.9),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color:
+                  Colors.black.withOpacity(
+                0.035,
+              ),
+              blurRadius: 12,
+              offset:
+                  const Offset(0, 5),
+            ),
+          ],
         ),
         child: Text(
-          message['text']
-                  ?.toString() ??
-              '',
+          text,
           style: TextStyle(
             color: isMine
                 ? Colors.white
-                : const Color(
-                    0xFF1D2635,
-                  ),
+                : AppTheme.darkText,
             fontSize: 14,
+            height: 1.35,
           ),
         ),
       ),
     );
   }
+
+  // ============================================================
+  // MESSAGE INPUT
+  // ============================================================
 
   Widget _messageInput() {
     return SafeArea(
@@ -272,77 +599,518 @@ class _ChatPageState extends State<ChatPage> {
           12,
         ),
         child: _glass(
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller:
-                      _messageController,
-                  textInputAction:
-                      TextInputAction.send,
-                  onSubmitted: (_) =>
-                      _sendMessage(),
-                  decoration:
-                      const InputDecoration(
-                    hintText:
-                        'Write a message...',
-                    hintStyle:
-                        TextStyle(
+          radius: 22,
+          child: Padding(
+            padding:
+                const EdgeInsets.only(
+              left: 4,
+              right: 5,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller:
+                        _messageController,
+                    textInputAction:
+                        TextInputAction.send,
+                    onSubmitted: (_) {
+                      _sendMessage();
+                    },
+                    style:
+                        const TextStyle(
                       color:
-                          Color(0xFFA1A3A6),
+                          AppTheme.darkText,
+                      fontSize: 14,
                     ),
-                    border:
-                        InputBorder.none,
-                    contentPadding:
-                        EdgeInsets.symmetric(
-                      horizontal: 16,
+                    decoration:
+                        const InputDecoration(
+                      hintText:
+                          'Write a message...',
+                      hintStyle:
+                          TextStyle(
+                        color:
+                            AppTheme.mutedText,
+                      ),
+                      border:
+                          InputBorder.none,
+                      contentPadding:
+                          EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 14,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              IconButton(
-                onPressed: isSending
-                    ? null
-                    : _sendMessage,
-                icon: const Icon(
-                  Icons.send_rounded,
+
+                Material(
                   color:
-                      Color(0xFF8F62D9),
+                      AppTheme.pikkXBlack,
+                  borderRadius:
+                      BorderRadius.circular(
+                    16,
+                  ),
+                  child: InkWell(
+                    onTap: _isSending
+                        ? null
+                        : _sendMessage,
+                    borderRadius:
+                        BorderRadius.circular(
+                      16,
+                    ),
+                    child: SizedBox(
+                      width: 44,
+                      height: 44,
+                      child: Center(
+                        child:
+                            _isSending
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child:
+                                        CircularProgressIndicator(
+                                      strokeWidth:
+                                          2,
+                                      color:
+                                          Colors.white,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons
+                                        .send_rounded,
+                                    color:
+                                        Colors.white,
+                                    size: 19,
+                                  ),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
+  // ============================================================
+  // EMPTY INBOX
+  // ============================================================
+
+  Widget _buildEmptyInbox() {
+    return Center(
+      child: Padding(
+        padding:
+            const EdgeInsets.all(28),
+        child: _glass(
+          radius: 30,
+          child: Padding(
+            padding:
+                const EdgeInsets.all(30),
+            child: Column(
+              mainAxisSize:
+                  MainAxisSize.min,
+              children: [
+                _largeChatIcon(),
+
+                const SizedBox(height: 18),
+
+                const Text(
+                  'No chats yet',
+                  textAlign:
+                      TextAlign.center,
+                  style: TextStyle(
+                    color:
+                        AppTheme.darkText,
+                    fontSize: 20,
+                    fontWeight:
+                        FontWeight.w800,
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                const Text(
+                  'Your conversations with sellers and support will appear here.',
+                  textAlign:
+                      TextAlign.center,
+                  style: TextStyle(
+                    color:
+                        AppTheme.mutedText,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // SIGN IN
+  // ============================================================
+
+  Widget _buildSignInState() {
+    return Center(
+      child: Padding(
+        padding:
+            const EdgeInsets.all(28),
+        child: _glass(
+          radius: 30,
+          child: Padding(
+            padding:
+                const EdgeInsets.all(30),
+            child: Column(
+              mainAxisSize:
+                  MainAxisSize.min,
+              children: [
+                _largeChatIcon(),
+
+                const SizedBox(height: 18),
+
+                const Text(
+                  'Sign in to use Chat',
+                  textAlign:
+                      TextAlign.center,
+                  style: TextStyle(
+                    color:
+                        AppTheme.darkText,
+                    fontSize: 20,
+                    fontWeight:
+                        FontWeight.w800,
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                const Text(
+                  'Sign in to see your conversations and messages.',
+                  textAlign:
+                      TextAlign.center,
+                  style: TextStyle(
+                    color:
+                        AppTheme.mutedText,
+                    height: 1.45,
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                _blackButton(
+                  text: 'Sign In',
+                  onTap: () {
+                    Navigator.pushNamed(
+                      context,
+                      '/sign-in',
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // START CONVERSATION
+  // ============================================================
+
+  Widget _buildStartConversation() {
+    return Center(
+      child: Padding(
+        padding:
+            const EdgeInsets.all(30),
+        child: Column(
+          mainAxisSize:
+              MainAxisSize.min,
+          children: [
+            _largeChatIcon(),
+
+            const SizedBox(height: 16),
+
+            const Text(
+              'Start the conversation',
+              textAlign:
+                  TextAlign.center,
+              style: TextStyle(
+                color:
+                    AppTheme.darkText,
+                fontSize: 18,
+                fontWeight:
+                    FontWeight.w800,
+              ),
+            ),
+
+            const SizedBox(height: 7),
+
+            const Text(
+              'Send a message below to get started.',
+              textAlign:
+                  TextAlign.center,
+              style: TextStyle(
+                color:
+                    AppTheme.mutedText,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // ERROR
+  // ============================================================
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding:
+            const EdgeInsets.all(30),
+        child: Column(
+          mainAxisSize:
+              MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons
+                  .error_outline_rounded,
+              size: 48,
+              color:
+                  AppTheme.pikkXNavy,
+            ),
+
+            const SizedBox(height: 12),
+
+            const Text(
+              'Could not load chats',
+              style: TextStyle(
+                color:
+                    AppTheme.darkText,
+                fontSize: 18,
+                fontWeight:
+                    FontWeight.w800,
+              ),
+            ),
+
+            const SizedBox(height: 6),
+
+            const Text(
+              'Please check your connection and try again.',
+              textAlign:
+                  TextAlign.center,
+              style: TextStyle(
+                color:
+                    AppTheme.mutedText,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // AVATARS
+  // ============================================================
+
+  Widget _chatAvatar(
+    String name,
+  ) {
+    return Container(
+      width: 50,
+      height: 50,
+      decoration: BoxDecoration(
+        color: AppTheme.pikkXBlack,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: AppTheme.pikkXNavy
+              .withOpacity(0.30),
+          width: 1.5,
+        ),
+      ),
+      child: Center(
+        child: Text(
+          name.isEmpty
+              ? 'C'
+              : name[0].toUpperCase(),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight:
+                FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _smallAvatar() {
+    final name =
+        widget.otherUserName ?? 'Chat';
+
+    return _chatAvatar(name);
+  }
+
+  Widget _largeChatIcon() {
+    return Container(
+      width: 82,
+      height: 82,
+      decoration: BoxDecoration(
+        color: AppTheme.pikkXBlack,
+        borderRadius:
+            BorderRadius.circular(27),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.pikkXNavy
+                .withOpacity(0.16),
+            blurRadius: 22,
+            offset:
+                const Offset(0, 9),
+          ),
+        ],
+      ),
+      child: const Icon(
+        Icons.chat_bubble_outline_rounded,
+        color: Colors.white,
+        size: 39,
+      ),
+    );
+  }
+
+  // ============================================================
+  // BLACK BUTTON
+  // ============================================================
+
+  Widget _blackButton({
+    required String text,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius:
+            BorderRadius.circular(17),
+        child: Container(
+          padding:
+              const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 13,
+          ),
+          decoration: BoxDecoration(
+            color: AppTheme.pikkXBlack,
+            borderRadius:
+                BorderRadius.circular(17),
+            border: Border.all(
+              color: AppTheme.pikkXNavy
+                  .withOpacity(0.30),
+            ),
+          ),
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight:
+                  FontWeight.w800,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // GLASS FIXTURE
+  // ============================================================
+
   Widget _glass({
     required Widget child,
+    double radius = 24,
   }) {
     return ClipRRect(
       borderRadius:
-          BorderRadius.circular(24),
+          BorderRadius.circular(radius),
       child: BackdropFilter(
         filter: ImageFilter.blur(
-          sigmaX: 15,
-          sigmaY: 15,
+          sigmaX: 18,
+          sigmaY: 18,
         ),
         child: Container(
-          decoration:
-              BoxDecoration(
+          decoration: BoxDecoration(
             color:
-                Colors.white.withOpacity(0.76),
+                Colors.white.withOpacity(
+              0.70,
+            ),
             borderRadius:
-                BorderRadius.circular(24),
+                BorderRadius.circular(
+              radius,
+            ),
             border: Border.all(
               color:
-                  Colors.white.withOpacity(0.88),
+                  Colors.white.withOpacity(
+                0.90,
+              ),
+              width: 1.2,
             ),
+            boxShadow: [
+              BoxShadow(
+                color:
+                    Colors.black.withOpacity(
+                  0.055,
+                ),
+                blurRadius: 22,
+                offset:
+                    const Offset(0, 10),
+              ),
+              BoxShadow(
+                color: AppTheme.pikkXNavy
+                    .withOpacity(0.045),
+                blurRadius: 28,
+                spreadRadius: 1,
+              ),
+            ],
           ),
           child: child,
         ),
       ),
     );
+  }
+
+  // ============================================================
+  // MESSAGE
+  // ============================================================
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            message,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight:
+                  FontWeight.w600,
+            ),
+          ),
+          backgroundColor:
+              AppTheme.pikkXBlack,
+          behavior:
+              SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(16),
+          ),
+        ),
+      );
   }
 }
