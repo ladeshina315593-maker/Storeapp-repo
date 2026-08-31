@@ -1,29 +1,34 @@
+import 'dart:ui';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_ecommerce_app/src/themes/theme.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({Key? key}) : super(key: key);
+  const ProfilePage({super.key});
 
   @override
-  _ProfilePageState createState() => _ProfilePageState();
+  State<ProfilePage> createState() => _ProfilePageState();
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  bool _isLoading = false;
+  final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance;
 
-  // Firebase-ready user information.
-  //
-  // These values should eventually come from:
-  //
-  // FirebaseAuth.instance.currentUser
-  //              +
-  // Firestore
-  // users/{uid}
-  //
+  final FirebaseAuth _auth =
+      FirebaseAuth.instance;
+
+  bool _isLoading = true;
+
   String _name = 'Your Name';
-  String _email = 'your@email.com';
+  String _email = '';
   String _phone = '';
   String _photoUrl = '';
+
+  // ============================================================
+  // INIT
+  // ============================================================
 
   @override
   void initState() {
@@ -31,86 +36,117 @@ class _ProfilePageState extends State<ProfilePage> {
     _loadProfile();
   }
 
-  Future<void> _loadProfile() async {
-    if (!mounted) return;
+  // ============================================================
+  // LOAD PROFILE
+  // ============================================================
 
-    setState(() {
-      _isLoading = true;
-    });
+  Future<void> _loadProfile() async {
+    final user = _auth.currentUser;
+
+    if (user == null) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+        _name = 'Guest';
+        _email = '';
+        _phone = '';
+        _photoUrl = '';
+      });
+
+      return;
+    }
 
     try {
-      /*
-       * REAL FIREBASE STRUCTURE
-       *
-       * final user = FirebaseAuth.instance.currentUser;
-       *
-       * if (user == null) {
-       *   return;
-       * }
-       *
-       * final document = await FirebaseFirestore.instance
-       *     .collection('users')
-       *     .doc(user.uid)
-       *     .get();
-       *
-       * final data = document.data();
-       *
-       * if (mounted && data != null) {
-       *   setState(() {
-       *     _name = data['name'] ?? user.displayName ?? 'User';
-       *     _email = data['email'] ?? user.email ?? '';
-       *     _phone = data['phone'] ?? user.phoneNumber ?? '';
-       *     _photoUrl = data['photoUrl'] ?? user.photoURL ?? '';
-       *   });
-       * }
-       */
+      final document = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .get();
 
-      await Future.delayed(
-        const Duration(milliseconds: 200),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      final data = document.data();
+
+      if (!mounted) return;
+
+      setState(() {
+        _name = data?['name']?.toString() ??
+            user.displayName ??
+            'Your Name';
+
+        _email = data?['email']?.toString() ??
+            user.email ??
+            '';
+
+        _phone = data?['phone']?.toString() ??
+            user.phoneNumber ??
+            '';
+
+        _photoUrl = data?['photoUrl']?.toString() ??
+            user.photoURL ??
+            '';
+
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Profile loading error: $e');
+
+      if (!mounted) return;
+
+      setState(() {
+        _name = user.displayName ?? 'Your Name';
+        _email = user.email ?? '';
+        _phone = user.phoneNumber ?? '';
+        _photoUrl = user.photoURL ?? '';
+        _isLoading = false;
+      });
     }
   }
+
+  // ============================================================
+  // GLASS FIXTURE
+  // ============================================================
 
   Widget _glassContainer({
     required Widget child,
     EdgeInsetsGeometry padding =
         const EdgeInsets.all(16),
   }) {
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.62),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.88),
-          width: 1,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: 16,
+          sigmaY: 16,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.045),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.72),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.92),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.055),
+                blurRadius: 22,
+                offset: const Offset(0, 9),
+              ),
+            ],
           ),
-        ],
+          child: child,
+        ),
       ),
-      child: child,
     );
   }
 
+  // ============================================================
+  // PROFILE HEADER
+  // ============================================================
+
   Widget _profileHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        10,
-        20,
-        22,
-      ),
+    return _glassContainer(
+      padding: const EdgeInsets.all(18),
       child: Row(
         children: [
           _profileImage(),
@@ -127,7 +163,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: AppTheme.darkText,
+                    color: AppTheme.pikkXBlack,
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
                   ),
@@ -135,20 +171,23 @@ class _ProfilePageState extends State<ProfilePage> {
 
                 const SizedBox(height: 5),
 
-                Text(
-                  _email,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: AppTheme.mutedText,
-                    fontSize: 12,
+                if (_email.isNotEmpty)
+                  Text(
+                    _email,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: AppTheme.mutedText,
+                      fontSize: 12,
+                    ),
                   ),
-                ),
 
                 if (_phone.isNotEmpty) ...[
                   const SizedBox(height: 3),
                   Text(
                     _phone,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: AppTheme.mutedText,
                       fontSize: 11,
@@ -159,11 +198,17 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
 
+          const SizedBox(width: 8),
+
           _editButton(),
         ],
       ),
     );
   }
+
+  // ============================================================
+  // PROFILE IMAGE
+  // ============================================================
 
   Widget _profileImage() {
     return Container(
@@ -172,15 +217,14 @@ class _ProfilePageState extends State<ProfilePage> {
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Colors.white.withOpacity(0.75),
+        color: Colors.white.withOpacity(0.78),
         border: Border.all(
-          color: Colors.white.withOpacity(0.9),
+          color: Colors.white.withOpacity(0.95),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.grapePurple
-                .withOpacity(0.14),
+            color: AppTheme.pikkXNavy.withOpacity(0.12),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -203,14 +247,18 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _defaultProfileIcon() {
     return Container(
-      color: AppTheme.grapeLightPurple,
+      color: const Color(0xFFF0F2F5),
       child: Icon(
         Icons.person_rounded,
-        color: AppTheme.grapePurple,
+        color: AppTheme.pikkXNavy,
         size: 38,
       ),
     );
   }
+
+  // ============================================================
+  // EDIT BUTTON
+  // ============================================================
 
   Widget _editButton() {
     return Material(
@@ -222,21 +270,25 @@ class _ProfilePageState extends State<ProfilePage> {
           height: 42,
           width: 42,
           decoration: BoxDecoration(
-            color: AppTheme.glassWhite,
+            color: Colors.white.withOpacity(0.75),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: Colors.white.withOpacity(0.85),
+              color: Colors.white.withOpacity(0.9),
             ),
           ),
           child: Icon(
             Icons.edit_rounded,
-            color: AppTheme.grapePurple,
+            color: AppTheme.pikkXNavy,
             size: 19,
           ),
         ),
       ),
     );
   }
+
+  // ============================================================
+  // SECTION TITLE
+  // ============================================================
 
   Widget _sectionTitle(String title) {
     return Padding(
@@ -247,13 +299,17 @@ class _ProfilePageState extends State<ProfilePage> {
       child: Text(
         title,
         style: TextStyle(
-          color: AppTheme.darkText,
+          color: AppTheme.pikkXBlack,
           fontSize: 15,
           fontWeight: FontWeight.w800,
         ),
       ),
     );
   }
+
+  // ============================================================
+  // PROFILE OPTION
+  // ============================================================
 
   Widget _profileOption({
     required IconData icon,
@@ -265,74 +321,81 @@ class _ProfilePageState extends State<ProfilePage> {
       padding: const EdgeInsets.only(
         bottom: 10,
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(19),
-          child: _glassContainer(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 13,
-            ),
-            child: Row(
-              children: [
-                Container(
-                  height: 42,
-                  width: 42,
-                  decoration: BoxDecoration(
-                    color: AppTheme.grapePurple
-                        .withOpacity(0.11),
-                    shape: BoxShape.circle,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(20),
+            child: _glassContainer(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 13,
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    height: 42,
+                    width: 42,
+                    decoration: BoxDecoration(
+                      color:
+                          AppTheme.pikkXNavy.withOpacity(0.08),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      icon,
+                      color: AppTheme.pikkXNavy,
+                      size: 20,
+                    ),
                   ),
-                  child: Icon(
-                    icon,
-                    color: AppTheme.grapePurple,
-                    size: 20,
-                  ),
-                ),
 
-                const SizedBox(width: 13),
+                  const SizedBox(width: 13),
 
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          color: AppTheme.darkText,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            color: AppTheme.pikkXBlack,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
-                      ),
 
-                      const SizedBox(height: 3),
+                        const SizedBox(height: 3),
 
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          color: AppTheme.mutedText,
-                          fontSize: 10,
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            color: AppTheme.mutedText,
+                            fontSize: 10,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
 
-                Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  color: AppTheme.mutedText,
-                  size: 15,
-                ),
-              ],
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    color: AppTheme.mutedText,
+                    size: 15,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
   }
+
+  // ============================================================
+  // EDIT PROFILE
+  // ============================================================
 
   void _openEditProfile() {
     showModalBottomSheet(
@@ -342,115 +405,209 @@ class _ProfilePageState extends State<ProfilePage> {
       builder: (context) {
         return _EditProfileSheet(
           currentName: _name,
-          onSave: (name) async {
-            /*
-             * REAL FIREBASE UPDATE
-             *
-             * final user = FirebaseAuth.instance.currentUser;
-             *
-             * if (user == null) return;
-             *
-             * await FirebaseFirestore.instance
-             *     .collection('users')
-             *     .doc(user.uid)
-             *     .update({
-             *       'name': name,
-             *       'updatedAt':
-             *           FieldValue.serverTimestamp(),
-             *     });
-             */
-
-            if (!mounted) return;
-
-            setState(() {
-              _name = name;
-            });
-          },
+          onSave: _saveProfileName,
         );
       },
     );
   }
 
+  Future<void> _saveProfileName(String name) async {
+    final user = _auth.currentUser;
+
+    if (user == null) return;
+
+    await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .set(
+      {
+        'name': name,
+        'email': user.email ?? '',
+        'phone': user.phoneNumber ?? '',
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+
+    await user.updateDisplayName(name);
+
+    if (!mounted) return;
+
+    setState(() {
+      _name = name;
+    });
+
+    _showMessage('Profile updated successfully.');
+  }
+
+  // ============================================================
+  // NAVIGATION
+  // ============================================================
+
   void _openOrders() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text(
-          'Orders screen will be connected here.',
-        ),
-        backgroundColor: AppTheme.grapePurple,
-        behavior: SnackBarBehavior.floating,
-      ),
+    Navigator.pushNamed(
+      context,
+      '/orders',
     );
   }
 
   void _openAddresses() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text(
-          'Address management will be connected here.',
-        ),
-        backgroundColor: AppTheme.grapePurple,
-        behavior: SnackBarBehavior.floating,
-      ),
+    Navigator.pushNamed(
+      context,
+      '/delivery-address',
     );
   }
 
   void _openSettings() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text(
-          'Settings screen will be connected here.',
-        ),
-        backgroundColor: AppTheme.grapePurple,
-        behavior: SnackBarBehavior.floating,
-      ),
+    Navigator.pushNamed(
+      context,
+      '/settings',
     );
   }
+
+  // ============================================================
+  // LOGOUT
+  // ============================================================
 
   Future<void> _signOut() async {
-    /*
-     * REAL FIREBASE LOGOUT
-     *
-     * await FirebaseAuth.instance.signOut();
-     *
-     * After signing out, the authentication
-     * state listener should send the user
-     * back to LoginPage.
-     */
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+          ),
+          title: Text(
+            'Log Out',
+            style: TextStyle(
+              color: AppTheme.pikkXBlack,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          content: Text(
+            'Are you sure you want to log out?',
+            style: TextStyle(
+              color: AppTheme.mutedText,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
+              },
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: AppTheme.pikkXNavy,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, true);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.pikkXBlack,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(13),
+                ),
+              ),
+              child: const Text(
+                'Log Out',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldLogout != true) return;
+
+    try {
+      await _auth.signOut();
+
+      if (!mounted) return;
+
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/login',
+        (route) => false,
+      );
+    } catch (e) {
+      debugPrint('Logout error: $e');
+
+      if (!mounted) return;
+
+      _showMessage(
+        'Unable to log out. Please try again.',
+      );
+    }
+  }
+
+  // ============================================================
+  // SECURITY
+  // ============================================================
+
+  void _openSecurity() {
+    _showMessage(
+      'Security settings will be connected here.',
+    );
+  }
+
+  // ============================================================
+  // MESSAGE
+  // ============================================================
+
+  void _showMessage(String message) {
+    if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text(
-          'Firebase sign-out will be connected here.',
-        ),
-        backgroundColor: AppTheme.grapePurple,
+        content: Text(message),
+        backgroundColor: AppTheme.pikkXBlack,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
       ),
     );
   }
+
+  // ============================================================
+  // CONTENT
+  // ============================================================
 
   Widget _content() {
     if (_isLoading) {
       return Center(
         child: CircularProgressIndicator(
-          color: AppTheme.grapePurple,
+          color: AppTheme.pikkXNavy,
         ),
       );
     }
 
     return RefreshIndicator(
-      color: AppTheme.grapePurple,
+      color: AppTheme.pikkXNavy,
       onRefresh: _loadProfile,
       child: ListView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(
           20,
-          0,
+          12,
           20,
           120,
         ),
         children: [
           _profileHeader(),
+
+          const SizedBox(height: 24),
 
           _sectionTitle('Account'),
 
@@ -458,7 +615,7 @@ class _ProfilePageState extends State<ProfilePage> {
             icon: Icons.receipt_long_rounded,
             title: 'My Orders',
             subtitle:
-                'View your previous and active orders',
+                'View your active and previous orders',
             onTap: _openOrders,
           ),
 
@@ -474,7 +631,7 @@ class _ProfilePageState extends State<ProfilePage> {
             icon: Icons.settings_outlined,
             title: 'Settings',
             subtitle:
-                'Manage your Grape Go preferences',
+                'Manage your pikkX preferences',
             onTap: _openSettings,
           ),
 
@@ -487,14 +644,14 @@ class _ProfilePageState extends State<ProfilePage> {
             title: 'Password & Security',
             subtitle:
                 'Manage your account security',
-            onTap: () {},
+            onTap: _openSecurity,
           ),
 
           _profileOption(
             icon: Icons.logout_rounded,
             title: 'Log Out',
             subtitle:
-                'Sign out of your Grape Go account',
+                'Sign out of your pikkX account',
             onTap: _signOut,
           ),
         ],
@@ -502,14 +659,18 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  // ============================================================
+  // BUILD
+  // ============================================================
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppTheme.grapeLightPurple,
-            Colors.white,
+            Color(0xFFF7F7F7),
+            Color(0xFFFFFFFF),
           ],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -526,15 +687,18 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 }
 
+// ================================================================
+// EDIT PROFILE SHEET
+// ================================================================
+
 class _EditProfileSheet extends StatefulWidget {
   final String currentName;
   final Future<void> Function(String name) onSave;
 
   const _EditProfileSheet({
-    Key? key,
     required this.currentName,
     required this.onSave,
-  }) : super(key: key);
+  });
 
   @override
   State<_EditProfileSheet> createState() =>
@@ -544,14 +708,14 @@ class _EditProfileSheet extends StatefulWidget {
 class _EditProfileSheetState
     extends State<_EditProfileSheet> {
   late TextEditingController _nameController;
+
   bool _saving = false;
 
   @override
   void initState() {
     super.initState();
 
-    _nameController =
-        TextEditingController(
+    _nameController = TextEditingController(
       text: widget.currentName,
     );
   }
@@ -563,133 +727,180 @@ class _EditProfileSheetState
   }
 
   Future<void> _save() async {
-    final name =
-        _nameController.text.trim();
+    final name = _nameController.text.trim();
 
-    if (name.isEmpty) return;
+    if (name.isEmpty) {
+      return;
+    }
 
     setState(() {
       _saving = true;
     });
 
-    await widget.onSave(name);
+    try {
+      await widget.onSave(name);
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    Navigator.pop(context);
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _saving = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Unable to update profile.',
+          ),
+          backgroundColor: AppTheme.pikkXBlack,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Padding(
       padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
         bottom:
-            MediaQuery.of(context)
-                    .viewInsets
-                    .bottom +
-                25,
+            MediaQuery.of(context).viewInsets.bottom,
       ),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.96),
+      child: ClipRRect(
         borderRadius: const BorderRadius.vertical(
           top: Radius.circular(30),
         ),
-        border: Border.all(
-          color: Colors.white,
-        ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              height: 5,
-              width: 45,
-              decoration: BoxDecoration(
-                color: AppTheme.grapeSoftPurple,
-                borderRadius:
-                    BorderRadius.circular(10),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(
+            sigmaX: 18,
+            sigmaY: 18,
+          ),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(
+              20,
+              15,
+              20,
+              25,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.94),
+              borderRadius:
+                  const BorderRadius.vertical(
+                top: Radius.circular(30),
+              ),
+              border: Border.all(
+                color: Colors.white,
               ),
             ),
-          ),
-
-          const SizedBox(height: 20),
-
-          Text(
-            'Edit Profile',
-            style: TextStyle(
-              color: AppTheme.darkText,
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-
-          const SizedBox(height: 18),
-
-          TextField(
-            controller: _nameController,
-            textInputAction:
-                TextInputAction.done,
-            decoration: InputDecoration(
-              labelText: 'Name',
-              prefixIcon: Icon(
-                Icons.person_outline_rounded,
-                color: AppTheme.grapePurple,
-              ),
-              filled: true,
-              fillColor:
-                  AppTheme.grapeLightPurple,
-              border: OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(17),
-                borderSide: BorderSide.none,
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 18),
-
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
-              onPressed:
-                  _saving ? null : _save,
-              style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    AppTheme.grapePurple,
-                shape:
-                    RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.circular(17),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    height: 5,
+                    width: 45,
+                    decoration: BoxDecoration(
+                      color: AppTheme.pikkXNavy
+                          .withOpacity(0.20),
+                      borderRadius:
+                          BorderRadius.circular(10),
+                    ),
+                  ),
                 ),
-              ),
-              child: _saving
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child:
-                          CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text(
-                      'Save Changes',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight:
-                            FontWeight.w800,
+
+                const SizedBox(height: 20),
+
+                Text(
+                  'Edit Profile',
+                  style: TextStyle(
+                    color: AppTheme.pikkXBlack,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+
+                const SizedBox(height: 18),
+
+                TextField(
+                  controller: _nameController,
+                  textInputAction:
+                      TextInputAction.done,
+                  style: TextStyle(
+                    color: AppTheme.pikkXBlack,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Name',
+                    labelStyle: TextStyle(
+                      color: AppTheme.mutedText,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.person_outline_rounded,
+                      color: AppTheme.pikkXNavy,
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFFF7F7F7),
+                    border: OutlineInputBorder(
+                      borderRadius:
+                          BorderRadius.circular(17),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 18),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed:
+                        _saving ? null : _save,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          AppTheme.pikkXBlack,
+                      disabledBackgroundColor:
+                          const Color(0xFF777777),
+                      foregroundColor: Colors.white,
+                      elevation: 5,
+                      shape:
+                          RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(17),
                       ),
                     ),
+                    child: _saving
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child:
+                                CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'Save Changes',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight:
+                                  FontWeight.w800,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
