@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+
 import 'package:flutter_ecommerce_app/src/pages/mainPage.dart';
 import 'package:flutter_ecommerce_app/src/pages/login_screen.dart';
 import 'package:flutter_ecommerce_app/src/pages/product_detail.dart';
@@ -12,155 +15,149 @@ import 'package:flutter_ecommerce_app/src/pages/order_details_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/notifications_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/chat_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/settings_page.dart';
-import 'package:flutter_ecommerce_app/src/widgets/customRoute.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_ecommerce_app/src/pages/dispatch_tracking_page.dart';
 
-import 'src/themes/theme.dart';
+import 'package:flutter_ecommerce_app/src/widgets/customRoute.dart';
+import 'package:flutter_ecommerce_app/src/themes/theme.dart';
+
 import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase ONCE before the app starts.
+  // ==========================================================
+  // FIREBASE
+  // ==========================================================
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Initialize Google Sign-In.
+  // ==========================================================
+  // GOOGLE SIGN-IN
+  // ==========================================================
+
   await GoogleSignIn.instance.initialize();
 
-  runApp(const GrapeGoApp());
+  runApp(const PikkXApp());
 }
 
-class GrapeGoApp extends StatelessWidget {
-  const GrapeGoApp({super.key});
+// ==========================================================
+// PIKKX APP
+// ==========================================================
+
+class PikkXApp extends StatelessWidget {
+  const PikkXApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Grape Go',
+      title: 'pikkX',
       debugShowCheckedModeBanner: false,
 
-      // ==================================================
-      // THEME
-      // ==================================================
+      // ========================================================
+      // PIKKX THEME
+      // ========================================================
 
       theme: AppTheme.lightTheme.copyWith(
         scaffoldBackgroundColor:
-            const Color(0xFFF8F5FF),
+            AppTheme.lightBackground,
 
         primaryColor:
-            const Color(0xFFB98BEF),
+            AppTheme.pikkXNavy,
 
         colorScheme:
             AppTheme.lightTheme.colorScheme.copyWith(
-          primary: const Color(0xFFB98BEF),
-          secondary: const Color(0xFFD8BFFF),
+          primary: AppTheme.pikkXNavy,
+          secondary: AppTheme.pikkXNavy,
         ),
 
         textTheme:
             GoogleFonts.mulishTextTheme(
-          Theme.of(context).textTheme,
+          AppTheme.lightTheme.textTheme,
         ).apply(
-          bodyColor:
-              const Color(0xFF30243D),
-          displayColor:
-              const Color(0xFF30243D),
+          bodyColor: AppTheme.pikkXBlack,
+          displayColor: AppTheme.pikkXBlack,
         ),
 
         appBarTheme:
             const AppBarTheme(
-          backgroundColor:
-              Colors.transparent,
+          backgroundColor: Colors.transparent,
           elevation: 0,
-          iconTheme:
-              IconThemeData(
-            color:
-                Color(0xFF30243D),
+          iconTheme: IconThemeData(
+            color: AppTheme.pikkXBlack,
           ),
         ),
       ),
 
-      // ==================================================
+      // ========================================================
       // NORMAL ROUTES
-      // ==================================================
+      // ========================================================
 
       routes: {
-        // ------------------------------------------------
+        // ------------------------------------------------------
         // AUTH
-        // ------------------------------------------------
+        // ------------------------------------------------------
 
-        '/login': (context) =>
-            LoginScreen(),
+        '/login': (context) => const LoginScreen(),
 
-        // ------------------------------------------------
+        // ------------------------------------------------------
         // HOME
-        // ------------------------------------------------
+        // ------------------------------------------------------
 
-        '/': (context) =>
-            const AuthGate(),
+        '/': (context) => const AuthGate(),
 
-        '/home': (context) =>
-            MainPage(),
+        '/home': (context) => MainPage(),
 
-        'MainPage': (context) =>
-            MainPage(),
+        '/MainPage': (context) => MainPage(),
 
-        // ------------------------------------------------
+        // ------------------------------------------------------
         // SHOPPING
-        // ------------------------------------------------
+        // ------------------------------------------------------
 
-        '/cart': (context) =>
-            ShoppingCartPage(),
+        '/cart': (context) => ShoppingCartPage(),
 
-        '/checkout': (context) =>
-            CheckoutPage(),
+        '/checkout': (context) => CheckoutPage(),
 
         '/delivery-address': (context) =>
             DeliveryAddressPage(),
 
-        // ------------------------------------------------
+        // ------------------------------------------------------
         // ORDERS
-        // ------------------------------------------------
+        // ------------------------------------------------------
 
-        '/orders': (context) =>
-            OrdersPage(),
+        '/orders': (context) => OrdersPage(),
 
-        // ------------------------------------------------
+        // ------------------------------------------------------
         // NOTIFICATIONS
-        // ------------------------------------------------
+        // ------------------------------------------------------
 
         '/notifications': (context) =>
             NotificationsPage(),
 
-        // ------------------------------------------------
+        // ------------------------------------------------------
         // SETTINGS
-        // ------------------------------------------------
+        // ------------------------------------------------------
 
-        '/settings': (context) =>
-            SettingsPage(),
+        '/settings': (context) => SettingsPage(),
       },
 
-      // ==================================================
-      // ROUTES THAT NEED ARGUMENTS
-      // ==================================================
+      // ========================================================
+      // ROUTES THAT REQUIRE ARGUMENTS
+      // ========================================================
 
-      onGenerateRoute:
-          (RouteSettings settings) {
+      onGenerateRoute: (RouteSettings settings) {
 
-        // ------------------------------------------------
+        // ======================================================
         // PRODUCT DETAILS
-        // ------------------------------------------------
+        // ======================================================
 
         if (settings.name == '/detail') {
-          final product =
-              settings.arguments;
+          final product = settings.arguments;
 
           if (product == null) {
             return MaterialPageRoute(
-              builder: (context) =>
-                  const Scaffold(
+              builder: (context) => const Scaffold(
                 body: Center(
                   child: Text(
                     'Product information is missing.',
@@ -177,21 +174,17 @@ class GrapeGoApp extends StatelessWidget {
           );
         }
 
-        // ------------------------------------------------
-        // ORDER DETAILS / TRACKING
-        // ------------------------------------------------
+        // ======================================================
+        // ORDER DETAILS
+        // ======================================================
 
-        if (settings.name ==
-            '/order-details') {
-
+        if (settings.name == '/order-details') {
           final orderId =
               settings.arguments?.toString();
 
-          if (orderId == null ||
-              orderId.isEmpty) {
+          if (orderId == null || orderId.isEmpty) {
             return MaterialPageRoute(
-              builder: (context) =>
-                  const Scaffold(
+              builder: (context) => const Scaffold(
                 body: Center(
                   child: Text(
                     'Order ID is missing.',
@@ -204,19 +197,47 @@ class GrapeGoApp extends StatelessWidget {
           return CustomRoute<bool>(
             builder: (BuildContext context) =>
                 OrderDetailsPage(
-                  orderId: orderId,
-                ),
+              orderId: orderId,
+            ),
             settings: settings,
           );
         }
 
-        // ------------------------------------------------
+        // ======================================================
+        // DISPATCH TRACKING
+        // ======================================================
+
+        if (settings.name == '/dispatch-tracking') {
+          final orderId =
+              settings.arguments?.toString();
+
+          if (orderId == null || orderId.isEmpty) {
+            return MaterialPageRoute(
+              builder: (context) => const Scaffold(
+                body: Center(
+                  child: Text(
+                    'Order ID is missing.',
+                  ),
+                ),
+              ),
+            );
+          }
+
+          return CustomRoute<bool>(
+            builder: (BuildContext context) =>
+                DispatchTrackingPage(
+              orderId: orderId,
+            ),
+            settings: settings,
+          );
+        }
+
+        // ======================================================
         // CHAT
-        // ------------------------------------------------
+        // ======================================================
 
         if (settings.name == '/chat') {
-          final arguments =
-              settings.arguments;
+          final arguments = settings.arguments;
 
           String? chatId;
           String? otherUserName;
@@ -229,15 +250,12 @@ class GrapeGoApp extends StatelessWidget {
                 arguments['otherUserName']
                     ?.toString();
           } else if (arguments != null) {
-            chatId =
-                arguments.toString();
+            chatId = arguments.toString();
           }
 
-          if (chatId == null ||
-              chatId.isEmpty) {
+          if (chatId == null || chatId.isEmpty) {
             return MaterialPageRoute(
-              builder: (context) =>
-                  const Scaffold(
+              builder: (context) => const Scaffold(
                 body: Center(
                   child: Text(
                     'Chat ID is missing.',
@@ -250,20 +268,19 @@ class GrapeGoApp extends StatelessWidget {
           return CustomRoute<bool>(
             builder: (BuildContext context) =>
                 ChatPage(
-                  chatId: chatId!,
-                  otherUserName: otherUserName,
-                ),
+              chatId: chatId!,
+              otherUserName: otherUserName,
+            ),
             settings: settings,
           );
         }
 
-        // ==================================================
+        // ======================================================
         // UNKNOWN ROUTE
-        // ==================================================
+        // ======================================================
 
         return MaterialPageRoute(
-          builder: (context) =>
-              const Scaffold(
+          builder: (context) => const Scaffold(
             body: Center(
               child: Text(
                 'Page not found.',
@@ -273,9 +290,9 @@ class GrapeGoApp extends StatelessWidget {
         );
       },
 
-      // ==================================================
+      // ========================================================
       // START APP
-      // ==================================================
+      // ========================================================
 
       initialRoute: '/',
     );
@@ -286,16 +303,14 @@ class GrapeGoApp extends StatelessWidget {
 // AUTH GATE
 // ==========================================================
 //
-// This decides what the user sees when GrapeGo opens.
+// Firebase checks whether the user is already signed in.
 //
-// No Firebase user:
-//     → LoginScreen
-//
-// Existing Firebase user:
+// Signed in:
 //     → MainPage
 //
-// Firebase remembers the authenticated user between
-// app launches, so users don't have to log in every time.
+// Not signed in:
+//     → LoginScreen
+//
 // ==========================================================
 
 class AuthGate extends StatelessWidget {
@@ -304,27 +319,40 @@ class AuthGate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance
-          .authStateChanges(),
+      stream:
+          FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
 
-        // Firebase is still checking the session.
+        // ------------------------------------------------------
+        // CHECKING AUTH STATE
+        // ------------------------------------------------------
+
         if (snapshot.connectionState ==
             ConnectionState.waiting) {
           return const Scaffold(
+            backgroundColor:
+                AppTheme.lightBackground,
             body: Center(
-              child: CircularProgressIndicator(),
+              child: CircularProgressIndicator(
+                color: AppTheme.pikkXNavy,
+              ),
             ),
           );
         }
 
-        // User is already signed in.
+        // ------------------------------------------------------
+        // USER SIGNED IN
+        // ------------------------------------------------------
+
         if (snapshot.hasData) {
           return MainPage();
         }
 
-        // No signed-in user.
-        return LoginScreen();
+        // ------------------------------------------------------
+        // USER NOT SIGNED IN
+        // ------------------------------------------------------
+
+        return const LoginScreen();
       },
     );
   }
