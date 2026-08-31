@@ -14,10 +14,23 @@ class DeliveryAddressPage extends StatefulWidget {
 
 class _DeliveryAddressPageState
     extends State<DeliveryAddressPage> {
+  // ============================================================
+  // pikkX COLORS
+  // ============================================================
+
+  static const Color pikkXBlack = Color(0xFF050505);
+  static const Color pikkXWhite = Color(0xFFFFFFFF);
+  static const Color pikkXNavy = Color(0xFF10233F);
+  static const Color background = Color(0xFFF7F7F7);
+  static const Color darkBackground = Color(0xFF050505);
+  static const Color muted = Color(0xFF73777D);
+  static const Color softGrey = Color(0xFFE8E8E8);
+
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
 
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseAuth _auth =
+      FirebaseAuth.instance;
 
   final TextEditingController _fullNameController =
       TextEditingController();
@@ -44,27 +57,32 @@ class _DeliveryAddressPageState
 
   String? editingAddressId;
 
-  // ============================================================
-  // FIREBASE USER
-  // ============================================================
-
   String? get userId => _auth.currentUser?.uid;
 
   // ============================================================
-  // FIRESTORE PATH
+  // FIRESTORE
   //
-  // users/{userId}/addresses/{addressId}
+  // users/{uid}/addresses/{addressId}
   // ============================================================
 
-  CollectionReference<Map<String, dynamic>> get addressesRef {
+  CollectionReference<Map<String, dynamic>>
+      get addressesRef {
+    final uid = userId;
+
+    if (uid == null) {
+      throw StateError(
+        'User must be authenticated before accessing addresses.',
+      );
+    }
+
     return _firestore
         .collection('users')
-        .doc(userId)
+        .doc(uid)
         .collection('addresses');
   }
 
   // ============================================================
-  // INIT
+  // INIT / DISPOSE
   // ============================================================
 
   @override
@@ -81,7 +99,6 @@ class _DeliveryAddressPageState
     _cityController.dispose();
     _stateController.dispose();
     _countryController.dispose();
-
     super.dispose();
   }
 
@@ -91,9 +108,11 @@ class _DeliveryAddressPageState
 
   Future<void> _loadAddresses() async {
     if (userId == null) {
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
       return;
     }
 
@@ -102,42 +121,43 @@ class _DeliveryAddressPageState
           .orderBy('createdAt', descending: true)
           .get();
 
-      final loadedAddresses = snapshot.docs.map((doc) {
-        return {
+      final loaded = snapshot.docs.map((doc) {
+        return <String, dynamic>{
           'id': doc.id,
           ...doc.data(),
         };
       }).toList();
 
-      if (mounted) {
-        setState(() {
-          addresses = loadedAddresses;
-          isLoading = false;
-        });
-      }
+      if (!mounted) return;
+
+      setState(() {
+        addresses = loaded;
+        isLoading = false;
+      });
     } catch (e) {
       debugPrint('Load addresses error: $e');
 
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
+      if (!mounted) return;
 
-        _showMessage(
-          'Unable to load your addresses.',
-        );
-      }
+      setState(() {
+        isLoading = false;
+      });
+
+      _showMessage(
+        'Unable to load your saved addresses.',
+      );
     }
   }
 
   // ============================================================
-  // ADD / EDIT ADDRESS
+  // OPEN ADD / EDIT FORM
   // ============================================================
 
   void _openAddressForm({
     Map<String, dynamic>? address,
   }) {
-    editingAddressId = address?['id']?.toString();
+    editingAddressId =
+        address?['id']?.toString();
 
     _fullNameController.text =
         address?['fullName']?.toString() ?? '';
@@ -160,55 +180,68 @@ class _DeliveryAddressPageState
     bool isDefault =
         address?['isDefault'] == true;
 
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) {
+      barrierColor: Colors.black.withOpacity(0.35),
+      builder: (sheetContext) {
         return StatefulBuilder(
           builder: (context, setModalState) {
             return Padding(
               padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context)
-                    .viewInsets
-                    .bottom,
+                bottom:
+                    MediaQuery.of(context).viewInsets.bottom,
               ),
               child: _glassContainer(
+                radius: 30,
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(
                     20,
+                    12,
                     20,
-                    20,
-                    30,
+                    28,
                   ),
                   child: Column(
                     crossAxisAlignment:
                         CrossAxisAlignment.start,
                     children: [
+                      Center(
+                        child: Container(
+                          width: 42,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: pikkXBlack.withOpacity(0.18),
+                            borderRadius:
+                                BorderRadius.circular(20),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 18),
+
                       Row(
                         children: [
                           Expanded(
                             child: Text(
                               address == null
-                                  ? 'Add Address'
-                                  : 'Edit Address',
+                                  ? 'Add delivery address'
+                                  : 'Edit delivery address',
                               style: const TextStyle(
+                                color: pikkXBlack,
                                 fontSize: 21,
                                 fontWeight:
                                     FontWeight.w800,
-                                color:
-                                    Color(0xFF1D2635),
                               ),
                             ),
                           ),
                           IconButton(
                             onPressed: () {
-                              Navigator.pop(context);
+                              Navigator.pop(sheetContext);
                             },
                             icon: const Icon(
                               Icons.close_rounded,
-                              color:
-                                  Color(0xFF747F8F),
+                              color: pikkXBlack,
                             ),
                           ),
                         ],
@@ -219,39 +252,41 @@ class _DeliveryAddressPageState
                       _formField(
                         controller:
                             _fullNameController,
-                        label: 'Full Name',
-                        hint: 'Enter recipient name',
+                        label: 'Full name',
+                        hint:
+                            'Name of the person receiving the order',
                         icon:
                             Icons.person_outline_rounded,
                       ),
 
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 13),
 
                       _formField(
                         controller:
                             _phoneController,
-                        label: 'Phone Number',
-                        hint: 'Enter phone number',
+                        label: 'Phone number',
+                        hint:
+                            'Phone number for delivery',
                         icon:
                             Icons.phone_outlined,
                         keyboardType:
                             TextInputType.phone,
                       ),
 
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 13),
 
                       _formField(
                         controller:
                             _addressController,
-                        label: 'Address',
+                        label: 'Street / house address',
                         hint:
-                            'House number, street, area',
+                            'House number, street, area, landmark',
                         icon:
                             Icons.location_on_outlined,
-                        maxLines: 2,
+                        maxLines: 3,
                       ),
 
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 13),
 
                       Row(
                         children: [
@@ -265,7 +300,7 @@ class _DeliveryAddressPageState
                                   Icons.location_city_outlined,
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: _formField(
                               controller:
@@ -279,7 +314,7 @@ class _DeliveryAddressPageState
                         ],
                       ),
 
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 13),
 
                       _formField(
                         controller:
@@ -290,7 +325,7 @@ class _DeliveryAddressPageState
                             Icons.public_outlined,
                       ),
 
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
 
                       CheckboxListTile(
                         value: isDefault,
@@ -300,113 +335,79 @@ class _DeliveryAddressPageState
                                 value ?? false;
                           });
                         },
-                        contentPadding:
-                            EdgeInsets.zero,
-                        activeColor:
-                            const Color(0xFFB98BEF),
+                        contentPadding: EdgeInsets.zero,
+                        activeColor: pikkXNavy,
+                        checkColor: pikkXWhite,
+                        controlAffinity:
+                            ListTileControlAffinity.leading,
                         title: const Text(
-                          'Set as default address',
+                          'Use as my default address',
                           style: TextStyle(
+                            color: pikkXBlack,
                             fontWeight:
                                 FontWeight.w600,
-                            color:
-                                Color(0xFF1D2635),
                           ),
                         ),
-                        controlAffinity:
-                            ListTileControlAffinity
-                                .leading,
                       ),
 
                       const SizedBox(height: 12),
 
                       SizedBox(
                         width: double.infinity,
-                        height: 55,
-                        child: DecoratedBox(
-                          decoration:
-                              BoxDecoration(
-                            borderRadius:
-                                BorderRadius.circular(
-                                    19),
-                            gradient:
-                                const LinearGradient(
-                              colors: [
-                                Color(0xFFB98BEF),
-                                Color(0xFF8F62D9),
-                              ],
-                            ),
-                            boxShadow: const [
-                              BoxShadow(
-                                color:
-                                    Color(0x33B98BEF),
-                                blurRadius: 18,
-                                offset:
-                                    Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child:
-                              ElevatedButton(
-                            onPressed: isSaving
-                                ? null
-                                : () async {
-                                    final success =
-                                        await _saveAddress(
-                                      isDefault:
-                                          isDefault,
-                                    );
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed: isSaving
+                              ? null
+                              : () async {
+                                  final success =
+                                      await _saveAddress(
+                                    isDefault:
+                                        isDefault,
+                                  );
 
-                                    if (success &&
-                                        context
-                                            .mounted) {
-                                      Navigator.pop(
-                                          context);
-                                    }
-                                  },
-                            style:
-                                ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  Colors.transparent,
-                              disabledBackgroundColor:
-                                  Colors.transparent,
-                              shadowColor:
-                                  Colors.transparent,
-                              shape:
-                                  RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius
-                                        .circular(
-                                            19),
-                              ),
+                                  if (success &&
+                                      sheetContext.mounted) {
+                                    Navigator.pop(
+                                      sheetContext,
+                                    );
+                                  }
+                                },
+                          style:
+                              ElevatedButton.styleFrom(
+                            backgroundColor:
+                                pikkXBlack,
+                            foregroundColor:
+                                pikkXWhite,
+                            disabledBackgroundColor:
+                                pikkXBlack.withOpacity(0.45),
+                            elevation: 0,
+                            shape:
+                                RoundedRectangleBorder(
+                              borderRadius:
+                                  BorderRadius.circular(18),
                             ),
-                            child: isSaving
-                                ? const SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child:
-                                        CircularProgressIndicator(
-                                      strokeWidth:
-                                          2.5,
-                                      color:
-                                          Colors.white,
-                                    ),
-                                  )
-                                : Text(
-                                    address == null
-                                        ? 'Save Address'
-                                        : 'Update Address',
-                                    style:
-                                        const TextStyle(
-                                      color:
-                                          Colors.white,
-                                      fontSize: 16,
-                                      fontWeight:
-                                          FontWeight
-                                              .w700,
-                                    ),
-                                  ),
                           ),
+                          child: isSaving
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child:
+                                      CircularProgressIndicator(
+                                    strokeWidth: 2.3,
+                                    color: pikkXWhite,
+                                  ),
+                                )
+                              : Text(
+                                  address == null
+                                      ? 'Save Address'
+                                      : 'Update Address',
+                                  style:
+                                      const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight:
+                                        FontWeight.w800,
+                                  ),
+                                ),
                         ),
                       ),
                     ],
@@ -422,9 +423,6 @@ class _DeliveryAddressPageState
 
   // ============================================================
   // SAVE ADDRESS
-  //
-  // Creates:
-  // users/{userId}/addresses/{addressId}
   // ============================================================
 
   Future<bool> _saveAddress({
@@ -441,18 +439,19 @@ class _DeliveryAddressPageState
       return false;
     }
 
-    setState(() {
-      isSaving = true;
-    });
+    if (mounted) {
+      setState(() {
+        isSaving = true;
+      });
+    }
 
     try {
-      // If this address becomes default,
-      // remove default from all other addresses first.
+      final batch = _firestore.batch();
+
+      // Only one default address per user.
       if (isDefault) {
         final existing =
             await addressesRef.get();
-
-        final batch = _firestore.batch();
 
         for (final doc in existing.docs) {
           if (doc.id != editingAddressId &&
@@ -467,71 +466,82 @@ class _DeliveryAddressPageState
             );
           }
         }
-
-        await batch.commit();
       }
 
-      final addressData = {
+      final addressData =
+          <String, dynamic>{
         'userId': userId,
-
         'fullName':
             _fullNameController.text.trim(),
-
         'phone':
             _phoneController.text.trim(),
-
         'addressLine':
             _addressController.text.trim(),
-
         'city':
             _cityController.text.trim(),
-
         'state':
             _stateController.text.trim(),
-
         'country':
             _countryController.text.trim(),
+        'isDefault': isDefault,
 
-        // Reserved for a future map/location feature.
+        // Reserved for future map/location integration.
         'latitude': null,
         'longitude': null,
-
-        'isDefault': isDefault,
 
         'updatedAt':
             FieldValue.serverTimestamp(),
       };
 
       if (editingAddressId == null) {
+        final newAddress =
+            addressesRef.doc();
+
+        addressData['addressId'] =
+            newAddress.id;
+
         addressData['createdAt'] =
             FieldValue.serverTimestamp();
 
-        await addressesRef.add(addressData);
+        batch.set(
+          newAddress,
+          addressData,
+        );
       } else {
-        await addressesRef
-            .doc(editingAddressId)
-            .update(addressData);
+        final existingAddress =
+            addressesRef.doc(
+          editingAddressId,
+        );
+
+        batch.update(
+          existingAddress,
+          addressData,
+        );
       }
+
+      await batch.commit();
 
       await _loadAddresses();
 
-      if (mounted) {
-        _showMessage(
-          editingAddressId == null
-              ? 'Address saved successfully.'
-              : 'Address updated successfully.',
-        );
-      }
+      if (!mounted) return false;
+
+      _showMessage(
+        editingAddressId == null
+            ? 'Address saved successfully.'
+            : 'Address updated successfully.',
+      );
 
       _clearForm();
 
       return true;
     } catch (e) {
-      debugPrint('Save address error: $e');
+      debugPrint(
+        'Save address error: $e',
+      );
 
       if (mounted) {
         _showMessage(
-          'Unable to save the address.',
+          'Unable to save the address. Please try again.',
         );
       }
 
@@ -557,28 +567,45 @@ class _DeliveryAddressPageState
     final shouldDelete =
         await showDialog<bool>(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
+          backgroundColor: pikkXWhite,
+          shape: RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(22),
+          ),
           title: const Text(
-            'Delete Address?',
+            'Delete address?',
+            style: TextStyle(
+              color: pikkXBlack,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           content: const Text(
-            'This address will be removed from your saved addresses.',
+            'This saved delivery address will be removed.',
+            style: TextStyle(
+              color: muted,
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(
-                  context,
+                  dialogContext,
                   false,
                 );
               },
-              child: const Text('Cancel'),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(
+                  color: pikkXBlack,
+                ),
+              ),
             ),
             TextButton(
               onPressed: () {
                 Navigator.pop(
-                  context,
+                  dialogContext,
                   true,
                 );
               },
@@ -586,6 +613,7 @@ class _DeliveryAddressPageState
                 'Delete',
                 style: TextStyle(
                   color: Colors.red,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -664,16 +692,14 @@ class _DeliveryAddressPageState
 
       if (mounted) {
         _showMessage(
-          'Unable to update default address.',
+          'Unable to update the default address.',
         );
       }
     }
   }
 
   // ============================================================
-  // SELECT ADDRESS
-  //
-  // Returns the address to CheckoutPage.
+  // SELECT ADDRESS FOR CHECKOUT
   // ============================================================
 
   void _selectAddress(
@@ -690,33 +716,57 @@ class _DeliveryAddressPageState
   // ============================================================
 
   bool _validateForm() {
-    if (_fullNameController.text.trim().isEmpty) {
-      _showMessage('Enter the full name.');
+    if (_fullNameController.text
+        .trim()
+        .isEmpty) {
+      _showMessage(
+        'Enter the recipient name.',
+      );
       return false;
     }
 
-    if (_phoneController.text.trim().isEmpty) {
-      _showMessage('Enter the phone number.');
+    if (_phoneController.text
+        .trim()
+        .isEmpty) {
+      _showMessage(
+        'Enter a phone number.',
+      );
       return false;
     }
 
-    if (_addressController.text.trim().isEmpty) {
-      _showMessage('Enter the delivery address.');
+    if (_addressController.text
+        .trim()
+        .isEmpty) {
+      _showMessage(
+        'Enter the house/street address.',
+      );
       return false;
     }
 
-    if (_cityController.text.trim().isEmpty) {
-      _showMessage('Enter the city.');
+    if (_cityController.text
+        .trim()
+        .isEmpty) {
+      _showMessage(
+        'Enter the city.',
+      );
       return false;
     }
 
-    if (_stateController.text.trim().isEmpty) {
-      _showMessage('Enter the state.');
+    if (_stateController.text
+        .trim()
+        .isEmpty) {
+      _showMessage(
+        'Enter the state.',
+      );
       return false;
     }
 
-    if (_countryController.text.trim().isEmpty) {
-      _showMessage('Enter the country.');
+    if (_countryController.text
+        .trim()
+        .isEmpty) {
+      _showMessage(
+        'Enter the country.',
+      );
       return false;
     }
 
@@ -756,7 +806,7 @@ class _DeliveryAddressPageState
       keyboardType: keyboardType,
       maxLines: maxLines,
       style: const TextStyle(
-        color: Color(0xFF1D2635),
+        color: pikkXBlack,
         fontWeight: FontWeight.w500,
       ),
       decoration: InputDecoration(
@@ -764,33 +814,40 @@ class _DeliveryAddressPageState
         hintText: hint,
         prefixIcon: Icon(
           icon,
-          color: const Color(0xFF8F62D9),
+          color: pikkXNavy,
         ),
         filled: true,
-        fillColor: Colors.white.withOpacity(0.62),
+        fillColor:
+            pikkXWhite.withOpacity(0.72),
         labelStyle: const TextStyle(
-          color: Color(0xFF747F8F),
+          color: muted,
         ),
         hintStyle: const TextStyle(
-          color: Color(0xFFA1A3A6),
-          fontSize: 13,
+          color: Color(0xFFA0A3A7),
+          fontSize: 12,
         ),
         border: OutlineInputBorder(
           borderRadius:
               BorderRadius.circular(17),
-          borderSide: BorderSide.none,
+          borderSide: BorderSide(
+            color:
+                pikkXBlack.withOpacity(0.06),
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius:
               BorderRadius.circular(17),
-          borderSide: BorderSide.none,
+          borderSide: BorderSide(
+            color:
+                pikkXBlack.withOpacity(0.06),
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius:
               BorderRadius.circular(17),
           borderSide: const BorderSide(
-            color: Color(0xFFB98BEF),
-            width: 1.3,
+            color: pikkXNavy,
+            width: 1.2,
           ),
         ),
       ),
@@ -804,10 +861,11 @@ class _DeliveryAddressPageState
   Widget _buildAddressCard(
     Map<String, dynamic> address,
   ) {
-    final bool isDefault =
+    final isDefault =
         address['isDefault'] == true;
 
     return _glassContainer(
+      radius: 24,
       child: InkWell(
         borderRadius:
             BorderRadius.circular(24),
@@ -824,14 +882,13 @@ class _DeliveryAddressPageState
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color:
-                      const Color(0xFFF8F5FF),
+                  color: pikkXNavy,
                   borderRadius:
                       BorderRadius.circular(16),
                 ),
                 child: const Icon(
                   Icons.location_on_rounded,
-                  color: Color(0xFFB98BEF),
+                  color: pikkXWhite,
                 ),
               ),
 
@@ -851,11 +908,10 @@ class _DeliveryAddressPageState
                                 'Delivery Address',
                             style:
                                 const TextStyle(
+                              color: pikkXBlack,
                               fontSize: 16,
                               fontWeight:
-                                  FontWeight.w700,
-                              color:
-                                  Color(0xFF1D2635),
+                                  FontWeight.w800,
                             ),
                           ),
                         ),
@@ -870,20 +926,16 @@ class _DeliveryAddressPageState
                             ),
                             decoration:
                                 BoxDecoration(
-                              color:
-                                  const Color(
-                                      0xFFF8F5FF),
+                              color: pikkXNavy,
                               borderRadius:
-                                  BorderRadius
-                                      .circular(
-                                          10),
+                                  BorderRadius.circular(
+                                      10),
                             ),
                             child: const Text(
                               'Default',
                               style: TextStyle(
-                                color: Color(
-                                    0xFF8F62D9),
-                                fontSize: 11,
+                                color: pikkXWhite,
+                                fontSize: 10,
                                 fontWeight:
                                     FontWeight.w700,
                               ),
@@ -897,8 +949,7 @@ class _DeliveryAddressPageState
                     Text(
                       _formatAddress(address),
                       style: const TextStyle(
-                        color:
-                            Color(0xFF797878),
+                        color: muted,
                         fontSize: 13,
                         height: 1.4,
                       ),
@@ -915,8 +966,7 @@ class _DeliveryAddressPageState
                               .toString(),
                           style:
                               const TextStyle(
-                            color:
-                                Color(0xFF747F8F),
+                            color: muted,
                             fontSize: 12,
                           ),
                         ),
@@ -924,7 +974,9 @@ class _DeliveryAddressPageState
 
                     const SizedBox(height: 12),
 
-                    Row(
+                    Wrap(
+                      spacing: 7,
+                      runSpacing: 7,
                       children: [
                         _smallAction(
                           icon:
@@ -936,13 +988,11 @@ class _DeliveryAddressPageState
                             );
                           },
                         ),
-
-                        const SizedBox(width: 8),
-
                         _smallAction(
                           icon:
                               Icons.delete_outline,
                           label: 'Delete',
+                          danger: true,
                           onTap: () {
                             _deleteAddress(
                               address['id']
@@ -950,9 +1000,7 @@ class _DeliveryAddressPageState
                             );
                           },
                         ),
-
-                        if (!isDefault) ...[
-                          const SizedBox(width: 8),
+                        if (!isDefault)
                           _smallAction(
                             icon: Icons
                                 .check_circle_outline,
@@ -964,7 +1012,6 @@ class _DeliveryAddressPageState
                               );
                             },
                           ),
-                        ],
                       ],
                     ),
                   ],
@@ -975,8 +1022,8 @@ class _DeliveryAddressPageState
 
               const Icon(
                 Icons.arrow_forward_ios_rounded,
-                size: 15,
-                color: Color(0xFFA1A3A6),
+                size: 14,
+                color: muted,
               ),
             ],
           ),
@@ -997,12 +1044,10 @@ class _DeliveryAddressPageState
         .where(
           (value) =>
               value != null &&
-              value.toString()
-                  .trim()
-                  .isNotEmpty,
+              value.toString().trim().isNotEmpty,
         )
         .map(
-          (value) => value.toString(),
+          (value) => value.toString().trim(),
         )
         .toList();
 
@@ -1019,11 +1064,12 @@ class _DeliveryAddressPageState
     required IconData icon,
     required String label,
     required VoidCallback onTap,
+    bool danger = false,
   }) {
     return InkWell(
       onTap: onTap,
       borderRadius:
-          BorderRadius.circular(10),
+          BorderRadius.circular(11),
       child: Container(
         padding:
             const EdgeInsets.symmetric(
@@ -1031,10 +1077,13 @@ class _DeliveryAddressPageState
           vertical: 7,
         ),
         decoration: BoxDecoration(
-          color:
-              const Color(0xFFF8F5FF),
+          color: pikkXWhite.withOpacity(0.68),
           borderRadius:
-              BorderRadius.circular(10),
+              BorderRadius.circular(11),
+          border: Border.all(
+            color:
+                pikkXBlack.withOpacity(0.06),
+          ),
         ),
         child: Row(
           mainAxisSize:
@@ -1044,14 +1093,14 @@ class _DeliveryAddressPageState
               icon,
               size: 14,
               color:
-                  const Color(0xFF8F62D9),
+                  danger ? Colors.red : pikkXNavy,
             ),
             const SizedBox(width: 4),
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 color:
-                    Color(0xFF747F8F),
+                    danger ? Colors.red : muted,
                 fontSize: 11,
                 fontWeight:
                     FontWeight.w600,
@@ -1071,20 +1120,29 @@ class _DeliveryAddressPageState
     return Center(
       child: Padding(
         padding:
-            const EdgeInsets.all(30),
+            const EdgeInsets.all(26),
         child: _glassContainer(
+          radius: 28,
           child: Padding(
             padding:
-                const EdgeInsets.all(30),
+                const EdgeInsets.all(28),
             child: Column(
               mainAxisSize:
                   MainAxisSize.min,
               children: [
-                const Icon(
-                  Icons.location_off_outlined,
-                  size: 58,
-                  color:
-                      Color(0xFFB98BEF),
+                Container(
+                  width: 78,
+                  height: 78,
+                  decoration: BoxDecoration(
+                    color: pikkXNavy,
+                    borderRadius:
+                        BorderRadius.circular(25),
+                  ),
+                  child: const Icon(
+                    Icons.location_on_outlined,
+                    size: 38,
+                    color: pikkXWhite,
+                  ),
                 ),
 
                 const SizedBox(height: 18),
@@ -1092,31 +1150,30 @@ class _DeliveryAddressPageState
                 const Text(
                   'No saved addresses',
                   style: TextStyle(
-                    fontSize: 19,
+                    color: pikkXBlack,
+                    fontSize: 20,
                     fontWeight:
-                        FontWeight.w700,
-                    color:
-                        Color(0xFF1D2635),
+                        FontWeight.w800,
                   ),
                 ),
 
                 const SizedBox(height: 8),
 
                 const Text(
-                  'Add a delivery address to make checkout faster.',
+                  'Add your real delivery address so your orders can be delivered to you.',
                   textAlign:
                       TextAlign.center,
                   style: TextStyle(
-                    color:
-                        Color(0xFF797878),
-                    height: 1.4,
+                    color: muted,
+                    height: 1.45,
                   ),
                 ),
 
                 const SizedBox(height: 20),
 
                 SizedBox(
-                  height: 50,
+                  width: double.infinity,
+                  height: 52,
                   child: ElevatedButton.icon(
                     onPressed:
                         _openAddressForm,
@@ -1125,14 +1182,17 @@ class _DeliveryAddressPageState
                     ),
                     label: const Text(
                       'Add Address',
+                      style: TextStyle(
+                        fontWeight:
+                            FontWeight.w700,
+                      ),
                     ),
                     style:
                         ElevatedButton.styleFrom(
                       backgroundColor:
-                          const Color(
-                              0xFFB98BEF),
+                          pikkXBlack,
                       foregroundColor:
-                          Colors.white,
+                          pikkXWhite,
                       elevation: 0,
                       shape:
                           RoundedRectangleBorder(
@@ -1166,6 +1226,12 @@ class _DeliveryAddressPageState
         content: Text(message),
         behavior:
             SnackBarBehavior.floating,
+        backgroundColor: pikkXBlack,
+        shape:
+            RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.circular(14),
+        ),
       ),
     );
   }
@@ -1179,8 +1245,7 @@ class _DeliveryAddressPageState
     BuildContext context,
   ) {
     return Scaffold(
-      backgroundColor:
-          const Color(0xFFF8F5FF),
+      backgroundColor: background,
 
       appBar: AppBar(
         backgroundColor:
@@ -1190,17 +1255,15 @@ class _DeliveryAddressPageState
         title: const Text(
           'Delivery Address',
           style: TextStyle(
-            color:
-                Color(0xFF1D2635),
+            color: pikkXBlack,
             fontSize: 21,
             fontWeight:
-                FontWeight.w700,
+                FontWeight.w800,
           ),
         ),
         iconTheme:
             const IconThemeData(
-          color:
-              Color(0xFF1D2635),
+          color: pikkXBlack,
         ),
       ),
 
@@ -1211,87 +1274,133 @@ class _DeliveryAddressPageState
                   onPressed:
                       _openAddressForm,
                   backgroundColor:
-                      const Color(
-                          0xFFB98BEF),
+                      pikkXBlack,
                   elevation: 8,
                   child: const Icon(
                     Icons.add_rounded,
-                    color:
-                        Colors.white,
+                    color: pikkXWhite,
                   ),
                 ),
 
-      body: isLoading
-          ? const Center(
-              child:
-                  CircularProgressIndicator(
-                color:
-                    Color(0xFFB98BEF),
-              ),
-            )
-          : addresses.isEmpty
-              ? _buildEmptyState()
-              : SafeArea(
-                  child: ListView.separated(
-                    padding:
-                        const EdgeInsets
-                            .fromLTRB(
-                      16,
-                      8,
-                      16,
-                      100,
-                    ),
-                    itemCount:
-                        addresses.length,
-                    separatorBuilder:
-                        (context, index) =>
-                            const SizedBox(
-                      height: 12,
-                    ),
-                    itemBuilder:
-                        (context, index) {
-                      return _buildAddressCard(
-                        addresses[index],
-                      );
-                    },
+      body: Stack(
+        children: [
+          // Subtle navy glow.
+          Positioned(
+            top: -90,
+            right: -80,
+            child: _glow(
+              pikkXNavy,
+              230,
+              0.055,
+            ),
+          ),
+
+          Positioned(
+            bottom: -100,
+            left: -90,
+            child: _glow(
+              pikkXNavy,
+              250,
+              0.035,
+            ),
+          ),
+
+          isLoading
+              ? const Center(
+                  child:
+                      CircularProgressIndicator(
+                    color: pikkXNavy,
                   ),
-                ),
+                )
+              : addresses.isEmpty
+                  ? _buildEmptyState()
+                  : SafeArea(
+                      child:
+                          ListView.separated(
+                        physics:
+                            const BouncingScrollPhysics(),
+                        padding:
+                            const EdgeInsets
+                                .fromLTRB(
+                          16,
+                          8,
+                          16,
+                          100,
+                        ),
+                        itemCount:
+                            addresses.length,
+                        separatorBuilder:
+                            (context, index) =>
+                                const SizedBox(
+                          height: 12,
+                        ),
+                        itemBuilder:
+                            (context, index) {
+                          return _buildAddressCard(
+                            addresses[index],
+                          );
+                        },
+                      ),
+                    ),
+        ],
+      ),
     );
   }
 
   // ============================================================
-  // GRAPEGO GLASS CONTAINER
+  // SOFT GLOW
+  // ============================================================
+
+  Widget _glow(
+    Color color,
+    double size,
+    double opacity,
+  ) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color:
+            color.withOpacity(opacity),
+      ),
+    );
+  }
+
+  // ============================================================
+  // pikkX GLASS
   // ============================================================
 
   Widget _glassContainer({
     required Widget child,
+    double radius = 24,
   }) {
     return ClipRRect(
       borderRadius:
-          BorderRadius.circular(24),
+          BorderRadius.circular(radius),
       child: BackdropFilter(
         filter: ImageFilter.blur(
-          sigmaX: 15,
-          sigmaY: 15,
+          sigmaX: 22,
+          sigmaY: 22,
         ),
         child: Container(
-          decoration:
-              BoxDecoration(
-            color: Colors.white
-                .withOpacity(0.76),
+          decoration: BoxDecoration(
+            color:
+                pikkXWhite.withOpacity(0.68),
             borderRadius:
-                BorderRadius.circular(24),
+                BorderRadius.circular(radius),
             border: Border.all(
-              color: Colors.white
-                  .withOpacity(0.88),
+              color:
+                  pikkXWhite.withOpacity(0.92),
+              width: 1.1,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black
-                    .withOpacity(0.04),
-                blurRadius: 18,
+                color:
+                    pikkXBlack.withOpacity(0.055),
+                blurRadius: 25,
                 offset:
-                    const Offset(0, 8),
+                    const Offset(0, 10),
               ),
             ],
           ),
