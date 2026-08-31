@@ -51,7 +51,6 @@ class _MyHomePageState extends State<MyHomePage> {
   // ============================================================
   // pikkX IDENTITY
   // BLACK + WHITE + SMALL NAVY ACCENT
-  // NO PURPLE
   // ============================================================
 
   static const Color pikkXBlack =
@@ -134,7 +133,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   // ============================================================
-  // FAVOURITES STREAM
+  // FAVOURITES
   // ============================================================
 
   Stream<QuerySnapshot<Map<String, dynamic>>>
@@ -148,6 +147,16 @@ class _MyHomePageState extends State<MyHomePage> {
         .doc(_userId)
         .collection('favorites')
         .snapshots();
+  }
+
+  // ============================================================
+  // DISPATCH TRACKING
+  // ============================================================
+
+  void _openDispatchTracking() {
+    Navigator.of(context).pushNamed(
+      '/dispatch-tracking',
+    );
   }
 
   // ============================================================
@@ -584,7 +593,10 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
           ),
 
+          // ======================================================
           // NOTIFICATIONS
+          // ======================================================
+
           StreamBuilder<
               QuerySnapshot<
                   Map<String,
@@ -665,7 +677,24 @@ class _MyHomePageState extends State<MyHomePage> {
             width: 8,
           ),
 
+          // ======================================================
+          // DISPATCH TRACKING BIKE
+          // ======================================================
+
+          _headerButton(
+            Icons.delivery_dining_rounded,
+            onTap:
+                _openDispatchTracking,
+          ),
+
+          const SizedBox(
+            width: 8,
+          ),
+
+          // ======================================================
           // PROFILE
+          // ======================================================
+
           StreamBuilder<
               DocumentSnapshot<
                   Map<String,
@@ -1429,8 +1458,6 @@ class _MyHomePageState extends State<MyHomePage> {
                         : _productPlaceholder(),
                   ),
                 ),
-
-                // FAVOURITE
                 Positioned(
                   top: 10,
                   right: 10,
@@ -1480,7 +1507,6 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                   ),
                 ),
-
                 if (featured)
                   Positioned(
                     left: 10,
@@ -1522,7 +1548,6 @@ class _MyHomePageState extends State<MyHomePage> {
               ],
             ),
           ),
-
           Padding(
             padding:
                 const EdgeInsets
@@ -1552,7 +1577,6 @@ class _MyHomePageState extends State<MyHomePage> {
                         FontWeight.w800,
                   ),
                 ),
-
                 if (sellerName
                     .isNotEmpty)
                   Padding(
@@ -1576,11 +1600,9 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                     ),
                   ),
-
                 const SizedBox(
                   height: 5,
                 ),
-
                 Text(
                   _formatPrice(
                     price,
@@ -1594,11 +1616,9 @@ class _MyHomePageState extends State<MyHomePage> {
                         FontWeight.w900,
                   ),
                 ),
-
                 const SizedBox(
                   height: 9,
                 ),
-
                 SizedBox(
                   width:
                       double.infinity,
@@ -1771,11 +1791,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                     _productPlaceholder(),
                           ),
                         ),
-
                       const SizedBox(
                         height: 15,
                       ),
-
                       Text(
                         name,
                         style:
@@ -1789,11 +1807,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                   .w900,
                         ),
                       ),
-
                       const SizedBox(
                         height: 6,
                       ),
-
                       Text(
                         _formatPrice(
                           price,
@@ -1809,7 +1825,6 @@ class _MyHomePageState extends State<MyHomePage> {
                                   .w900,
                         ),
                       ),
-
                       if (category
                           .isNotEmpty)
                         Padding(
@@ -1831,7 +1846,6 @@ class _MyHomePageState extends State<MyHomePage> {
                             ),
                           ),
                         ),
-
                       if (seller
                           .isNotEmpty)
                         Padding(
@@ -1853,11 +1867,9 @@ class _MyHomePageState extends State<MyHomePage> {
                             ),
                           ),
                         ),
-
                       const SizedBox(
                         height: 10,
                       ),
-
                       Text(
                         description,
                         style:
@@ -1868,11 +1880,9 @@ class _MyHomePageState extends State<MyHomePage> {
                           height: 1.4,
                         ),
                       ),
-
                       const SizedBox(
                         height: 18,
                       ),
-
                       Row(
                         children: [
                           Expanded(
@@ -1910,11 +1920,9 @@ class _MyHomePageState extends State<MyHomePage> {
                               ),
                             ),
                           ),
-
                           const SizedBox(
                             width: 10,
                           ),
-
                           Expanded(
                             flex: 3,
                             child:
@@ -2088,11 +2096,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                 )
                               : null,
                     ),
-
                     const SizedBox(
                       height: 12,
                     ),
-
                     Text(
                       name,
                       style:
@@ -2106,7 +2112,6 @@ class _MyHomePageState extends State<MyHomePage> {
                                 .w900,
                       ),
                     ),
-
                     if (email
                         .isNotEmpty)
                       Padding(
@@ -2128,11 +2133,9 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                         ),
                       ),
-
                     const SizedBox(
                       height: 20,
                     ),
-
                     _profileAction(
                       Icons
                           .person_outline_rounded,
@@ -2148,11 +2151,9 @@ class _MyHomePageState extends State<MyHomePage> {
                         );
                       },
                     ),
-
                     const SizedBox(
                       height: 8,
                     ),
-
                     _profileAction(
                       Icons
                           .favorite_border_rounded,
@@ -2168,11 +2169,9 @@ class _MyHomePageState extends State<MyHomePage> {
                         );
                       },
                     ),
-
                     const SizedBox(
                       height: 8,
                     ),
-
                     _profileAction(
                       Icons
                           .logout_rounded,
@@ -2322,7 +2321,6 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                   ),
                 ),
-
                 Expanded(
                   child:
                       StreamBuilder<
