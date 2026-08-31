@@ -1,37 +1,88 @@
+import 'dart:ui';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-class AuthScreen extends StatelessWidget {
-  AuthScreen({Key? key}) : super(key: key);
+class AuthScreen extends StatefulWidget {
+  const AuthScreen({super.key});
 
-  static const Color purple = Color(0xFF9B6FE8);
-  static const Color lightPurple = Color(0xFFF4EEFF);
-  static const Color darkText = Color(0xFF30243D);
-  static const Color mutedText = Color(0xFF8D8498);
+  @override
+  State<AuthScreen> createState() => _AuthScreenState();
+}
+
+class _AuthScreenState extends State<AuthScreen> {
+  // ============================================================
+  // pikkX IDENTITY
+  // ============================================================
+
+  static const Color pikkXBlack = Color(0xFF050505);
+  static const Color pikkXWhite = Color(0xFFFFFFFF);
+
+  static const Color background = Color(0xFFF7F7F7);
+  static const Color card = Color(0xFFFFFFFF);
+
+  static const Color darkText = Color(0xFF050505);
+  static const Color mutedText = Color(0xFF777777);
+
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  bool _loading = false;
+
+  // ============================================================
+  // CHECK FIREBASE AUTH STATE
+  // ============================================================
+
+  @override
+  void initState() {
+    super.initState();
+
+    _checkCurrentUser();
+  }
+
+  void _checkCurrentUser() {
+    final User? user = _auth.currentUser;
+
+    if (user != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+
+        Navigator.pushReplacementNamed(
+          context,
+          '/home',
+        );
+      });
+    }
+  }
+
+  // ============================================================
+  // GLASS BUTTON
+  // ============================================================
 
   Widget _glassButton({
-    required BuildContext context,
     required Widget child,
     required VoidCallback onTap,
   }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: onTap,
+        onTap: _loading ? null : onTap,
         borderRadius: BorderRadius.circular(20),
+        splashColor: Colors.black.withOpacity(0.05),
+        highlightColor: Colors.black.withOpacity(0.025),
         child: Container(
           height: 56,
           width: double.infinity,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.70),
+            color: pikkXWhite.withOpacity(0.72),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: Colors.white.withOpacity(0.90),
+              color: pikkXWhite.withOpacity(0.95),
               width: 1.2,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.035),
-                blurRadius: 18,
+                color: pikkXBlack.withOpacity(0.055),
+                blurRadius: 20,
                 offset: const Offset(0, 8),
               ),
             ],
@@ -42,28 +93,30 @@ class AuthScreen extends StatelessWidget {
     );
   }
 
+  // ============================================================
+  // SOCIAL / SECONDARY BUTTON
+  // ============================================================
+
   Widget _socialButton({
-    required BuildContext context,
     required IconData icon,
     required String text,
     required VoidCallback onTap,
   }) {
     return _glassButton(
-      context: context,
       onTap: onTap,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
             icon,
-            color: darkText,
-            size: 21,
+            color: pikkXBlack,
+            size: 22,
           ),
           const SizedBox(width: 12),
           Text(
             text,
             style: const TextStyle(
-              color: darkText,
+              color: pikkXBlack,
               fontSize: 14,
               fontWeight: FontWeight.w700,
             ),
@@ -73,44 +126,98 @@ class AuthScreen extends StatelessWidget {
     );
   }
 
+  // ============================================================
+  // PRIMARY BUTTON
+  // ============================================================
+
   Widget _primaryButton({
-    required BuildContext context,
     required String text,
     required VoidCallback onTap,
   }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: onTap,
+        onTap: _loading ? null : onTap,
         borderRadius: BorderRadius.circular(20),
         child: Container(
           height: 56,
           width: double.infinity,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [
-                Color(0xFFA77AEF),
-                Color(0xFF8C5DD8),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: pikkXBlack,
             borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: pikkXBlack,
+              width: 1,
+            ),
             boxShadow: [
               BoxShadow(
-                color: purple.withOpacity(0.25),
+                color: pikkXBlack.withOpacity(0.18),
                 blurRadius: 18,
                 offset: const Offset(0, 8),
               ),
             ],
           ),
           alignment: Alignment.center,
-          child: Text(
-            text,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
+          child: _loading
+              ? const SizedBox(
+                  width: 21,
+                  height: 21,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: pikkXWhite,
+                  ),
+                )
+              : Text(
+                  text,
+                  style: const TextStyle(
+                    color: pikkXWhite,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // LOGO
+  // ============================================================
+
+  Widget _logo() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(26),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: 15,
+          sigmaY: 15,
+        ),
+        child: Container(
+          height: 82,
+          width: 82,
+          decoration: BoxDecoration(
+            color: pikkXWhite.withOpacity(0.72),
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(
+              color: pikkXWhite.withOpacity(0.95),
+              width: 1.4,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: pikkXBlack.withOpacity(0.08),
+                blurRadius: 25,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: const Center(
+            child: Text(
+              'p',
+              style: TextStyle(
+                color: pikkXBlack,
+                fontSize: 43,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
         ),
@@ -118,49 +225,18 @@ class AuthScreen extends StatelessWidget {
     );
   }
 
-  Widget _logo() {
-    return Container(
-      height: 78,
-      width: 78,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: const LinearGradient(
-          colors: [
-            Color(0xFFDCC8FA),
-            Color(0xFFA77AEF),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.95),
-          width: 2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: purple.withOpacity(0.18),
-            blurRadius: 22,
-            offset: const Offset(0, 9),
-          ),
-        ],
-      ),
-      child: const Center(
-        child: Text(
-          '🍇',
-          style: TextStyle(fontSize: 38),
-        ),
-      ),
-    );
-  }
+  // ============================================================
+  // FIREBASE MESSAGE
+  // ============================================================
 
-  void _comingSoon(BuildContext context, String provider) {
+  void _showMessage(String message) {
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          '$provider authentication will be connected to the backend next.',
-        ),
+        content: Text(message),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: purple,
+        backgroundColor: pikkXBlack,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
         ),
@@ -168,41 +244,113 @@ class AuthScreen extends StatelessWidget {
     );
   }
 
+  // ============================================================
+  // GOOGLE
+  // ============================================================
+
+  Future<void> _googleSignIn() async {
+    _showMessage(
+      'Google Sign-In will use Firebase Authentication once the Google provider is configured.',
+    );
+  }
+
+  // ============================================================
+  // FACEBOOK
+  // ============================================================
+
+  Future<void> _facebookSignIn() async {
+    _showMessage(
+      'Facebook Sign-In will use Firebase Authentication once the Facebook provider is configured.',
+    );
+  }
+
+  // ============================================================
+  // APPLE
+  // ============================================================
+
+  Future<void> _appleSignIn() async {
+    _showMessage(
+      'Apple Sign-In will use Firebase Authentication once the Apple provider is configured.',
+    );
+  }
+
+  // ============================================================
+  // SIGN IN
+  // ============================================================
+
+  void _openSignIn() {
+    Navigator.pushNamed(
+      context,
+      '/sign-in',
+    );
+  }
+
+  // ============================================================
+  // SIGN UP
+  // ============================================================
+
+  void _openSignUp() {
+    Navigator.pushNamed(
+      context,
+      '/sign-up',
+    );
+  }
+
+  // ============================================================
+  // PHONE AUTH
+  // ============================================================
+
+  void _openPhoneAuth() {
+    Navigator.pushNamed(
+      context,
+      '/phone-auth',
+    );
+  }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F5FF),
+      backgroundColor: background,
       body: SafeArea(
         child: Stack(
           children: [
-            // TOP SOFT GLOW
+            // ==================================================
+            // SOFT GLASS BACKGROUND
+            // ==================================================
+
             Positioned(
               top: -100,
-              right: -80,
-              child: Container(
-                width: 250,
-                height: 250,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: purple.withOpacity(0.10),
-                ),
-              ),
-            ),
-
-            // BOTTOM SOFT GLOW
-            Positioned(
-              bottom: -100,
-              left: -90,
+              right: -90,
               child: Container(
                 width: 260,
                 height: 260,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFFD8C0FA)
-                      .withOpacity(0.16),
+                  color: pikkXBlack.withOpacity(0.035),
                 ),
               ),
             ),
+
+            Positioned(
+              bottom: -110,
+              left: -100,
+              child: Container(
+                width: 280,
+                height: 280,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: pikkXBlack.withOpacity(0.025),
+                ),
+              ),
+            ),
+
+            // ==================================================
+            // CONTENT
+            // ==================================================
 
             SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
@@ -221,12 +369,13 @@ class AuthScreen extends StatelessWidget {
                   const SizedBox(height: 20),
 
                   const Text(
-                    'Welcome to Grape Go',
+                    'Welcome to pikkX',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: darkText,
-                      fontSize: 27,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.6,
                     ),
                   ),
 
@@ -244,181 +393,165 @@ class AuthScreen extends StatelessWidget {
 
                   const SizedBox(height: 32),
 
+                  // ==================================================
                   // GLASS AUTH PANEL
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(
-                      18,
-                      22,
-                      18,
-                      22,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.52),
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.85),
-                        width: 1.2,
+                  // ==================================================
+
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(30),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(
+                        sigmaX: 18,
+                        sigmaY: 18,
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          blurRadius: 25,
-                          offset: const Offset(0, 10),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(
+                          18,
+                          22,
+                          18,
+                          22,
                         ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        const Text(
-                          'Get started',
-                          style: TextStyle(
-                            color: darkText,
-                            fontSize: 19,
-                            fontWeight: FontWeight.w800,
+                        decoration: BoxDecoration(
+                          color: pikkXWhite.withOpacity(0.64),
+                          borderRadius:
+                              BorderRadius.circular(30),
+                          border: Border.all(
+                            color:
+                                pikkXWhite.withOpacity(0.92),
+                            width: 1.2,
                           ),
-                        ),
-
-                        const SizedBox(height: 6),
-
-                        const Text(
-                          'Choose how you want to continue',
-                          style: TextStyle(
-                            color: mutedText,
-                            fontSize: 12,
-                          ),
-                        ),
-
-                        const SizedBox(height: 22),
-
-                        // SIGN IN
-                        _primaryButton(
-                          context: context,
-                          text: 'Sign In',
-                          onTap: () {
-                            Navigator.pushNamed(
-                              context,
-                              '/sign-in',
-                            );
-                          },
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        // CREATE ACCOUNT
-                        _glassButton(
-                          context: context,
-                          onTap: () {
-                            Navigator.pushNamed(
-                              context,
-                              '/sign-up',
-                            );
-                          },
-                          child: const Center(
-                            child: Text(
-                              'Create Account',
-                              style: TextStyle(
-                                color: purple,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 22),
-
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Container(
-                                height: 1,
-                                color: Colors.white.withOpacity(0.9),
-                              ),
-                            ),
-                            const Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 12,
-                              ),
-                              child: Text(
-                                'OR CONTINUE WITH',
-                                style: TextStyle(
-                                  color: mutedText,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Container(
-                                height: 1,
-                                color: Colors.white.withOpacity(0.9),
-                              ),
+                          boxShadow: [
+                            BoxShadow(
+                              color:
+                                  pikkXBlack.withOpacity(0.055),
+                              blurRadius: 28,
+                              offset: const Offset(0, 12),
                             ),
                           ],
                         ),
+                        child: Column(
+                          children: [
+                            const Text(
+                              'Get started',
+                              style: TextStyle(
+                                color: darkText,
+                                fontSize: 19,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
 
-                        const SizedBox(height: 18),
+                            const SizedBox(height: 6),
 
-                        // GOOGLE
-                        _socialButton(
-                          context: context,
-                          icon: Icons.g_mobiledata_rounded,
-                          text: 'Continue with Google',
-                          onTap: () {
-                            _comingSoon(
-                              context,
-                              'Google',
-                            );
-                          },
+                            const Text(
+                              'Choose how you want to continue',
+                              style: TextStyle(
+                                color: mutedText,
+                                fontSize: 12,
+                              ),
+                            ),
+
+                            const SizedBox(height: 22),
+
+                            // SIGN IN
+                            _primaryButton(
+                              text: 'Sign In',
+                              onTap: _openSignIn,
+                            ),
+
+                            const SizedBox(height: 12),
+
+                            // CREATE ACCOUNT
+                            _glassButton(
+                              onTap: _openSignUp,
+                              child: const Center(
+                                child: Text(
+                                  'Create Account',
+                                  style: TextStyle(
+                                    color: pikkXBlack,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 22),
+
+                            // DIVIDER
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    height: 1,
+                                    color: pikkXBlack
+                                        .withOpacity(0.08),
+                                  ),
+                                ),
+                                const Padding(
+                                  padding:
+                                      EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  child: Text(
+                                    'OR CONTINUE WITH',
+                                    style: TextStyle(
+                                      color: mutedText,
+                                      fontSize: 9,
+                                      fontWeight:
+                                          FontWeight.w700,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Container(
+                                    height: 1,
+                                    color: pikkXBlack
+                                        .withOpacity(0.08),
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 18),
+
+                            // GOOGLE
+                            _socialButton(
+                              icon: Icons.g_mobiledata_rounded,
+                              text: 'Continue with Google',
+                              onTap: _googleSignIn,
+                            ),
+
+                            const SizedBox(height: 10),
+
+                            // PHONE
+                            _socialButton(
+                              icon: Icons.phone_rounded,
+                              text: 'Continue with Phone',
+                              onTap: _openPhoneAuth,
+                            ),
+
+                            const SizedBox(height: 10),
+
+                            // FACEBOOK
+                            _socialButton(
+                              icon: Icons.facebook_rounded,
+                              text: 'Continue with Facebook',
+                              onTap: _facebookSignIn,
+                            ),
+
+                            const SizedBox(height: 10),
+
+                            // APPLE
+                            _socialButton(
+                              icon: Icons.apple,
+                              text: 'Continue with Apple',
+                              onTap: _appleSignIn,
+                            ),
+                          ],
                         ),
-
-                        const SizedBox(height: 10),
-
-                        // PHONE
-                        _socialButton(
-                          context: context,
-                          icon: Icons.phone_rounded,
-                          text: 'Continue with Phone',
-                          onTap: () {
-                            Navigator.pushNamed(
-                              context,
-                              '/phone-auth',
-                            );
-                          },
-                        ),
-
-                        const SizedBox(height: 10),
-
-                        // FACEBOOK
-                        _socialButton(
-                          context: context,
-                          icon: Icons.facebook_rounded,
-                          text: 'Continue with Facebook',
-                          onTap: () {
-                            _comingSoon(
-                              context,
-                              'Facebook',
-                            );
-                          },
-                        ),
-
-                        const SizedBox(height: 10),
-
-                        // APPLE
-                        _socialButton(
-                          context: context,
-                          icon: Icons.apple,
-                          text: 'Continue with Apple',
-                          onTap: () {
-                            _comingSoon(
-                              context,
-                              'Apple',
-                            );
-                          },
-                        ),
-                      ],
+                      ),
                     ),
                   ),
 
