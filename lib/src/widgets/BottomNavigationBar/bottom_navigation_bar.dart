@@ -29,7 +29,11 @@ class _CustomBottomNavigationBarState
 
   int _previousIndex = 0;
 
-  // HOME → CART → CHAT → FAVOURITE → PROFILE
+  // ==================================================
+  // 5 BOTTOM NAVIGATION ICONS
+  // Home → Cart → Chat → Favourite → Profile
+  // ==================================================
+
   final List<IconData> _icons = const [
     Icons.home_rounded,
     Icons.shopping_bag_rounded,
@@ -76,11 +80,14 @@ class _CustomBottomNavigationBarState
   ) {
     super.didUpdateWidget(oldWidget);
 
-    if (oldWidget.selectedIndex !=
-        widget.selectedIndex) {
+    if (oldWidget.selectedIndex != widget.selectedIndex) {
       _animateToIndex(widget.selectedIndex);
     }
   }
+
+  // ==================================================
+  // POSITION
+  // ==================================================
 
   double _indexToPosition(int index) {
     const double buttonCount = 5.0;
@@ -112,6 +119,10 @@ class _CustomBottomNavigationBarState
 
     return width;
   }
+
+  // ==================================================
+  // ANIMATION
+  // ==================================================
 
   void _animateToIndex(int index) {
     if (!mounted) return;
@@ -169,11 +180,14 @@ class _CustomBottomNavigationBarState
       _xController.stop();
     }
 
-    // MainPage owns the real navigation state.
     widget.onIconPressedCallback(index);
 
     _animateToIndex(index);
   }
+
+  // ==================================================
+  // ICON
+  // ==================================================
 
   Widget _icon(
     IconData icon,
@@ -206,22 +220,20 @@ class _CustomBottomNavigationBarState
             decoration: BoxDecoration(
               shape: BoxShape.circle,
 
-              // pikkX BLACK when selected
+              // BLACK & WHITE
               color: isSelected
-                  ? const Color(0xFF050505)
+                  ? Colors.black
                   : Colors.white.withOpacity(0.38),
 
               border: Border.all(
-                color:
-                    Colors.white.withOpacity(0.85),
+                color: Colors.white.withOpacity(0.85),
                 width: 1.2,
               ),
 
               boxShadow: [
                 BoxShadow(
                   color: isSelected
-                      ? const Color(0xFF050505)
-                          .withOpacity(0.30)
+                      ? Colors.black.withOpacity(0.25)
                       : Colors.black.withOpacity(0.04),
                   blurRadius:
                       isSelected ? 14 : 8,
@@ -241,7 +253,7 @@ class _CustomBottomNavigationBarState
                 size: isSelected ? 22 : 20,
                 color: isSelected
                     ? Colors.white
-                    : const Color(0xFF050505),
+                    : Colors.black,
               ),
             ),
           ),
@@ -249,6 +261,10 @@ class _CustomBottomNavigationBarState
       ),
     );
   }
+
+  // ==================================================
+  // GLASS BACKGROUND
+  // ==================================================
 
   Widget _buildGlassBackground() {
     return ClipRRect(
@@ -263,7 +279,6 @@ class _CustomBottomNavigationBarState
           decoration: BoxDecoration(
             color:
                 Colors.white.withOpacity(0.58),
-
             borderRadius:
                 BorderRadius.circular(30),
 
@@ -281,20 +296,16 @@ class _CustomBottomNavigationBarState
                 offset:
                     const Offset(0, 10),
               ),
-
-              // BLACK glass shadow instead of purple
-              BoxShadow(
-                color:
-                    Colors.black.withOpacity(0.06),
-                blurRadius: 28,
-                spreadRadius: 1,
-              ),
             ],
           ),
         ),
       ),
     );
   }
+
+  // ==================================================
+  // BUILD
+  // ==================================================
 
   @override
   Widget build(BuildContext context) {
@@ -329,21 +340,26 @@ class _CustomBottomNavigationBarState
                   widget.selectedIndex == 0,
                   0,
                 ),
+
                 _icon(
                   _icons[1],
                   widget.selectedIndex == 1,
                   1,
                 ),
+
+                // CHAT — MIDDLE
                 _icon(
                   _icons[2],
                   widget.selectedIndex == 2,
                   2,
                 ),
+
                 _icon(
                   _icons[3],
                   widget.selectedIndex == 3,
                   3,
                 ),
+
                 _icon(
                   _icons[4],
                   widget.selectedIndex == 4,
