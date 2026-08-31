@@ -1,34 +1,6 @@
-import 'dart:ui';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_ecommerce_app/src/themes/theme.dart';
-
-/// ============================================================
-/// FAVOURITE PAGE
-///
-/// Firebase structure:
-///
-/// users/{uid}/favorites/{productId}
-///
-/// Example:
-/// users
-///   └── USER_ID
-///       └── favorites
-///           └── PRODUCT_ID
-///               ├── productId
-///               ├── name
-///               ├── price
-///               ├── image
-///               ├── imageUrl
-///               └── createdAt
-///
-/// This page is designed to be used as one of the
-/// bottom-navigation pages.
-///
-/// It does NOT create its own Scaffold/AppBar.
-/// ============================================================
 
 class FavouritePage extends StatefulWidget {
   const FavouritePage({super.key});
@@ -44,7 +16,31 @@ class _FavouritePageState extends State<FavouritePage> {
   final FirebaseAuth _auth =
       FirebaseAuth.instance;
 
-  String? get userId => _auth.currentUser?.uid;
+  // ============================================================
+  // PIKKX THEME
+  // ============================================================
+
+  static const Color pikkXBlack =
+      Color(0xFF050505);
+
+  static const Color pikkXWhite =
+      Color(0xFFFFFFFF);
+
+  static const Color pikkXNavy =
+      Color(0xFF10233F);
+
+  static const Color pikkXBackground =
+      Color(0xFFF7F7F7);
+
+  static const Color pikkXMuted =
+      Color(0xFF777777);
+
+  // ============================================================
+  // USER
+  // ============================================================
+
+  String? get userId =>
+      _auth.currentUser?.uid;
 
   CollectionReference<Map<String, dynamic>>
       get favouritesRef {
@@ -63,6 +59,16 @@ class _FavouritePageState extends State<FavouritePage> {
         .collection('favorites');
   }
 
+  CollectionReference<Map<String, dynamic>>
+      get cartRef {
+    final uid = userId;
+
+    return _firestore
+        .collection('users')
+        .doc(uid ?? '_no_user_')
+        .collection('cart');
+  }
+
   // ============================================================
   // REMOVE FAVOURITE
   // ============================================================
@@ -71,7 +77,10 @@ class _FavouritePageState extends State<FavouritePage> {
     FavouriteProduct product,
   ) async {
     if (userId == null) {
-      _showMessage('Please sign in first.');
+      _showMessage(
+        'Please sign in first.',
+        isError: true,
+      );
       return;
     }
 
@@ -100,20 +109,98 @@ class _FavouritePageState extends State<FavouritePage> {
   }
 
   // ============================================================
+  // ADD TO CART
+  // ============================================================
+
+  Future<void> _addToCart(
+    FavouriteProduct product,
+  ) async {
+    final user = _auth.currentUser;
+
+    if (user == null) {
+      _showMessage(
+        'Please sign in to add items to your cart.',
+        isError: true,
+      );
+      return;
+    }
+
+    try {
+      final reference = cartRef.doc(product.id);
+
+      final existing =
+          await reference.get();
+
+      if (existing.exists) {
+        final data = existing.data();
+
+        int quantity = 1;
+
+        final existingQuantity =
+            data?['quantity'];
+
+        if (existingQuantity is num) {
+          quantity =
+              existingQuantity.toInt();
+        } else {
+          quantity =
+              int.tryParse(
+                    existingQuantity
+                            ?.toString() ??
+                        '',
+                  ) ??
+                  1;
+        }
+
+        await reference.update({
+          'quantity': quantity + 1,
+          'updatedAt':
+              FieldValue.serverTimestamp(),
+        });
+      } else {
+        await reference.set({
+          'productId': product.id,
+          'name': product.name,
+          'price': product.numericPrice,
+          'imageUrl': product.image,
+          'image': product.image,
+          'quantity': 1,
+          'sellerId': product.sellerId,
+          'category': product.category,
+          'description': product.description,
+          'createdAt':
+              FieldValue.serverTimestamp(),
+          'updatedAt':
+              FieldValue.serverTimestamp(),
+        });
+      }
+
+      if (!mounted) return;
+
+      _showMessage(
+        '${product.name} added to cart.',
+      );
+    } catch (e) {
+      debugPrint(
+        'Add to cart error: $e',
+      );
+
+      if (!mounted) return;
+
+      _showMessage(
+        'Could not add product to cart.',
+        isError: true,
+      );
+    }
+  }
+
+  // ============================================================
   // OPEN PRODUCT
   // ============================================================
 
   void _openProduct(
     FavouriteProduct product,
   ) {
-    /*
-     * The exact product-detail route can be connected here
-     * to the existing ProductDetailPage in the project.
-     *
-     * We pass the complete product data so the detail page
-     * can use the real Firebase product information.
-     */
-
     Navigator.pushNamed(
       context,
       '/product-detail',
@@ -131,15 +218,20 @@ class _FavouritePageState extends State<FavouritePage> {
   }) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
       SnackBar(
         content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: isError
-            ? Colors.redAccent
-            : AppTheme.grapePurple,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
+        backgroundColor:
+            isError
+                ? Colors.redAccent
+                : pikkXNavy,
+        behavior:
+            SnackBarBehavior.floating,
+        shape:
+            RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.circular(14),
         ),
       ),
     );
@@ -149,11 +241,12 @@ class _FavouritePageState extends State<FavouritePage> {
   // HEADER
   // ============================================================
 
-  Widget _glassHeader() {
+  Widget _header() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
+      padding:
+          const EdgeInsets.fromLTRB(
         20,
-        12,
+        14,
         20,
         18,
       ),
@@ -164,53 +257,59 @@ class _FavouritePageState extends State<FavouritePage> {
               crossAxisAlignment:
                   CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'Your',
                   style: TextStyle(
-                    color: AppTheme.darkText,
-                    fontSize: 25,
-                    fontWeight: FontWeight.w400,
+                    color: pikkXMuted,
+                    fontSize: 13,
+                    fontWeight:
+                        FontWeight.w500,
                   ),
                 ),
-                Text(
+                const SizedBox(height: 2),
+                const Text(
                   'Favourites',
                   style: TextStyle(
-                    color: AppTheme.darkText,
+                    color: pikkXBlack,
                     fontSize: 27,
-                    fontWeight: FontWeight.w800,
+                    fontWeight:
+                        FontWeight.w900,
+                    letterSpacing: -.7,
                   ),
                 ),
               ],
             ),
           ),
-          _glassIcon(
-            Icons.favorite_rounded,
-            color: AppTheme.grapePurple,
+
+          Container(
+            width: 48,
+            height: 48,
+            decoration:
+                BoxDecoration(
+              color: pikkXWhite,
+              borderRadius:
+                  BorderRadius.circular(16),
+              border: Border.all(
+                color:
+                    pikkXNavy.withOpacity(.08),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color:
+                      pikkXBlack.withOpacity(.04),
+                  blurRadius: 14,
+                  offset:
+                      const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.favorite_rounded,
+              color: pikkXNavy,
+              size: 22,
+            ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _glassIcon(
-    IconData icon, {
-    Color? color,
-  }) {
-    return Container(
-      height: 48,
-      width: 48,
-      decoration: BoxDecoration(
-        color: AppTheme.glassWhite,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.85),
-        ),
-        boxShadow: AppTheme.shadow,
-      ),
-      child: Icon(
-        icon,
-        color: color ?? AppTheme.darkText,
-        size: 21,
       ),
     );
   }
@@ -221,140 +320,206 @@ class _FavouritePageState extends State<FavouritePage> {
 
   Widget _emptyState() {
     return Center(
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 35,
-            vertical: 30,
-          ),
-          child: Column(
-            mainAxisAlignment:
-                MainAxisAlignment.center,
-            children: [
-              Container(
-                height: 88,
-                width: 88,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppTheme.grapePurple
-                      .withOpacity(0.10),
-                  border: Border.all(
-                    color: AppTheme.grapePurple
-                        .withOpacity(0.18),
-                  ),
-                ),
-                child: Icon(
-                  Icons.favorite_border_rounded,
-                  color: AppTheme.grapePurple,
-                  size: 42,
-                ),
-              ),
-              const SizedBox(height: 22),
-              Text(
-                'No favourites yet',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppTheme.darkText,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Products you save will appear here.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppTheme.mutedText,
-                  fontSize: 13,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 22),
-              _exploreButton(),
-            ],
-          ),
+      child: Padding(
+        padding:
+            const EdgeInsets.symmetric(
+          horizontal: 35,
         ),
-      ),
-    );
-  }
-
-  Widget _exploreButton() {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          // The bottom-navigation controller should switch
-          // to the Home tab here.
-          //
-          // This page intentionally does not push a fake
-          // home route.
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 22,
-            vertical: 13,
-          ),
-          decoration: BoxDecoration(
-            color: AppTheme.grapePurple,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.grapePurple
-                    .withOpacity(0.22),
-                blurRadius: 16,
-                offset: const Offset(0, 7),
+        child: Column(
+          mainAxisAlignment:
+              MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 90,
+              height: 90,
+              decoration:
+                  BoxDecoration(
+                color:
+                    pikkXNavy.withOpacity(.07),
+                shape:
+                    BoxShape.circle,
               ),
-            ],
-          ),
-          child: const Text(
-            'Explore Products',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
+              child: const Icon(
+                Icons
+                    .favorite_border_rounded,
+                color: pikkXNavy,
+                size: 43,
+              ),
             ),
-          ),
+
+            const SizedBox(height: 22),
+
+            const Text(
+              'No favourites yet',
+              textAlign:
+                  TextAlign.center,
+              style: TextStyle(
+                color: pikkXBlack,
+                fontSize: 20,
+                fontWeight:
+                    FontWeight.w900,
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            const Text(
+              'Products you save will appear here.',
+              textAlign:
+                  TextAlign.center,
+              style: TextStyle(
+                color: pikkXMuted,
+                fontSize: 13,
+                height: 1.5,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
   // ============================================================
-  // FAVOURITE CARD
+  // NOT SIGNED IN
+  // ============================================================
+
+  Widget _notSignedInState() {
+    return Center(
+      child: Padding(
+        padding:
+            const EdgeInsets.all(30),
+        child: Column(
+          mainAxisAlignment:
+              MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 82,
+              height: 82,
+              decoration:
+                  BoxDecoration(
+                color:
+                    pikkXNavy.withOpacity(.07),
+                shape:
+                    BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.login_rounded,
+                color: pikkXNavy,
+                size: 38,
+              ),
+            ),
+
+            const SizedBox(height: 18),
+
+            const Text(
+              'Sign in to view your favourites',
+              textAlign:
+                  TextAlign.center,
+              style: TextStyle(
+                color: pikkXBlack,
+                fontSize: 18,
+                fontWeight:
+                    FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // ERROR STATE
+  // ============================================================
+
+  Widget _errorState() {
+    return Center(
+      child: Padding(
+        padding:
+            const EdgeInsets.all(30),
+        child: Column(
+          mainAxisAlignment:
+              MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.cloud_off_rounded,
+              color: pikkXNavy,
+              size: 48,
+            ),
+
+            const SizedBox(height: 15),
+
+            const Text(
+              'Unable to load favourites',
+              textAlign:
+                  TextAlign.center,
+              style: TextStyle(
+                color: pikkXBlack,
+                fontSize: 18,
+                fontWeight:
+                    FontWeight.w900,
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            const Text(
+              'Check your connection and try again.',
+              textAlign:
+                  TextAlign.center,
+              style: TextStyle(
+                color: pikkXMuted,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // PRODUCT CARD
   // ============================================================
 
   Widget _favouriteCard(
     FavouriteProduct product,
   ) {
     return Container(
-      margin: const EdgeInsets.only(
+      margin:
+          const EdgeInsets.only(
         bottom: 14,
       ),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.65),
-        borderRadius: BorderRadius.circular(22),
+      decoration:
+          BoxDecoration(
+        color: pikkXWhite,
+        borderRadius:
+            BorderRadius.circular(22),
         border: Border.all(
-          color: Colors.white.withOpacity(0.85),
+          color:
+              pikkXNavy.withOpacity(.07),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.045),
+            color:
+                pikkXBlack.withOpacity(.045),
             blurRadius: 18,
-            offset: const Offset(0, 7),
+            offset:
+                const Offset(0, 7),
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(22),
+          borderRadius:
+              BorderRadius.circular(22),
           onTap: () {
             _openProduct(product);
           },
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding:
+                const EdgeInsets.all(12),
             child: Row(
               children: [
                 _productImage(product),
@@ -371,51 +536,135 @@ class _FavouritePageState extends State<FavouritePage> {
                         maxLines: 2,
                         overflow:
                             TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: AppTheme.darkText,
+                        style:
+                            const TextStyle(
+                          color: pikkXBlack,
                           fontSize: 14,
-                          fontWeight: FontWeight.w800,
+                          fontWeight:
+                              FontWeight.w800,
                         ),
                       ),
 
-                      const SizedBox(height: 7),
+                      if (product.category
+                          .isNotEmpty)
+                        Padding(
+                          padding:
+                              const EdgeInsets.only(
+                            top: 5,
+                          ),
+                          child: Text(
+                            product.category,
+                            maxLines: 1,
+                            overflow:
+                                TextOverflow
+                                    .ellipsis,
+                            style:
+                                const TextStyle(
+                              color:
+                                  pikkXMuted,
+                              fontSize: 10,
+                              fontWeight:
+                                  FontWeight.w500,
+                            ),
+                          ),
+                        ),
+
+                      const SizedBox(height: 6),
 
                       Text(
                         product.displayPrice,
-                        style: TextStyle(
-                          color: AppTheme.grapePurple,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
+                        style:
+                            const TextStyle(
+                          color: pikkXNavy,
+                          fontSize: 15,
+                          fontWeight:
+                              FontWeight.w900,
                         ),
                       ),
 
-                      if (product.category.isNotEmpty) ...[
-                        const SizedBox(height: 5),
-                        Text(
-                          product.category,
-                          maxLines: 1,
-                          overflow:
-                              TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: AppTheme.mutedText,
-                            fontSize: 11,
+                      const SizedBox(height: 9),
+
+                      SizedBox(
+                        height: 34,
+                        child:
+                            ElevatedButton(
+                          onPressed: () {
+                            _addToCart(product);
+                          },
+                          style:
+                              ElevatedButton
+                                  .styleFrom(
+                            backgroundColor:
+                                pikkXBlack,
+                            foregroundColor:
+                                pikkXWhite,
+                            elevation: 0,
+                            padding:
+                                const EdgeInsets
+                                    .symmetric(
+                              horizontal: 14,
+                            ),
+                            shape:
+                                RoundedRectangleBorder(
+                              borderRadius:
+                                  BorderRadius
+                                      .circular(10),
+                            ),
+                          ),
+                          child:
+                              const Text(
+                            'Add to Cart',
+                            style:
+                                TextStyle(
+                              fontSize: 10,
+                              fontWeight:
+                                  FontWeight.w800,
+                            ),
                           ),
                         ),
-                      ],
+                      ),
                     ],
                   ),
                 ),
 
-                IconButton(
-                  tooltip: 'Remove favourite',
-                  onPressed: () {
-                    _removeFavourite(product);
-                  },
-                  icon: Icon(
-                    Icons.favorite_rounded,
-                    color: AppTheme.grapePurple,
-                    size: 22,
-                  ),
+                const SizedBox(width: 5),
+
+                Column(
+                  children: [
+                    IconButton(
+                      tooltip:
+                          'Remove favourite',
+                      onPressed: () {
+                        _removeFavourite(
+                          product,
+                        );
+                      },
+                      icon:
+                          const Icon(
+                        Icons
+                            .favorite_rounded,
+                        color: pikkXNavy,
+                        size: 22,
+                      ),
+                    ),
+
+                    IconButton(
+                      tooltip:
+                          'View product',
+                      onPressed: () {
+                        _openProduct(
+                          product,
+                        );
+                      },
+                      icon:
+                          const Icon(
+                        Icons
+                            .arrow_forward_ios_rounded,
+                        color: pikkXMuted,
+                        size: 15,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -435,91 +684,62 @@ class _FavouritePageState extends State<FavouritePage> {
     final image = product.image;
 
     return Container(
-      height: 82,
-      width: 82,
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: AppTheme.grapeLightPurple,
-        borderRadius: BorderRadius.circular(17),
+      width: 92,
+      height: 108,
+      decoration:
+          BoxDecoration(
+        color: pikkXBackground,
+        borderRadius:
+            BorderRadius.circular(17),
       ),
       child: image.isEmpty
-          ? Icon(
-              Icons.shopping_bag_outlined,
-              color: AppTheme.grapePurple,
-              size: 32,
+          ? const Icon(
+              Icons
+                  .shopping_bag_outlined,
+              color: pikkXNavy,
+              size: 35,
             )
-          : _isNetworkImage(image)
-              ? ClipRRect(
-                  borderRadius:
-                      BorderRadius.circular(12),
-                  child: Image.network(
-                    image,
-                    fit: BoxFit.cover,
-                    loadingBuilder:
-                        (
-                      context,
-                      child,
-                      loadingProgress,
-                    ) {
-                      if (loadingProgress == null) {
-                        return child;
-                      }
+          : ClipRRect(
+              borderRadius:
+                  BorderRadius.circular(17),
+              child: Image.network(
+                image,
+                fit: BoxFit.cover,
+                loadingBuilder:
+                    (
+                  context,
+                  child,
+                  loadingProgress,
+                ) {
+                  if (loadingProgress ==
+                      null) {
+                    return child;
+                  }
 
-                      return Center(
-                        child:
-                            CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color:
-                              AppTheme.grapePurple,
-                        ),
-                      );
-                    },
-                    errorBuilder:
-                        (
-                      context,
-                      error,
-                      stackTrace,
-                    ) {
-                      return Icon(
-                        Icons
-                            .image_not_supported_outlined,
-                        color:
-                            AppTheme.grapePurple,
-                        size: 30,
-                      );
-                    },
-                  ),
-                )
-              : ClipRRect(
-                  borderRadius:
-                      BorderRadius.circular(12),
-                  child: Image.asset(
-                    image,
-                    fit: BoxFit.contain,
-                    errorBuilder:
-                        (
-                      context,
-                      error,
-                      stackTrace,
-                    ) {
-                      return Icon(
-                        Icons
-                            .image_not_supported_outlined,
-                        color:
-                            AppTheme.grapePurple,
-                        size: 30,
-                      );
-                    },
-                  ),
-                ),
+                  return const Center(
+                    child:
+                        CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: pikkXNavy,
+                    ),
+                  );
+                },
+                errorBuilder:
+                    (
+                  context,
+                  error,
+                  stackTrace,
+                ) {
+                  return const Icon(
+                    Icons
+                        .image_not_supported_outlined,
+                    color: pikkXNavy,
+                    size: 30,
+                  );
+                },
+              ),
+            ),
     );
-  }
-
-  bool _isNetworkImage(
-    String image,
-  ) {
-    return image.startsWith('http://') ||
-        image.startsWith('https://');
   }
 
   // ============================================================
@@ -545,7 +765,8 @@ class _FavouritePageState extends State<FavouritePage> {
       ) {
         if (snapshot.hasError) {
           debugPrint(
-            'Favourite stream error: ${snapshot.error}',
+            'Favourite stream error: '
+            '${snapshot.error}',
           );
 
           return _errorState();
@@ -553,9 +774,10 @@ class _FavouritePageState extends State<FavouritePage> {
 
         if (snapshot.connectionState ==
             ConnectionState.waiting) {
-          return Center(
-            child: CircularProgressIndicator(
-              color: AppTheme.grapePurple,
+          return const Center(
+            child:
+                CircularProgressIndicator(
+              color: pikkXNavy,
             ),
           );
         }
@@ -569,7 +791,8 @@ class _FavouritePageState extends State<FavouritePage> {
 
         final favourites = documents
             .map(
-              (doc) => FavouriteProduct.fromMap(
+              (doc) =>
+                  FavouriteProduct.fromMap(
                 doc.id,
                 doc.data(),
               ),
@@ -579,15 +802,18 @@ class _FavouritePageState extends State<FavouritePage> {
         return ListView.builder(
           physics:
               const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
+            parent:
+                BouncingScrollPhysics(),
           ),
-          padding: const EdgeInsets.fromLTRB(
+          padding:
+              const EdgeInsets.fromLTRB(
             20,
             0,
             20,
             110,
           ),
-          itemCount: favourites.length,
+          itemCount:
+              favourites.length,
           itemBuilder: (
             context,
             index,
@@ -602,81 +828,6 @@ class _FavouritePageState extends State<FavouritePage> {
   }
 
   // ============================================================
-  // NOT SIGNED IN
-  // ============================================================
-
-  Widget _notSignedInState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(30),
-        child: Column(
-          mainAxisAlignment:
-              MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.login_rounded,
-              size: 55,
-              color: AppTheme.grapePurple,
-            ),
-            const SizedBox(height: 18),
-            Text(
-              'Sign in to view your favourites',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppTheme.darkText,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // ERROR STATE
-  // ============================================================
-
-  Widget _errorState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(30),
-        child: Column(
-          mainAxisAlignment:
-              MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.cloud_off_rounded,
-              size: 52,
-              color: AppTheme.grapePurple,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Unable to load favourites',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppTheme.darkText,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Check your connection and try again.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppTheme.mutedText,
-                fontSize: 13,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
   // BUILD
   // ============================================================
 
@@ -685,28 +836,18 @@ class _FavouritePageState extends State<FavouritePage> {
     BuildContext context,
   ) {
     return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.grapeLightPurple,
-            Colors.white,
-          ],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-      ),
+      color: pikkXBackground,
       child: SafeArea(
         bottom: false,
         child: Column(
           children: [
-            _glassHeader(),
+            _header(),
 
             Expanded(
-              child: RefreshIndicator(
-                color: AppTheme.grapePurple,
+              child:
+                  RefreshIndicator(
+                color: pikkXNavy,
                 onRefresh: () async {
-                  // The StreamBuilder automatically receives
-                  // the latest Firestore data.
                   await Future<void>.delayed(
                     const Duration(
                       milliseconds: 300,
@@ -746,6 +887,10 @@ class FavouriteProduct {
     this.sellerId = '',
   });
 
+  // ==========================================================
+  // FROM FIRESTORE
+  // ==========================================================
+
   factory FavouriteProduct.fromMap(
     String documentId,
     Map<String, dynamic> data,
@@ -759,26 +904,35 @@ class FavouriteProduct {
       price: data['price'] ?? 0,
       image: _getImage(data),
       category:
-          data['category']?.toString() ?? '',
+          data['category']?.toString() ??
+              '',
       description:
-          data['description']?.toString() ?? '',
+          data['description']?.toString() ??
+              '',
       sellerId:
-          data['sellerId']?.toString() ?? '',
+          data['sellerId']?.toString() ??
+              '',
     );
   }
+
+  // ==========================================================
+  // IMAGE
+  // ==========================================================
 
   static String _getImage(
     Map<String, dynamic> data,
   ) {
     final imageUrl =
-        data['imageUrl']?.toString() ?? '';
+        data['imageUrl']?.toString() ??
+            '';
 
     if (imageUrl.isNotEmpty) {
       return imageUrl;
     }
 
     final image =
-        data['image']?.toString() ?? '';
+        data['image']?.toString() ??
+            '';
 
     if (image.isNotEmpty) {
       return image;
@@ -794,26 +948,34 @@ class FavouriteProduct {
     return '';
   }
 
-  String get displayPrice {
+  // ==========================================================
+  // PRICE
+  // ==========================================================
+
+  double get numericPrice {
     if (price is num) {
-      return '₦${price.toStringAsFixed(2)}';
+      return price.toDouble();
     }
 
-    final parsed =
-        double.tryParse(price.toString());
-
-    if (parsed != null) {
-      return '₦${parsed.toStringAsFixed(2)}';
-    }
-
-    return '₦$price';
+    return double.tryParse(
+          price?.toString() ?? '',
+        ) ??
+        0.0;
   }
+
+  String get displayPrice {
+    return '₦${numericPrice.toStringAsFixed(2)}';
+  }
+
+  // ==========================================================
+  // MAP
+  // ==========================================================
 
   Map<String, dynamic> toMap() {
     return {
       'productId': id,
       'name': name,
-      'price': price,
+      'price': numericPrice,
       'image': image,
       'imageUrl': image,
       'category': category,
