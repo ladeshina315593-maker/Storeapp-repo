@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:country_picker/country_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -28,12 +29,67 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
   bool _resending = false;
 
   String _selectedCountryCode = '+234';
+  String _selectedCountryFlag = '🇳🇬';
 
   @override
   void dispose() {
     _phoneController.dispose();
     _otpController.dispose();
     super.dispose();
+  }
+
+  // ============================================================
+  // COUNTRY PICKER
+  // ============================================================
+
+  void _showCountryPicker() {
+    if (_otpSent || _loading) return;
+
+    showCountryPicker(
+      context: context,
+      showPhoneCode: true,
+      showWorldWide: false,
+      favorite: const ['NG'],
+      countryListTheme: CountryListThemeData(
+        backgroundColor: AppTheme.lightBackground,
+        textStyle: const TextStyle(
+          color: AppTheme.pikkXBlack,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+        searchTextStyle: const TextStyle(
+          color: AppTheme.pikkXBlack,
+          fontSize: 14,
+        ),
+        inputDecoration: InputDecoration(
+          hintText: 'Search country',
+          hintStyle: const TextStyle(
+            color: AppTheme.mutedText,
+            fontSize: 13,
+          ),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            color: AppTheme.pikkXNavy,
+          ),
+          filled: true,
+          fillColor: AppTheme.pikkXWhite,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+        ),
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(28),
+        ),
+        bottomSheetHeight: 600,
+      ),
+      onSelect: (Country country) {
+        setState(() {
+          _selectedCountryCode = '+${country.phoneCode}';
+          _selectedCountryFlag = country.flagEmoji;
+        });
+      },
+    );
   }
 
   // ============================================================
@@ -65,7 +121,6 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
     try {
       await _auth.verifyPhoneNumber(
         phoneNumber: fullPhoneNumber,
-
         verificationCompleted:
             (PhoneAuthCredential credential) async {
           try {
@@ -99,7 +154,6 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
             );
           }
         },
-
         verificationFailed:
             (FirebaseAuthException error) {
           if (!mounted) return;
@@ -113,7 +167,6 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
                 'Could not send OTP. Please check your number.',
           );
         },
-
         codeSent:
             (String verificationId, int? resendToken) {
           if (!mounted) return;
@@ -126,7 +179,6 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
 
           _showMessage('OTP sent successfully.');
         },
-
         codeAutoRetrievalTimeout:
             (String verificationId) {
           _verificationId = verificationId;
@@ -200,8 +252,7 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
         _loading = false;
       });
 
-      String message =
-          'Invalid OTP. Please try again.';
+      String message = 'Invalid OTP. Please try again.';
 
       if (error.code == 'invalid-verification-code') {
         message = 'The OTP is incorrect.';
@@ -307,12 +358,14 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
             color: AppTheme.glassWhite,
             borderRadius: BorderRadius.circular(28),
             border: Border.all(
-              color: AppTheme.pikkXBlack.withOpacity(0.08),
+              color:
+                  AppTheme.pikkXBlack.withOpacity(0.08),
               width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.pikkXBlack.withOpacity(0.06),
+                color:
+                    AppTheme.pikkXBlack.withOpacity(0.06),
                 blurRadius: 25,
                 offset: const Offset(0, 12),
               ),
@@ -331,26 +384,52 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
   Widget _phoneField() {
     return _glass(
       padding: const EdgeInsets.symmetric(
-        horizontal: 14,
+        horizontal: 10,
         vertical: 4,
       ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 11,
-              vertical: 10,
-            ),
-            decoration: BoxDecoration(
-              color: AppTheme.pikkXNavy,
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _showCountryPicker,
               borderRadius: BorderRadius.circular(15),
-            ),
-            child: Text(
-              _selectedCountryCode,
-              style: const TextStyle(
-                color: AppTheme.pikkXWhite,
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.pikkXNavy,
+                  borderRadius:
+                      BorderRadius.circular(15),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _selectedCountryFlag,
+                      style: const TextStyle(
+                        fontSize: 19,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _selectedCountryCode,
+                      style: const TextStyle(
+                        color: AppTheme.pikkXWhite,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(width: 3),
+                    const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: AppTheme.pikkXWhite,
+                      size: 17,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -375,6 +454,11 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
                   color: AppTheme.mutedText,
                 ),
               ),
+              onSubmitted: (_) {
+                if (!_loading && !_otpSent) {
+                  _sendOtp();
+                }
+              },
             ),
           ),
         ],
@@ -538,9 +622,8 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
               MainAxisAlignment.spaceBetween,
           children: [
             TextButton(
-              onPressed: _loading
-                  ? null
-                  : _changeNumber,
+              onPressed:
+                  _loading ? null : _changeNumber,
               child: const Text(
                 'Change number',
                 style: TextStyle(
@@ -549,11 +632,11 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
                 ),
               ),
             ),
-
             TextButton(
-              onPressed: _loading || _resending
-                  ? null
-                  : _resendOtp,
+              onPressed:
+                  _loading || _resending
+                      ? null
+                      : _resendOtp,
               child: Text(
                 _resending
                     ? 'Sending...'
@@ -582,7 +665,7 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
         child: Stack(
           children: [
             // ----------------------------------------------------
-            // SUBTLE NAVY BACKGROUND GLOW
+            // BACKGROUND GLOW
             // ----------------------------------------------------
 
             Positioned(
@@ -654,7 +737,8 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
                     ),
                     child: IconButton(
                       icon: const Icon(
-                        Icons.arrow_back_ios_new_rounded,
+                        Icons
+                            .arrow_back_ios_new_rounded,
                         size: 18,
                         color:
                             AppTheme.pikkXBlack,
