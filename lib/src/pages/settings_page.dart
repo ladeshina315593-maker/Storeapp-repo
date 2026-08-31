@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_ecommerce_app/src/themes/theme.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -12,8 +13,7 @@ class SettingsPage extends StatefulWidget {
       _SettingsPageState();
 }
 
-class _SettingsPageState
-    extends State<SettingsPage> {
+class _SettingsPageState extends State<SettingsPage> {
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
 
@@ -27,14 +27,10 @@ class _SettingsPageState
   bool isLoading = true;
   bool isSaving = false;
 
-  String? get userId =>
-      _auth.currentUser?.uid;
+  String? get userId => _auth.currentUser?.uid;
 
-  DocumentReference<Map<String, dynamic>>
-      get userRef {
-    return _firestore
-        .collection('users')
-        .doc(userId);
+  DocumentReference<Map<String, dynamic>> get userRef {
+    return _firestore.collection('users').doc(userId);
   }
 
   @override
@@ -43,61 +39,65 @@ class _SettingsPageState
     _loadSettings();
   }
 
+  // ------------------------------------------------------------
+  // LOAD SETTINGS
+  // ------------------------------------------------------------
+
   Future<void> _loadSettings() async {
     if (userId == null) {
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
       return;
     }
 
     try {
-      final snapshot =
-          await userRef.get();
-
+      final snapshot = await userRef.get();
       final data = snapshot.data();
 
-      final settings =
-          data?['settings'] is Map
-              ? Map<String, dynamic>.from(
-                  data!['settings'],
-                )
-              : <String, dynamic>{};
+      final settings = data?['settings'] is Map
+          ? Map<String, dynamic>.from(data!['settings'])
+          : <String, dynamic>{};
+
+      if (!mounted) return;
 
       setState(() {
         notificationsEnabled =
-            settings[
-                    'notificationsEnabled'] ??
-                true;
+            settings['notificationsEnabled'] ?? true;
 
         orderUpdates =
-            settings['orderUpdates'] ??
-                true;
+            settings['orderUpdates'] ?? true;
 
         promotionalNotifications =
-            settings[
-                    'promotionalNotifications'] ??
-                true;
+            settings['promotionalNotifications'] ?? true;
 
         isLoading = false;
       });
     } catch (e) {
-      debugPrint(
-        'Settings error: $e',
-      );
+      debugPrint('Settings error: $e');
 
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
+
+  // ------------------------------------------------------------
+  // SAVE SETTINGS
+  // ------------------------------------------------------------
 
   Future<void> _saveSettings() async {
     if (userId == null) return;
 
-    setState(() {
-      isSaving = true;
-    });
+    if (mounted) {
+      setState(() {
+        isSaving = true;
+      });
+    }
 
     try {
       await userRef.set(
@@ -105,8 +105,7 @@ class _SettingsPageState
           'settings': {
             'notificationsEnabled':
                 notificationsEnabled,
-            'orderUpdates':
-                orderUpdates,
+            'orderUpdates': orderUpdates,
             'promotionalNotifications':
                 promotionalNotifications,
             'updatedAt':
@@ -116,9 +115,7 @@ class _SettingsPageState
         SetOptions(merge: true),
       );
     } catch (e) {
-      debugPrint(
-        'Save settings error: $e',
-      );
+      debugPrint('Save settings error: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -153,49 +150,62 @@ class _SettingsPageState
     await _saveSettings();
   }
 
-  Future<void>
-      _changePromotionalNotifications(
+  Future<void> _changePromotionalNotifications(
     bool value,
   ) async {
     setState(() {
-      promotionalNotifications =
-          value;
+      promotionalNotifications = value;
     });
 
     await _saveSettings();
   }
 
+  // ------------------------------------------------------------
+  // SIGN OUT
+  // ------------------------------------------------------------
+
   Future<void> _signOut() async {
-    final confirm =
-        await showDialog<bool>(
+    final confirm = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title:
-              const Text('Sign out?'),
-          content: const Text(
+          backgroundColor: AppTheme.pikkXWhite,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          title: Text(
+            'Sign out?',
+            style: TextStyle(
+              color: AppTheme.pikkXBlack,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          content: Text(
             'You will need to sign in again to access your account.',
+            style: TextStyle(
+              color: AppTheme.mutedText,
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () =>
-                  Navigator.pop(
-                context,
-                false,
+                  Navigator.pop(context, false),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: AppTheme.pikkXNavy,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-              child:
-                  const Text('Cancel'),
             ),
             TextButton(
               onPressed: () =>
-                  Navigator.pop(
-                context,
-                true,
-              ),
+                  Navigator.pop(context, true),
               child: const Text(
                 'Sign out',
                 style: TextStyle(
                   color: Colors.red,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -217,263 +227,166 @@ class _SettingsPageState
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor:
-          const Color(0xFFF8F5FF),
-      appBar: AppBar(
-        backgroundColor:
-            Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-        title: const Text(
-          'Settings',
-          style: TextStyle(
-            color:
-                Color(0xFF1D2635),
-            fontSize: 21,
-            fontWeight:
-                FontWeight.w700,
-          ),
+  // ------------------------------------------------------------
+  // GLASS CONTAINER
+  // ------------------------------------------------------------
+
+  Widget _glass({
+    required Widget child,
+    EdgeInsetsGeometry padding =
+        EdgeInsets.zero,
+  }) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: 16,
+          sigmaY: 16,
         ),
-        iconTheme:
-            const IconThemeData(
-          color:
-              Color(0xFF1D2635),
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.72),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.9),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.055),
+                blurRadius: 22,
+                offset: const Offset(0, 9),
+              ),
+            ],
+          ),
+          child: child,
         ),
       ),
-      body: isLoading
-          ? const Center(
-              child:
-                  CircularProgressIndicator(
-                color:
-                    Color(0xFFB98BEF),
-              ),
-            )
-          : ListView(
-              padding:
-                  const EdgeInsets.fromLTRB(
-                16,
-                8,
-                16,
-                30,
-              ),
-              children: [
-                _sectionTitle(
-                  'Notifications',
-                ),
-
-                _glass(
-                  child: Column(
-                    children: [
-                      _switchTile(
-                        icon: Icons
-                            .notifications_none_rounded,
-                        title:
-                            'Notifications',
-                        subtitle:
-                            'Receive app notifications',
-                        value:
-                            notificationsEnabled,
-                        onChanged:
-                            _changeNotifications,
-                      ),
-                      const Divider(
-                        height: 1,
-                        color:
-                            Color(0xFFE1E2E4),
-                      ),
-                      _switchTile(
-                        icon: Icons
-                            .local_shipping_outlined,
-                        title:
-                            'Order updates',
-                        subtitle:
-                            'Get updates about your orders',
-                        value:
-                            orderUpdates,
-                        enabled:
-                            notificationsEnabled,
-                        onChanged:
-                            _changeOrderUpdates,
-                      ),
-                      const Divider(
-                        height: 1,
-                        color:
-                            Color(0xFFE1E2E4),
-                      ),
-                      _switchTile(
-                        icon: Icons
-                            .local_offer_outlined,
-                        title:
-                            'Promotions',
-                        subtitle:
-                            'Receive offers and promotions',
-                        value:
-                            promotionalNotifications,
-                        enabled:
-                            notificationsEnabled,
-                        onChanged:
-                            _changePromotionalNotifications,
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 24,
-                ),
-
-                _sectionTitle(
-                  'Account',
-                ),
-
-                _glass(
-                  child: Column(
-                    children: [
-                      _actionTile(
-                        icon: Icons
-                            .location_on_outlined,
-                        title:
-                            'Delivery Addresses',
-                        onTap: () {
-                          Navigator.pushNamed(
-                            context,
-                            '/delivery-address',
-                          );
-                        },
-                      ),
-                      const Divider(
-                        height: 1,
-                        color:
-                            Color(0xFFE1E2E4),
-                      ),
-                      _actionTile(
-                        icon: Icons
-                            .shopping_bag_outlined,
-                        title:
-                            'My Orders',
-                        onTap: () {
-                          Navigator.pushNamed(
-                            context,
-                            '/orders',
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 24,
-                ),
-
-                _sectionTitle(
-                  'Support',
-                ),
-
-                _glass(
-                  child: Column(
-                    children: [
-                      _actionTile(
-                        icon: Icons
-                            .help_outline_rounded,
-                        title:
-                            'Help & Support',
-                        onTap: () {
-                          // Connect to support
-                          // screen when created.
-                        },
-                      ),
-                      const Divider(
-                        height: 1,
-                        color:
-                            Color(0xFFE1E2E4),
-                      ),
-                      _actionTile(
-                        icon: Icons
-                            .info_outline_rounded,
-                        title:
-                            'About GrapeGo',
-                        onTap: () {
-                          showAboutDialog(
-                            context: context,
-                            applicationName:
-                                'GrapeGo',
-                            applicationVersion:
-                                '1.0.0',
-                            applicationLegalese:
-                                'GrapeGo marketplace',
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 24,
-                ),
-
-                SizedBox(
-                  height: 53,
-                  child: ElevatedButton.icon(
-                    onPressed: _signOut,
-                    icon: const Icon(
-                      Icons.logout_rounded,
-                    ),
-                    label: const Text(
-                      'Sign Out',
-                    ),
-                    style:
-                        ElevatedButton.styleFrom(
-                      backgroundColor:
-                          Colors.white,
-                      foregroundColor:
-                          const Color(
-                              0xFFE65829),
-                      elevation: 0,
-                      shape:
-                          RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(
-                                18),
-                        side:
-                            const BorderSide(
-                          color:
-                              Color(0xFFE1E2E4),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-                if (isSaving)
-                  const Padding(
-                    padding:
-                        EdgeInsets.only(
-                      top: 14,
-                    ),
-                    child: Center(
-                      child:
-                          SizedBox(
-                        width: 18,
-                        height: 18,
-                        child:
-                            CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color:
-                              Color(
-                                  0xFFB98BEF),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
     );
   }
+
+  // ------------------------------------------------------------
+  // TOP HEADER
+  // ------------------------------------------------------------
+
+  Widget _header() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        20,
+        14,
+        20,
+        20,
+      ),
+      child: Row(
+        children: [
+          _glassIconButton(
+            icon: Icons.arrow_back_ios_new_rounded,
+            onTap: () {
+              Navigator.pop(context);
+            },
+          ),
+
+          const SizedBox(width: 15),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Settings',
+                  style: TextStyle(
+                    color: AppTheme.pikkXBlack,
+                    fontSize: 25,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Manage your pikkX experience',
+                  style: TextStyle(
+                    color: AppTheme.mutedText,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          _glassIconButton(
+            icon: Icons.tune_rounded,
+            iconColor: AppTheme.pikkXNavy,
+            onTap: () {},
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _glassIconButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    Color? iconColor,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          height: 46,
+          width: 46,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.68),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.9),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.045),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Icon(
+            icon,
+            color:
+                iconColor ?? AppTheme.pikkXBlack,
+            size: 19,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------
+  // SECTION TITLE
+  // ------------------------------------------------------------
+
+  Widget _sectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(
+        left: 4,
+        bottom: 10,
+      ),
+      child: Text(
+        title,
+        style: TextStyle(
+          color: AppTheme.pikkXBlack,
+          fontSize: 15,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------
+  // SWITCH TILE
+  // ------------------------------------------------------------
 
   Widget _switchTile({
     required IconData icon,
@@ -481,157 +394,459 @@ class _SettingsPageState
     required String subtitle,
     required bool value,
     bool enabled = true,
-    required ValueChanged<bool>
-        onChanged,
+    required ValueChanged<bool> onChanged,
   }) {
     return ListTile(
-      contentPadding:
-          const EdgeInsets.symmetric(
+      contentPadding: const EdgeInsets.symmetric(
         horizontal: 15,
-        vertical: 5,
+        vertical: 6,
       ),
       leading: Container(
-        width: 43,
-        height: 43,
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
-          color:
-              const Color(0xFFF8F5FF),
-          borderRadius:
-              BorderRadius.circular(14),
+          color: AppTheme.pikkXNavy.withOpacity(0.08),
+          shape: BoxShape.circle,
         ),
         child: Icon(
           icon,
-          color:
-              const Color(0xFFB98BEF),
+          color: AppTheme.pikkXNavy,
+          size: 20,
         ),
       ),
       title: Text(
         title,
         style: TextStyle(
-          color:
-              const Color(0xFF1D2635),
-          fontWeight:
-              FontWeight.w700,
+          color: AppTheme.pikkXBlack,
+          fontSize: 13,
+          fontWeight: FontWeight.w800,
         ),
       ),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(
-          color:
-              Color(0xFF797878),
-          fontSize: 12,
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 3),
+        child: Text(
+          subtitle,
+          style: TextStyle(
+            color: AppTheme.mutedText,
+            fontSize: 10,
+          ),
         ),
       ),
       trailing: Switch(
         value: value,
         onChanged:
             enabled ? onChanged : null,
-        activeColor:
-            const Color(0xFFB98BEF),
+        activeThumbColor: AppTheme.pikkXWhite,
+        activeTrackColor: AppTheme.pikkXNavy,
+        inactiveThumbColor: AppTheme.pikkXWhite,
+        inactiveTrackColor: Colors.black12,
       ),
     );
   }
+
+  // ------------------------------------------------------------
+  // ACTION TILE
+  // ------------------------------------------------------------
 
   Widget _actionTile({
     required IconData icon,
     required String title,
+    required String subtitle,
     required VoidCallback onTap,
   }) {
-    return ListTile(
-      onTap: onTap,
-      contentPadding:
-          const EdgeInsets.symmetric(
-        horizontal: 15,
-        vertical: 5,
-      ),
-      leading: Container(
-        width: 43,
-        height: 43,
-        decoration: BoxDecoration(
-          color:
-              const Color(0xFFF8F5FF),
-          borderRadius:
-              BorderRadius.circular(14),
-        ),
-        child: Icon(
-          icon,
-          color:
-              const Color(0xFFB98BEF),
-        ),
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          color:
-              Color(0xFF1D2635),
-          fontWeight:
-              FontWeight.w600,
-        ),
-      ),
-      trailing: const Icon(
-        Icons.arrow_forward_ios_rounded,
-        size: 15,
-        color:
-            Color(0xFFA1A3A6),
-      ),
-    );
-  }
-
-  Widget _sectionTitle(
-    String title,
-  ) {
-    return Padding(
-      padding:
-          const EdgeInsets.only(
-        left: 4,
-        bottom: 10,
-      ),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 17,
-          fontWeight:
-              FontWeight.w700,
-          color:
-              Color(0xFF1D2635),
-        ),
-      ),
-    );
-  }
-
-  Widget _glass({
-    required Widget child,
-  }) {
-    return ClipRRect(
-      borderRadius:
-          BorderRadius.circular(24),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 15,
-          sigmaY: 15,
-        ),
-        child: Container(
-          decoration:
-              BoxDecoration(
-            color: Colors.white
-                .withOpacity(0.76),
-            borderRadius:
-                BorderRadius.circular(24),
-            border: Border.all(
-              color: Colors.white
-                  .withOpacity(0.88),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black
-                    .withOpacity(0.04),
-                blurRadius: 18,
-                offset:
-                    const Offset(0, 8),
-              ),
-            ],
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: ListTile(
+          contentPadding:
+              const EdgeInsets.symmetric(
+            horizontal: 15,
+            vertical: 6,
           ),
-          child: child,
+          leading: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color:
+                  AppTheme.pikkXNavy.withOpacity(0.08),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              color: AppTheme.pikkXNavy,
+              size: 20,
+            ),
+          ),
+          title: Text(
+            title,
+            style: TextStyle(
+              color: AppTheme.pikkXBlack,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: Text(
+              subtitle,
+              style: TextStyle(
+                color: AppTheme.mutedText,
+                fontSize: 10,
+              ),
+            ),
+          ),
+          trailing: Icon(
+            Icons.arrow_forward_ios_rounded,
+            color: AppTheme.mutedText,
+            size: 14,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------
+  // BUILD
+  // ------------------------------------------------------------
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.lightBackground,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            // Subtle blue glow.
+            Positioned(
+              top: -100,
+              right: -80,
+              child: Container(
+                height: 230,
+                width: 230,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color:
+                      AppTheme.pikkXNavy.withOpacity(0.055),
+                ),
+              ),
+            ),
+
+            Positioned(
+              bottom: -100,
+              left: -90,
+              child: Container(
+                height: 230,
+                width: 230,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color:
+                      AppTheme.pikkXNavy.withOpacity(0.035),
+                ),
+              ),
+            ),
+
+            Column(
+              children: [
+                _header(),
+
+                Expanded(
+                  child: isLoading
+                      ? Center(
+                          child:
+                              CircularProgressIndicator(
+                            color: AppTheme.pikkXNavy,
+                          ),
+                        )
+                      : RefreshIndicator(
+                          color: AppTheme.pikkXNavy,
+                          onRefresh: _loadSettings,
+                          child: ListView(
+                            physics:
+                                const BouncingScrollPhysics(),
+                            padding:
+                                const EdgeInsets.fromLTRB(
+                              20,
+                              0,
+                              20,
+                              35,
+                            ),
+                            children: [
+                              // ------------------------------------------------
+                              // NOTIFICATIONS
+                              // ------------------------------------------------
+
+                              _sectionTitle(
+                                'Notifications',
+                              ),
+
+                              _glass(
+                                child: Column(
+                                  children: [
+                                    _switchTile(
+                                      icon: Icons
+                                          .notifications_none_rounded,
+                                      title:
+                                          'Notifications',
+                                      subtitle:
+                                          'Receive pikkX notifications',
+                                      value:
+                                          notificationsEnabled,
+                                      onChanged:
+                                          _changeNotifications,
+                                    ),
+
+                                    Divider(
+                                      height: 1,
+                                      color: Colors.black
+                                          .withOpacity(0.06),
+                                    ),
+
+                                    _switchTile(
+                                      icon: Icons
+                                          .local_shipping_outlined,
+                                      title:
+                                          'Order updates',
+                                      subtitle:
+                                          'Get updates about your orders',
+                                      value:
+                                          orderUpdates,
+                                      enabled:
+                                          notificationsEnabled,
+                                      onChanged:
+                                          _changeOrderUpdates,
+                                    ),
+
+                                    Divider(
+                                      height: 1,
+                                      color: Colors.black
+                                          .withOpacity(0.06),
+                                    ),
+
+                                    _switchTile(
+                                      icon: Icons
+                                          .local_offer_outlined,
+                                      title:
+                                          'Promotions',
+                                      subtitle:
+                                          'Receive offers and promotions',
+                                      value:
+                                          promotionalNotifications,
+                                      enabled:
+                                          notificationsEnabled,
+                                      onChanged:
+                                          _changePromotionalNotifications,
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              const SizedBox(height: 25),
+
+                              // ------------------------------------------------
+                              // ACCOUNT
+                              // ------------------------------------------------
+
+                              _sectionTitle(
+                                'Account',
+                              ),
+
+                              _glass(
+                                child: Column(
+                                  children: [
+                                    _actionTile(
+                                      icon: Icons
+                                          .location_on_outlined,
+                                      title:
+                                          'Delivery Addresses',
+                                      subtitle:
+                                          'Manage your saved addresses',
+                                      onTap: () {
+                                        Navigator.pushNamed(
+                                          context,
+                                          '/delivery-address',
+                                        );
+                                      },
+                                    ),
+
+                                    Divider(
+                                      height: 1,
+                                      color: Colors.black
+                                          .withOpacity(0.06),
+                                    ),
+
+                                    _actionTile(
+                                      icon: Icons
+                                          .shopping_bag_outlined,
+                                      title:
+                                          'My Orders',
+                                      subtitle:
+                                          'View previous and active orders',
+                                      onTap: () {
+                                        Navigator.pushNamed(
+                                          context,
+                                          '/orders',
+                                        );
+                                      },
+                                    ),
+
+                                    Divider(
+                                      height: 1,
+                                      color: Colors.black
+                                          .withOpacity(0.06),
+                                    ),
+
+                                    _actionTile(
+                                      icon: Icons
+                                          .person_outline_rounded,
+                                      title:
+                                          'Profile',
+                                      subtitle:
+                                          'Manage your pikkX profile',
+                                      onTap: () {
+                                        Navigator.pushNamed(
+                                          context,
+                                          '/profile',
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              const SizedBox(height: 25),
+
+                              // ------------------------------------------------
+                              // SUPPORT
+                              // ------------------------------------------------
+
+                              _sectionTitle(
+                                'Support',
+                              ),
+
+                              _glass(
+                                child: Column(
+                                  children: [
+                                    _actionTile(
+                                      icon: Icons
+                                          .help_outline_rounded,
+                                      title:
+                                          'Help & Support',
+                                      subtitle:
+                                          'Get help with pikkX',
+                                      onTap: () {},
+                                    ),
+
+                                    Divider(
+                                      height: 1,
+                                      color: Colors.black
+                                          .withOpacity(0.06),
+                                    ),
+
+                                    _actionTile(
+                                      icon: Icons
+                                          .info_outline_rounded,
+                                      title:
+                                          'About pikkX',
+                                      subtitle:
+                                          'Learn more about pikkX',
+                                      onTap: () {
+                                        showAboutDialog(
+                                          context: context,
+                                          applicationName:
+                                              'pikkX',
+                                          applicationVersion:
+                                              '1.0.0',
+                                          applicationLegalese:
+                                              'pikkX marketplace',
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              const SizedBox(height: 28),
+
+                              // ------------------------------------------------
+                              // SIGN OUT
+                              // ------------------------------------------------
+
+                              SizedBox(
+                                height: 54,
+                                child: OutlinedButton.icon(
+                                  onPressed: _signOut,
+                                  icon: const Icon(
+                                    Icons.logout_rounded,
+                                    size: 19,
+                                  ),
+                                  label: const Text(
+                                    'Sign Out',
+                                  ),
+                                  style:
+                                      OutlinedButton.styleFrom(
+                                    foregroundColor:
+                                        AppTheme.pikkXBlack,
+                                    side: BorderSide(
+                                      color: Colors.black
+                                          .withOpacity(0.10),
+                                    ),
+                                    backgroundColor:
+                                        Colors.white
+                                            .withOpacity(0.65),
+                                    shape:
+                                        RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(
+                                        18,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              if (isSaving)
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.only(
+                                    top: 14,
+                                  ),
+                                  child: Center(
+                                    child: SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child:
+                                          CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color:
+                                            AppTheme.pikkXNavy,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                              const SizedBox(height: 15),
+
+                              Center(
+                                child: Text(
+                                  'pikkX • 1.0.0',
+                                  style: TextStyle(
+                                    color:
+                                        AppTheme.mutedText,
+                                    fontSize: 10,
+                                    fontWeight:
+                                        FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
