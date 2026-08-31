@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_ecommerce_app/src/pages/mainPage.dart';
+import 'package:flutter_ecommerce_app/src/pages/login_screen.dart';
 import 'package:flutter_ecommerce_app/src/pages/product_detail.dart';
 import 'package:flutter_ecommerce_app/src/pages/shopping_cart_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/checkout_page.dart';
@@ -20,14 +22,12 @@ import 'firebase_options.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize Firebase ONCE before the app starts.
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
+  // Initialize Google Sign-In.
   await GoogleSignIn.instance.initialize();
 
   runApp(const GrapeGoApp());
@@ -87,14 +87,30 @@ class GrapeGoApp extends StatelessWidget {
       // ==================================================
 
       routes: {
-        // Main
+        // ------------------------------------------------
+        // AUTH
+        // ------------------------------------------------
+
+        '/login': (context) =>
+            LoginScreen(),
+
+        // ------------------------------------------------
+        // HOME
+        // ------------------------------------------------
+
         '/': (context) =>
+            const AuthGate(),
+
+        '/home': (context) =>
             MainPage(),
 
         'MainPage': (context) =>
             MainPage(),
 
-        // Shopping
+        // ------------------------------------------------
+        // SHOPPING
+        // ------------------------------------------------
+
         '/cart': (context) =>
             ShoppingCartPage(),
 
@@ -104,15 +120,24 @@ class GrapeGoApp extends StatelessWidget {
         '/delivery-address': (context) =>
             DeliveryAddressPage(),
 
-        // Orders
+        // ------------------------------------------------
+        // ORDERS
+        // ------------------------------------------------
+
         '/orders': (context) =>
             OrdersPage(),
 
-        // Notifications
+        // ------------------------------------------------
+        // NOTIFICATIONS
+        // ------------------------------------------------
+
         '/notifications': (context) =>
             NotificationsPage(),
 
-        // Settings
+        // ------------------------------------------------
+        // SETTINGS
+        // ------------------------------------------------
+
         '/settings': (context) =>
             SettingsPage(),
       },
@@ -176,21 +201,20 @@ class GrapeGoApp extends StatelessWidget {
             );
           }
 
-            return CustomRoute<bool>(
-              builder: (BuildContext context) =>
-                  OrderDetailsPage(
-                    orderId: orderId,
-                  ),
-              settings: settings,
-            );
-          }
+          return CustomRoute<bool>(
+            builder: (BuildContext context) =>
+                OrderDetailsPage(
+                  orderId: orderId,
+                ),
+            settings: settings,
+          );
+        }
 
         // ------------------------------------------------
         // CHAT
         // ------------------------------------------------
 
         if (settings.name == '/chat') {
-
           final arguments =
               settings.arguments;
 
@@ -223,15 +247,15 @@ class GrapeGoApp extends StatelessWidget {
             );
           }
 
-        return CustomRoute<bool>(
-          builder: (BuildContext context) =>
-              ChatPage(
-                chatId: chatId!,
-                otherUserName: otherUserName,
-              ),
-          settings: settings,
-        );
-      }
+          return CustomRoute<bool>(
+            builder: (BuildContext context) =>
+                ChatPage(
+                  chatId: chatId!,
+                  otherUserName: otherUserName,
+                ),
+            settings: settings,
+          );
+        }
 
         // ==================================================
         // UNKNOWN ROUTE
@@ -254,6 +278,54 @@ class GrapeGoApp extends StatelessWidget {
       // ==================================================
 
       initialRoute: '/',
+    );
+  }
+}
+
+// ==========================================================
+// AUTH GATE
+// ==========================================================
+//
+// This decides what the user sees when GrapeGo opens.
+//
+// No Firebase user:
+//     → LoginScreen
+//
+// Existing Firebase user:
+//     → MainPage
+//
+// Firebase remembers the authenticated user between
+// app launches, so users don't have to log in every time.
+// ==========================================================
+
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance
+          .authStateChanges(),
+      builder: (context, snapshot) {
+
+        // Firebase is still checking the session.
+        if (snapshot.connectionState ==
+            ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        // User is already signed in.
+        if (snapshot.hasData) {
+          return MainPage();
+        }
+
+        // No signed-in user.
+        return LoginScreen();
+      },
     );
   }
 }
