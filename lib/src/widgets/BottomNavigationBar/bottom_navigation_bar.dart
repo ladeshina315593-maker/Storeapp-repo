@@ -29,9 +29,11 @@ class _CustomBottomNavigationBarState
 
   int _previousIndex = 0;
 
+  // HOME → CART → CHAT → FAVOURITE → PROFILE
   final List<IconData> _icons = const [
     Icons.home_rounded,
     Icons.shopping_bag_rounded,
+    Icons.chat_bubble_rounded,
     Icons.favorite_rounded,
     Icons.person_rounded,
   ];
@@ -81,7 +83,7 @@ class _CustomBottomNavigationBarState
   }
 
   double _indexToPosition(int index) {
-    const double buttonCount = 4.0;
+    const double buttonCount = 5.0;
 
     final double appWidth =
         MediaQuery.of(context).size.width;
@@ -203,18 +205,22 @@ class _CustomBottomNavigationBarState
             alignment: Alignment.center,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
+
+              // pikkX BLACK when selected
               color: isSelected
-                  ? AppTheme.grapePurple
+                  ? const Color(0xFF050505)
                   : Colors.white.withOpacity(0.38),
+
               border: Border.all(
                 color:
                     Colors.white.withOpacity(0.85),
                 width: 1.2,
               ),
+
               boxShadow: [
                 BoxShadow(
                   color: isSelected
-                      ? AppTheme.grapePurple
+                      ? const Color(0xFF050505)
                           .withOpacity(0.30)
                       : Colors.black.withOpacity(0.04),
                   blurRadius:
@@ -235,7 +241,7 @@ class _CustomBottomNavigationBarState
                 size: isSelected ? 22 : 20,
                 color: isSelected
                     ? Colors.white
-                    : AppTheme.darkText,
+                    : const Color(0xFF050505),
               ),
             ),
           ),
@@ -257,13 +263,16 @@ class _CustomBottomNavigationBarState
           decoration: BoxDecoration(
             color:
                 Colors.white.withOpacity(0.58),
+
             borderRadius:
                 BorderRadius.circular(30),
+
             border: Border.all(
               color:
                   Colors.white.withOpacity(0.82),
               width: 1.2,
             ),
+
             boxShadow: [
               BoxShadow(
                 color:
@@ -272,10 +281,11 @@ class _CustomBottomNavigationBarState
                 offset:
                     const Offset(0, 10),
               ),
+
+              // BLACK glass shadow instead of purple
               BoxShadow(
-                color: AppTheme
-                    .grapePurple
-                    .withOpacity(0.08),
+                color:
+                    Colors.black.withOpacity(0.06),
                 blurRadius: 28,
                 spreadRadius: 1,
               ),
@@ -333,6 +343,11 @@ class _CustomBottomNavigationBarState
                   _icons[3],
                   widget.selectedIndex == 3,
                   3,
+                ),
+                _icon(
+                  _icons[4],
+                  widget.selectedIndex == 4,
+                  4,
                 ),
               ],
             ),
