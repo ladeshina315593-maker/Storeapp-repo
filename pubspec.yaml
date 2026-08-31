@@ -22,10 +22,15 @@ dependencies:
   firebase_auth: ^6.5.5
   cloud_firestore: ^6.7.0
 
+  # Camera / Image Search
+  image_picker: ^1.2.1
+
   # Social Authentication
   google_sign_in: ^7.2.0
   flutter_facebook_auth: ^7.1.2
   sign_in_with_apple: ^7.0.1
+
+  # File / System
   path_provider: ^2.1.6
   process: ^5.0.6
   file: ^7.0.1
@@ -40,5 +45,4 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/
-
+    - assets/images/
