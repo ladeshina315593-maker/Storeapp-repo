@@ -12,18 +12,59 @@ class CheckoutPage extends StatefulWidget {
 }
 
 class _CheckoutPageState extends State<CheckoutPage> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  // ============================================================
+  // pikkX COLORS
+  // ============================================================
 
-  String selectedPayment = 'cash_on_delivery';
+  static const Color pikkXBlack = Color(0xFF050505);
+  static const Color pikkXWhite = Color(0xFFFFFFFF);
+  static const Color pikkXNavy = Color(0xFF10233F);
+
+  static const Color lightBackground = Color(0xFFF7F7F7);
+  static const Color darkText = Color(0xFF111111);
+  static const Color mutedText = Color(0xFF707070);
+  static const Color softGrey = Color(0xFFE8E8E8);
+
+  // ============================================================
+  // FIREBASE
+  // ============================================================
+
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance;
+
+  String? get userId => _auth.currentUser?.uid;
+
+  CollectionReference<Map<String, dynamic>> get cartRef {
+    final uid = userId;
+
+    if (uid == null) {
+      return _firestore.collection('_invalid_cart');
+    }
+
+    return _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('cart');
+  }
+
+  // ============================================================
+  // STATE
+  // ============================================================
 
   bool isLoading = true;
   bool isPlacingOrder = false;
+
+  String selectedPayment = 'cash_on_delivery';
 
   List<Map<String, dynamic>> cartItems = [];
 
   Map<String, dynamic>? selectedAddress;
   String? selectedAddressId;
+
+  // ============================================================
+  // LIFECYCLE
+  // ============================================================
 
   @override
   void initState() {
@@ -32,20 +73,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   // ============================================================
-  // FIREBASE USER
-  // ============================================================
-
-  String? get userId => _auth.currentUser?.uid;
-
-  // ============================================================
   // LOAD CHECKOUT DATA
   // ============================================================
 
   Future<void> _loadCheckoutData() async {
     if (userId == null) {
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
       return;
     }
 
@@ -68,24 +105,19 @@ class _CheckoutPageState extends State<CheckoutPage> {
   // ============================================================
   // LOAD CART
   //
-  // carts/{userId}/items/{productId}
+  // users/{userId}/cart/{productId}
   // ============================================================
 
   Future<void> _loadCart() async {
     if (userId == null) return;
 
-    final snapshot = await _firestore
-        .collection('carts')
-        .doc(userId)
-        .collection('items')
-        .get();
+    final snapshot = await cartRef.get();
 
-    final List<Map<String, dynamic>> loadedItems = [];
-
-    for (final doc in snapshot.docs) {
+    final loadedItems =
+        snapshot.docs.map((doc) {
       final data = doc.data();
 
-      loadedItems.add({
+      return <String, dynamic>{
         'id': doc.id,
         'productId': data['productId'] ?? doc.id,
         'name': data['name'] ?? 'Product',
@@ -93,14 +125,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
         'quantity': _toInt(data['quantity']),
         'imageUrl': data['imageUrl'] ?? '',
         'sellerId': data['sellerId'] ?? '',
-      });
-    }
+      };
+    }).toList();
 
     cartItems = loadedItems;
   }
 
   // ============================================================
-  // LOAD DEFAULT ADDRESS
+  // LOAD ADDRESS
   //
   // users/{userId}/addresses/{addressId}
   // ============================================================
@@ -108,37 +140,38 @@ class _CheckoutPageState extends State<CheckoutPage> {
   Future<void> _loadDefaultAddress() async {
     if (userId == null) return;
 
-    final snapshot = await _firestore
+    final addressCollection = _firestore
         .collection('users')
         .doc(userId)
-        .collection('addresses')
+        .collection('addresses');
+
+    final defaultSnapshot = await addressCollection
         .where('isDefault', isEqualTo: true)
         .limit(1)
         .get();
 
-    if (snapshot.docs.isNotEmpty) {
-      final doc = snapshot.docs.first;
+    if (defaultSnapshot.docs.isNotEmpty) {
+      final doc = defaultSnapshot.docs.first;
 
       selectedAddressId = doc.id;
+
       selectedAddress = {
         'id': doc.id,
         ...doc.data(),
       };
+
       return;
     }
 
-    // If there is no default address, load the first saved address.
-    final allAddresses = await _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('addresses')
-        .limit(1)
-        .get();
+    // No default address — use the first saved address.
+    final firstSnapshot =
+        await addressCollection.limit(1).get();
 
-    if (allAddresses.docs.isNotEmpty) {
-      final doc = allAddresses.docs.first;
+    if (firstSnapshot.docs.isNotEmpty) {
+      final doc = firstSnapshot.docs.first;
 
       selectedAddressId = doc.id;
+
       selectedAddress = {
         'id': doc.id,
         ...doc.data(),
@@ -151,21 +184,17 @@ class _CheckoutPageState extends State<CheckoutPage> {
   // ============================================================
 
   double get subtotal {
-    double result = 0;
-
-    for (final item in cartItems) {
-      final price = _toDouble(item['price']);
-      final quantity = _toInt(item['quantity']);
-
-      result += price * quantity;
-    }
-
-    return result;
+    return cartItems.fold<double>(
+      0,
+      (sum, item) {
+        return sum +
+            (_toDouble(item['price']) *
+                _toInt(item['quantity']));
+      },
+    );
   }
 
   double get deliveryFee {
-    // Later this can be calculated dynamically using
-    // the user's location, seller location and delivery system.
     return cartItems.isEmpty ? 0 : 500;
   }
 
@@ -178,63 +207,82 @@ class _CheckoutPageState extends State<CheckoutPage> {
   // ============================================================
 
   Future<void> _increaseQuantity(int index) async {
-    if (userId == null) return;
+    if (userId == null || isPlacingOrder) return;
 
     final item = cartItems[index];
 
-    final newQuantity = _toInt(item['quantity']) + 1;
+    final productId =
+        item['productId'].toString();
+
+    final newQuantity =
+        _toInt(item['quantity']) + 1;
 
     setState(() {
-      cartItems[index]['quantity'] = newQuantity;
+      item['quantity'] = newQuantity;
     });
 
-    await _updateCartQuantity(
-      item['productId'],
-      newQuantity,
-    );
+    try {
+      await cartRef.doc(productId).update({
+        'quantity': newQuantity,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Increase quantity error: $e');
+
+      if (mounted) {
+        setState(() {
+          item['quantity'] = newQuantity - 1;
+        });
+
+        _showMessage(
+          'Unable to update quantity.',
+        );
+      }
+    }
   }
 
   Future<void> _decreaseQuantity(int index) async {
-    if (userId == null) return;
+    if (userId == null || isPlacingOrder) return;
 
     final item = cartItems[index];
-    final currentQuantity = _toInt(item['quantity']);
 
-    if (currentQuantity <= 1) {
-      return;
-    }
+    final currentQuantity =
+        _toInt(item['quantity']);
 
-    final newQuantity = currentQuantity - 1;
+    if (currentQuantity <= 1) return;
+
+    final productId =
+        item['productId'].toString();
+
+    final newQuantity =
+        currentQuantity - 1;
 
     setState(() {
-      cartItems[index]['quantity'] = newQuantity;
+      item['quantity'] = newQuantity;
     });
 
-    await _updateCartQuantity(
-      item['productId'],
-      newQuantity,
-    );
-  }
+    try {
+      await cartRef.doc(productId).update({
+        'quantity': newQuantity,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Decrease quantity error: $e');
 
-  Future<void> _updateCartQuantity(
-    String productId,
-    int quantity,
-  ) async {
-    if (userId == null) return;
+      if (mounted) {
+        setState(() {
+          item['quantity'] = currentQuantity;
+        });
 
-    await _firestore
-        .collection('carts')
-        .doc(userId)
-        .collection('items')
-        .doc(productId)
-        .update({
-      'quantity': quantity,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+        _showMessage(
+          'Unable to update quantity.',
+        );
+      }
+    }
   }
 
   // ============================================================
-  // DELIVERY ADDRESS
+  // ADDRESS
   // ============================================================
 
   Future<void> _openAddressPage() async {
@@ -243,14 +291,15 @@ class _CheckoutPageState extends State<CheckoutPage> {
       '/delivery-address',
     );
 
-    // Delivery Address page can return the selected address.
+    if (!mounted) return;
+
     if (result is Map<String, dynamic>) {
       setState(() {
         selectedAddress = result;
-        selectedAddressId = result['id']?.toString();
+        selectedAddressId =
+            result['id']?.toString();
       });
     } else {
-      // Reload from Firebase in case the address was changed.
       await _loadDefaultAddress();
 
       if (mounted) {
@@ -263,11 +312,19 @@ class _CheckoutPageState extends State<CheckoutPage> {
   // PLACE ORDER
   //
   // orders/{orderId}
+  //
+  // Also:
+  // users/{userId}/orders/{orderId}
+  //
+  // This gives the main order system and the user's
+  // personal order history access to the same order.
   // ============================================================
 
   Future<void> _placeOrder() async {
     if (userId == null) {
-      _showMessage('Please sign in before placing an order.');
+      _showMessage(
+        'Please sign in before placing an order.',
+      );
       return;
     }
 
@@ -277,78 +334,140 @@ class _CheckoutPageState extends State<CheckoutPage> {
     }
 
     if (selectedAddress == null) {
-      _showMessage('Please select a delivery address.');
+      _showMessage(
+        'Please select a delivery address.',
+      );
       return;
     }
+
+    if (isPlacingOrder) return;
 
     setState(() {
       isPlacingOrder = true;
     });
 
     try {
-      final orderReference = _firestore.collection('orders').doc();
+      final orderReference =
+          _firestore.collection('orders').doc();
 
-      final orderItems = cartItems.map((item) {
-        return {
-          'productId': item['productId'],
-          'name': item['name'],
-          'price': _toDouble(item['price']),
-          'quantity': _toInt(item['quantity']),
-          'imageUrl': item['imageUrl'],
-          'sellerId': item['sellerId'],
+      final userOrderReference = _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('orders')
+          .doc(orderReference.id);
+
+      final orderItems =
+          cartItems.map((item) {
+        return <String, dynamic>{
+          'productId':
+              item['productId'],
+          'name':
+              item['name'],
+          'price':
+              _toDouble(item['price']),
+          'quantity':
+              _toInt(item['quantity']),
+          'imageUrl':
+              item['imageUrl'] ?? '',
+          'sellerId':
+              item['sellerId'] ?? '',
         };
       }).toList();
 
-      final orderData = {
-        'orderId': orderReference.id,
-        'userId': userId,
-
-        'items': orderItems,
-
-        'subtotal': subtotal,
-        'deliveryFee': deliveryFee,
-        'total': total,
-
-        'paymentMethod': selectedPayment,
-        'paymentStatus': selectedPayment == 'cash_on_delivery'
-            ? 'pending'
-            : 'pending',
-
-        'orderStatus': 'pending',
-
-        'addressId': selectedAddressId,
-
-        'deliveryAddress': {
-          'fullName': selectedAddress?['fullName'] ?? '',
-          'phone': selectedAddress?['phone'] ?? '',
-          'addressLine': selectedAddress?['addressLine'] ?? '',
-          'city': selectedAddress?['city'] ?? '',
-          'state': selectedAddress?['state'] ?? '',
-          'country': selectedAddress?['country'] ?? '',
-          'latitude': selectedAddress?['latitude'],
-          'longitude': selectedAddress?['longitude'],
-        },
-
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
+      final deliveryAddress =
+          <String, dynamic>{
+        'fullName':
+            selectedAddress?['fullName'] ?? '',
+        'phone':
+            selectedAddress?['phone'] ?? '',
+        'addressLine':
+            selectedAddress?['addressLine'] ?? '',
+        'city':
+            selectedAddress?['city'] ?? '',
+        'state':
+            selectedAddress?['state'] ?? '',
+        'country':
+            selectedAddress?['country'] ?? '',
+        'latitude':
+            selectedAddress?['latitude'],
+        'longitude':
+            selectedAddress?['longitude'],
       };
 
-      // Create order.
-      await orderReference.set(orderData);
+      final orderData =
+          <String, dynamic>{
+        'orderId':
+            orderReference.id,
 
-      // Remove purchased products from cart.
+        'userId':
+            userId,
+
+        'items':
+            orderItems,
+
+        'subtotal':
+            subtotal,
+
+        'deliveryFee':
+            deliveryFee,
+
+        'total':
+            total,
+
+        'currency':
+            'NGN',
+
+        'paymentMethod':
+            selectedPayment,
+
+        'paymentStatus':
+            'pending',
+
+        'orderStatus':
+            'pending',
+
+        'deliveryStatus':
+            'pending',
+
+        'addressId':
+            selectedAddressId,
+
+        'deliveryAddress':
+            deliveryAddress,
+
+        'createdAt':
+            FieldValue.serverTimestamp(),
+
+        'updatedAt':
+            FieldValue.serverTimestamp(),
+      };
+
+      // --------------------------------------------------------
+      // ATOMIC FIRESTORE WRITE
+      // --------------------------------------------------------
+
       final batch = _firestore.batch();
 
+      // Main order.
+      batch.set(
+        orderReference,
+        orderData,
+      );
+
+      // User's order history.
+      batch.set(
+        userOrderReference,
+        orderData,
+      );
+
+      // Remove purchased cart products.
       for (final item in cartItems) {
-        final productId = item['productId'].toString();
+        final productId =
+            item['productId'].toString();
 
-        final cartReference = _firestore
-            .collection('carts')
-            .doc(userId)
-            .collection('items')
-            .doc(productId);
-
-        batch.delete(cartReference);
+        batch.delete(
+          cartRef.doc(productId),
+        );
       }
 
       await batch.commit();
@@ -359,9 +478,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
         cartItems.clear();
       });
 
-      _showOrderSuccess(orderReference.id);
+      _showOrderSuccess(
+        orderReference.id,
+      );
     } catch (e) {
-      debugPrint('Place order error: $e');
+      debugPrint(
+        'Place order error: $e',
+      );
 
       if (mounted) {
         _showMessage(
@@ -381,72 +504,158 @@ class _CheckoutPageState extends State<CheckoutPage> {
   // SUCCESS
   // ============================================================
 
-  void _showOrderSuccess(String orderId) {
+  void _showOrderSuccess(
+    String orderId,
+  ) {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) {
+      builder: (dialogContext) {
         return Dialog(
-          backgroundColor: Colors.transparent,
-          child: _glassContainer(
+          backgroundColor:
+              Colors.transparent,
+
+          insetPadding:
+              const EdgeInsets.symmetric(
+            horizontal: 24,
+          ),
+
+          child: _glass(
+            radius: 28,
             child: Padding(
-              padding: const EdgeInsets.all(26),
+              padding:
+                  const EdgeInsets.all(26),
+
               child: Column(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisSize:
+                    MainAxisSize.min,
+
                 children: [
-                  const CircleAvatar(
-                    radius: 32,
-                    backgroundColor: Color(0xFFF8F5FF),
-                    child: Icon(
+                  Container(
+                    width: 68,
+                    height: 68,
+                    decoration:
+                        BoxDecoration(
+                      shape:
+                          BoxShape.circle,
+                      color:
+                          pikkXNavy,
+                      boxShadow: [
+                        BoxShadow(
+                          color: pikkXNavy
+                              .withOpacity(
+                            0.22,
+                          ),
+                          blurRadius: 20,
+                          offset:
+                              const Offset(
+                            0,
+                            8,
+                          ),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
                       Icons.check_rounded,
-                      size: 35,
-                      color: Color(0xFF8F62D9),
+                      color:
+                          pikkXWhite,
+                      size: 36,
                     ),
                   ),
-                  const SizedBox(height: 18),
+
+                  const SizedBox(
+                    height: 18,
+                  ),
+
                   const Text(
                     'Order Placed!',
                     style: TextStyle(
-                      fontSize: 21,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1D2635),
+                      color:
+                          darkText,
+                      fontSize: 22,
+                      fontWeight:
+                          FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: 8),
+
+                  const SizedBox(
+                    height: 8,
+                  ),
+
                   const Text(
                     'Your order has been successfully created.',
-                    textAlign: TextAlign.center,
+                    textAlign:
+                        TextAlign.center,
                     style: TextStyle(
-                      color: Color(0xFF797878),
+                      color:
+                          mutedText,
+                      height: 1.4,
                     ),
                   ),
-                  const SizedBox(height: 22),
+
+                  const SizedBox(
+                    height: 22,
+                  ),
+
                   SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
+                    width:
+                        double.infinity,
+                    height: 52,
+                    child:
+                        ElevatedButton(
                       onPressed: () {
-                        Navigator.pop(context);
+                        Navigator.pop(
+                          dialogContext,
+                        );
 
                         Navigator.pushNamed(
                           context,
                           '/order-details',
-                          arguments: orderId,
+                          arguments:
+                              orderId,
                         );
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFB98BEF),
+                      style:
+                          ElevatedButton
+                              .styleFrom(
+                        backgroundColor:
+                            pikkXBlack,
+                        foregroundColor:
+                            pikkXWhite,
                         elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(17),
+                        shape:
+                            RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius
+                                  .circular(
+                            17,
+                          ),
                         ),
                       ),
-                      child: const Text(
-                        'Track Order',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      child:
+                          const Row(
+                        mainAxisAlignment:
+                            MainAxisAlignment
+                                .center,
+                        children: [
+                          Text(
+                            'Track Order',
+                            style:
+                                TextStyle(
+                              fontWeight:
+                                  FontWeight
+                                      .w700,
+                            ),
+                          ),
+                          SizedBox(
+                            width: 8,
+                          ),
+                          Icon(
+                            Icons
+                                .arrow_forward_rounded,
+                            size: 19,
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -460,109 +669,120 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   // ============================================================
-  // HELPERS
-  // ============================================================
-
-  double _toDouble(dynamic value) {
-    if (value is num) {
-      return value.toDouble();
-    }
-
-    return double.tryParse(value?.toString() ?? '') ?? 0;
-  }
-
-  int _toInt(dynamic value) {
-    if (value is num) {
-      return value.toInt();
-    }
-
-    return int.tryParse(value?.toString() ?? '') ?? 1;
-  }
-
-  void _showMessage(String message) {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  // ============================================================
   // BUILD
   // ============================================================
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F5FF),
+      backgroundColor:
+          lightBackground,
 
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor:
+            Colors.transparent,
         elevation: 0,
         centerTitle: true,
+
         title: const Text(
           'Checkout',
           style: TextStyle(
-            color: Color(0xFF1D2635),
+            color:
+                darkText,
             fontSize: 21,
-            fontWeight: FontWeight.w700,
+            fontWeight:
+                FontWeight.w800,
           ),
         ),
-        iconTheme: const IconThemeData(
-          color: Color(0xFF1D2635),
+
+        iconTheme:
+            const IconThemeData(
+          color:
+              darkText,
         ),
       ),
 
       body: isLoading
           ? const Center(
-              child: CircularProgressIndicator(
-                color: Color(0xFFB98BEF),
+              child:
+                  CircularProgressIndicator(
+                color:
+                    pikkXNavy,
               ),
             )
           : cartItems.isEmpty
               ? _buildEmptyCart()
               : SafeArea(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(
+                  child:
+                      ListView(
+                    physics:
+                        const BouncingScrollPhysics(),
+
+                    padding:
+                        const EdgeInsets.fromLTRB(
                       16,
                       8,
                       16,
                       30,
                     ),
+
                     children: [
-                      _sectionTitle('Delivery Address'),
+                      _sectionTitle(
+                        'Delivery Address',
+                      ),
 
                       _buildAddressCard(),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(
+                        height: 24,
+                      ),
 
-                      _sectionTitle('Your Items'),
+                      _sectionTitle(
+                        'Your Items',
+                      ),
 
                       ...List.generate(
                         cartItems.length,
-                        (index) => Padding(
-                          padding:
-                              const EdgeInsets.only(bottom: 12),
-                          child: _buildCartItem(index),
-                        ),
+                        (index) {
+                          return Padding(
+                            padding:
+                                const EdgeInsets
+                                    .only(
+                              bottom: 12,
+                            ),
+                            child:
+                                _buildCartItem(
+                              index,
+                            ),
+                          );
+                        },
                       ),
 
-                      const SizedBox(height: 12),
+                      const SizedBox(
+                        height: 12,
+                      ),
 
-                      _sectionTitle('Payment Method'),
+                      _sectionTitle(
+                        'Payment Method',
+                      ),
 
                       _buildPaymentSection(),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(
+                        height: 24,
+                      ),
 
-                      _sectionTitle('Order Summary'),
+                      _sectionTitle(
+                        'Order Summary',
+                      ),
 
                       _buildOrderSummary(),
 
-                      const SizedBox(height: 26),
+                      const SizedBox(
+                        height: 26,
+                      ),
 
                       _buildPlaceOrderButton(),
                     ],
@@ -572,84 +792,119 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   // ============================================================
-  // ADDRESS CARD
+  // ADDRESS
   // ============================================================
 
   Widget _buildAddressCard() {
-    return _glassContainer(
+    return _glass(
+      radius: 24,
       child: InkWell(
-        borderRadius: BorderRadius.circular(24),
-        onTap: _openAddressPage,
+        borderRadius:
+            BorderRadius.circular(24),
+        onTap:
+            _openAddressPage,
+
         child: Padding(
-          padding: const EdgeInsets.all(18),
+          padding:
+              const EdgeInsets.all(18),
+
           child: Row(
             children: [
-              const CircleAvatar(
-                radius: 23,
-                backgroundColor: Color(0xFFF8F5FF),
-                child: Icon(
-                  Icons.location_on_rounded,
-                  color: Color(0xFFB98BEF),
-                ),
+              _iconBox(
+                Icons.location_on_rounded,
               ),
 
-              const SizedBox(width: 14),
+              const SizedBox(
+                width: 14,
+              ),
 
               Expanded(
-                child: selectedAddress == null
-                    ? const Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Delivery Address',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF1D2635),
-                            ),
-                          ),
-                          SizedBox(height: 5),
-                          Text(
-                            'Select your delivery address',
-                            style: TextStyle(
-                              color: Color(0xFF797878),
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      )
-                    : Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            selectedAddress?['fullName'] ??
+                child:
+                    selectedAddress ==
+                            null
+                        ? const Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment
+                                    .start,
+                            children: [
+                              Text(
                                 'Delivery Address',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF1D2635),
-                            ),
+                                style:
+                                    TextStyle(
+                                  color:
+                                      darkText,
+                                  fontSize:
+                                      16,
+                                  fontWeight:
+                                      FontWeight
+                                          .w700,
+                                ),
+                              ),
+                              SizedBox(
+                                height:
+                                    5,
+                              ),
+                              Text(
+                                'Select your delivery address',
+                                style:
+                                    TextStyle(
+                                  color:
+                                      mutedText,
+                                  fontSize:
+                                      13,
+                                ),
+                              ),
+                            ],
+                          )
+                        : Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment
+                                    .start,
+                            children: [
+                              Text(
+                                selectedAddress?[
+                                        'fullName'] ??
+                                    'Delivery Address',
+                                style:
+                                    const TextStyle(
+                                  color:
+                                      darkText,
+                                  fontSize:
+                                      16,
+                                  fontWeight:
+                                      FontWeight
+                                          .w700,
+                                ),
+                              ),
+                              const SizedBox(
+                                height:
+                                    5,
+                              ),
+                              Text(
+                                _addressText(),
+                                maxLines:
+                                    2,
+                                overflow:
+                                    TextOverflow
+                                        .ellipsis,
+                                style:
+                                    const TextStyle(
+                                  color:
+                                      mutedText,
+                                  fontSize:
+                                      13,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 5),
-                          Text(
-                            _addressText(),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFF797878),
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
               ),
 
               const Icon(
-                Icons.arrow_forward_ios_rounded,
+                Icons
+                    .arrow_forward_ios_rounded,
                 size: 16,
-                color: Color(0xFF747F8F),
+                color:
+                    Color(0xFF777777),
               ),
             ],
           ),
@@ -659,7 +914,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   String _addressText() {
-    final address = selectedAddress;
+    final address =
+        selectedAddress;
 
     if (address == null) {
       return 'Select your delivery address';
@@ -673,9 +929,15 @@ class _CheckoutPageState extends State<CheckoutPage> {
         .where(
           (value) =>
               value != null &&
-              value.toString().trim().isNotEmpty,
+              value
+                  .toString()
+                  .trim()
+                  .isNotEmpty,
         )
-        .map((value) => value.toString())
+        .map(
+          (value) =>
+              value.toString(),
+        )
         .toList();
 
     return parts.isEmpty
@@ -687,102 +949,134 @@ class _CheckoutPageState extends State<CheckoutPage> {
   // CART ITEM
   // ============================================================
 
-  Widget _buildCartItem(int index) {
-    final item = cartItems[index];
+  Widget _buildCartItem(
+    int index,
+  ) {
+    final item =
+        cartItems[index];
 
-    final name = item['name']?.toString() ?? 'Product';
-    final price = _toDouble(item['price']);
-    final quantity = _toInt(item['quantity']);
-    final imageUrl = item['imageUrl']?.toString() ?? '';
+    final name =
+        item['name']
+                ?.toString() ??
+            'Product';
 
-    return _glassContainer(
+    final price =
+        _toDouble(
+      item['price'],
+    );
+
+    final quantity =
+        _toInt(
+      item['quantity'],
+    );
+
+    final imageUrl =
+        item['imageUrl']
+                ?.toString() ??
+            '';
+
+    return _glass(
+      radius: 24,
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding:
+            const EdgeInsets.all(14),
+
         child: Row(
           children: [
-            Container(
-              width: 70,
-              height: 70,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8F5FF),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: imageUrl.isEmpty
-                  ? const Icon(
-                      Icons.shopping_bag_outlined,
-                      color: Color(0xFFB98BEF),
-                      size: 30,
-                    )
-                  : ClipRRect(
-                      borderRadius: BorderRadius.circular(18),
-                      child: Image.network(
-                        imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder:
-                            (context, error, stackTrace) {
-                          return const Icon(
-                            Icons.shopping_bag_outlined,
-                            color: Color(0xFFB98BEF),
-                            size: 30,
-                          );
-                        },
-                      ),
-                    ),
+            _buildProductImage(
+              imageUrl,
             ),
 
-            const SizedBox(width: 13),
+            const SizedBox(
+              width: 13,
+            ),
 
             Expanded(
               child: Column(
                 crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                    CrossAxisAlignment
+                        .start,
+
                 children: [
                   Text(
                     name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF1D2635),
+                    maxLines: 2,
+                    overflow:
+                        TextOverflow
+                            .ellipsis,
+                    style:
+                        const TextStyle(
+                      color:
+                          darkText,
+                      fontSize:
+                          15,
+                      fontWeight:
+                          FontWeight
+                              .w700,
                     ),
                   ),
-                  const SizedBox(height: 7),
+
+                  const SizedBox(
+                    height: 7,
+                  ),
+
                   Text(
                     '₦${price.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      color: Color(0xFF8F62D9),
-                      fontWeight: FontWeight.w700,
+                    style:
+                        const TextStyle(
+                      color:
+                          pikkXNavy,
+                      fontWeight:
+                          FontWeight
+                              .w800,
                     ),
+                  ),
+
+                  const SizedBox(
+                    height: 10,
+                  ),
+
+                  Row(
+                    children: [
+                      _quantityButton(
+                        Icons.remove,
+                        () =>
+                            _decreaseQuantity(
+                          index,
+                        ),
+                      ),
+
+                      Padding(
+                        padding:
+                            const EdgeInsets
+                                .symmetric(
+                          horizontal:
+                              10,
+                        ),
+                        child: Text(
+                          '$quantity',
+                          style:
+                              const TextStyle(
+                            color:
+                                darkText,
+                            fontWeight:
+                                FontWeight
+                                    .w800,
+                          ),
+                        ),
+                      ),
+
+                      _quantityButton(
+                        Icons.add,
+                        () =>
+                            _increaseQuantity(
+                          index,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ),
-
-            Row(
-              children: [
-                _quantityButton(
-                  Icons.remove,
-                  () => _decreaseQuantity(index),
-                ),
-
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10),
-                  child: Text(
-                    '$quantity',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF1D2635),
-                    ),
-                  ),
-                ),
-
-                _quantityButton(
-                  Icons.add,
-                  () => _increaseQuantity(index),
-                ),
-              ],
             ),
           ],
         ),
@@ -790,23 +1084,116 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
+  // ============================================================
+  // PRODUCT IMAGE
+  // ============================================================
+
+  Widget _buildProductImage(
+    String imageUrl,
+  ) {
+    return Container(
+      width: 72,
+      height: 72,
+
+      decoration:
+          BoxDecoration(
+        color:
+            pikkXWhite.withOpacity(
+          0.55,
+        ),
+        borderRadius:
+            BorderRadius.circular(
+          19,
+        ),
+        border:
+            Border.all(
+          color:
+              pikkXWhite.withOpacity(
+            0.75,
+          ),
+        ),
+      ),
+
+      child: imageUrl.isEmpty
+          ? const Icon(
+              Icons
+                  .shopping_bag_outlined,
+              size: 30,
+              color:
+                  pikkXNavy,
+            )
+          : ClipRRect(
+              borderRadius:
+                  BorderRadius.circular(
+                19,
+              ),
+              child:
+                  Image.network(
+                imageUrl,
+                fit:
+                    BoxFit.cover,
+                errorBuilder:
+                    (
+                  context,
+                  error,
+                  stackTrace,
+                ) {
+                  return const Icon(
+                    Icons
+                        .shopping_bag_outlined,
+                    size: 30,
+                    color:
+                        pikkXNavy,
+                  );
+                },
+              ),
+            ),
+    );
+  }
+
+  // ============================================================
+  // QUANTITY BUTTON
+  // ============================================================
+
   Widget _quantityButton(
     IconData icon,
     VoidCallback onPressed,
   ) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        width: 30,
-        height: 30,
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8F5FF),
-          borderRadius: BorderRadius.circular(10),
+    return Material(
+      color:
+          Colors.transparent,
+
+      child: InkWell(
+        borderRadius:
+            BorderRadius.circular(
+          10,
         ),
-        child: Icon(
-          icon,
-          size: 17,
-          color: const Color(0xFF8F62D9),
+        onTap:
+            onPressed,
+
+        child: Container(
+          width: 30,
+          height: 30,
+
+          decoration:
+              BoxDecoration(
+            color:
+                pikkXBlack
+                    .withOpacity(
+              0.06,
+            ),
+            borderRadius:
+                BorderRadius.circular(
+              10,
+            ),
+          ),
+
+          child: Icon(
+            icon,
+            size: 17,
+            color:
+                pikkXNavy,
+          ),
         ),
       ),
     );
@@ -817,24 +1204,34 @@ class _CheckoutPageState extends State<CheckoutPage> {
   // ============================================================
 
   Widget _buildPaymentSection() {
-    return _glassContainer(
+    return _glass(
+      radius: 24,
       child: Column(
         children: [
           _paymentOption(
-            title: 'Cash on Delivery',
-            icon: Icons.payments_outlined,
-            value: 'cash_on_delivery',
+            title:
+                'Cash on Delivery',
+            icon:
+                Icons.payments_outlined,
+            value:
+                'cash_on_delivery',
           ),
 
-          const Divider(
+          Divider(
             height: 1,
-            color: Color(0xFFE1E2E4),
+            color:
+                softGrey.withOpacity(
+              0.75,
+            ),
           ),
 
           _paymentOption(
-            title: 'Card / Online Payment',
-            icon: Icons.credit_card_outlined,
-            value: 'card',
+            title:
+                'Card / Online Payment',
+            icon:
+                Icons.credit_card_outlined,
+            value:
+                'card',
           ),
         ],
       ),
@@ -846,45 +1243,65 @@ class _CheckoutPageState extends State<CheckoutPage> {
     required IconData icon,
     required String value,
   }) {
-    final isSelected = selectedPayment == value;
+    final selected =
+        selectedPayment ==
+            value;
 
     return InkWell(
       onTap: () {
         setState(() {
-          selectedPayment = value;
+          selectedPayment =
+              value;
         });
       },
+
       child: Padding(
-        padding: const EdgeInsets.symmetric(
+        padding:
+            const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 15,
         ),
+
         child: Row(
           children: [
             Icon(
               icon,
-              color: const Color(0xFF8F62D9),
+              color:
+                  selected
+                      ? pikkXNavy
+                      : mutedText,
             ),
 
-            const SizedBox(width: 14),
+            const SizedBox(
+              width: 14,
+            ),
 
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF1D2635),
+                style:
+                    const TextStyle(
+                  color:
+                      darkText,
+                  fontWeight:
+                      FontWeight
+                          .w600,
                 ),
               ),
             ),
 
             Icon(
-              isSelected
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_off,
-              color: isSelected
-                  ? const Color(0xFFB98BEF)
-                  : const Color(0xFFA1A3A6),
+              selected
+                  ? Icons
+                      .radio_button_checked
+                  : Icons
+                      .radio_button_off,
+              color:
+                  selected
+                      ? pikkXNavy
+                      : const Color(
+                          0xFF999999,
+                        ),
             ),
           ],
         ),
@@ -893,38 +1310,51 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   // ============================================================
-  // SUMMARY
+  // ORDER SUMMARY
   // ============================================================
 
   Widget _buildOrderSummary() {
-    return _glassContainer(
-      child: Column(
-        children: [
-          _summaryRow(
-            'Subtotal',
-            '₦${subtotal.toStringAsFixed(2)}',
-          ),
+    return _glass(
+      radius: 24,
+      child: Padding(
+        padding:
+            const EdgeInsets.all(18),
 
-          const SizedBox(height: 12),
-
-          _summaryRow(
-            'Delivery fee',
-            '₦${deliveryFee.toStringAsFixed(2)}',
-          ),
-
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 15),
-            child: Divider(
-              color: Color(0xFFE1E2E4),
+        child: Column(
+          children: [
+            _summaryRow(
+              'Subtotal',
+              '₦${subtotal.toStringAsFixed(2)}',
             ),
-          ),
 
-          _summaryRow(
-            'Total',
-            '₦${total.toStringAsFixed(2)}',
-            isTotal: true,
-          ),
-        ],
+            const SizedBox(
+              height: 12,
+            ),
+
+            _summaryRow(
+              'Delivery fee',
+              '₦${deliveryFee.toStringAsFixed(2)}',
+            ),
+
+            const Padding(
+              padding:
+                  EdgeInsets.symmetric(
+                vertical: 15,
+              ),
+              child: Divider(
+                color:
+                    softGrey,
+              ),
+            ),
+
+            _summaryRow(
+              'Total',
+              '₦${total.toStringAsFixed(2)}',
+              isTotal:
+                  true,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -936,26 +1366,44 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }) {
     return Row(
       mainAxisAlignment:
-          MainAxisAlignment.spaceBetween,
+          MainAxisAlignment
+              .spaceBetween,
+
       children: [
         Text(
           title,
-          style: TextStyle(
-            fontSize: isTotal ? 17 : 14,
+          style:
+              TextStyle(
+            color:
+                darkText,
+            fontSize:
+                isTotal
+                    ? 17
+                    : 14,
             fontWeight:
-                isTotal ? FontWeight.w700 : FontWeight.w500,
-            color: const Color(0xFF1D2635),
+                isTotal
+                    ? FontWeight
+                        .w800
+                    : FontWeight
+                        .w500,
           ),
         ),
 
         Text(
           value,
-          style: TextStyle(
-            fontSize: isTotal ? 18 : 14,
-            fontWeight: FontWeight.w700,
-            color: isTotal
-                ? const Color(0xFF8F62D9)
-                : const Color(0xFF1D2635),
+          style:
+              TextStyle(
+            color:
+                isTotal
+                    ? pikkXNavy
+                    : darkText,
+            fontSize:
+                isTotal
+                    ? 18
+                    : 14,
+            fontWeight:
+                FontWeight
+                    .w800,
           ),
         ),
       ],
@@ -963,58 +1411,110 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   // ============================================================
-  // PLACE ORDER BUTTON
+  // PLACE ORDER
   // ============================================================
 
   Widget _buildPlaceOrderButton() {
     return SizedBox(
       height: 58,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: const LinearGradient(
-            colors: [
-              Color(0xFFB98BEF),
-              Color(0xFF8F62D9),
-            ],
+      width:
+          double.infinity,
+
+      child: Material(
+        color:
+            Colors.transparent,
+
+        child: InkWell(
+          borderRadius:
+              BorderRadius.circular(
+            20,
           ),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x33B98BEF),
-              blurRadius: 18,
-              offset: Offset(0, 8),
-            ),
-          ],
-        ),
-        child: ElevatedButton(
-          onPressed:
-              isPlacingOrder ? null : _placeOrder,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            disabledBackgroundColor:
-                Colors.transparent,
-            shadowColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-          ),
-          child: isPlacingOrder
-              ? const SizedBox(
-                  width: 23,
-                  height: 23,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    color: Colors.white,
+          onTap:
+              isPlacingOrder
+                  ? null
+                  : _placeOrder,
+
+          child: Ink(
+            decoration:
+                BoxDecoration(
+              color:
+                  pikkXBlack,
+              borderRadius:
+                  BorderRadius.circular(
+                20,
+              ),
+              border:
+                  Border.all(
+                color:
+                    pikkXNavy
+                        .withOpacity(
+                  0.45,
+                ),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color:
+                      pikkXNavy
+                          .withOpacity(
+                    0.18,
                   ),
-                )
-              : const Text(
-                  'Place Order',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
+                  blurRadius:
+                      20,
+                  offset:
+                      const Offset(
+                    0,
+                    8,
                   ),
                 ),
+              ],
+            ),
+
+            child: Center(
+              child:
+                  isPlacingOrder
+                      ? const SizedBox(
+                          width: 23,
+                          height: 23,
+                          child:
+                              CircularProgressIndicator(
+                            strokeWidth:
+                                2.5,
+                            color:
+                                pikkXWhite,
+                          ),
+                        )
+                      : const Row(
+                          mainAxisAlignment:
+                              MainAxisAlignment
+                                  .center,
+                          children: [
+                            Text(
+                              'Place Order',
+                              style:
+                                  TextStyle(
+                                color:
+                                    pikkXWhite,
+                                fontSize:
+                                    16,
+                                fontWeight:
+                                    FontWeight
+                                        .w800,
+                              ),
+                            ),
+                            SizedBox(
+                              width: 9,
+                            ),
+                            Icon(
+                              Icons
+                                  .arrow_forward_rounded,
+                              color:
+                                  pikkXWhite,
+                            ),
+                          ],
+                        ),
+            ),
+          ),
         ),
       ),
     );
@@ -1027,33 +1527,108 @@ class _CheckoutPageState extends State<CheckoutPage> {
   Widget _buildEmptyCart() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(30),
-        child: _glassContainer(
+        padding:
+            const EdgeInsets.all(30),
+
+        child: _glass(
+          radius: 28,
+
           child: Padding(
-            padding: const EdgeInsets.all(30),
+            padding:
+                const EdgeInsets.all(30),
+
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize:
+                  MainAxisSize.min,
+
               children: [
-                const Icon(
-                  Icons.shopping_cart_outlined,
-                  size: 60,
-                  color: Color(0xFFB98BEF),
+                _iconBox(
+                  Icons
+                      .shopping_cart_outlined,
+                  size: 70,
                 ),
-                const SizedBox(height: 18),
+
+                const SizedBox(
+                  height: 18,
+                ),
+
                 const Text(
                   'Your cart is empty',
-                  style: TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1D2635),
+                  style:
+                      TextStyle(
+                    color:
+                        darkText,
+                    fontSize:
+                        20,
+                    fontWeight:
+                        FontWeight
+                            .w800,
                   ),
                 ),
-                const SizedBox(height: 8),
+
+                const SizedBox(
+                  height: 8,
+                ),
+
                 const Text(
                   'Add products to your cart before checking out.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Color(0xFF797878),
+                  textAlign:
+                      TextAlign.center,
+                  style:
+                      TextStyle(
+                    color:
+                        mutedText,
+                    height:
+                        1.4,
+                  ),
+                ),
+
+                const SizedBox(
+                  height: 20,
+                ),
+
+                SizedBox(
+                  width:
+                      double.infinity,
+                  height: 48,
+
+                  child:
+                      ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(
+                        context,
+                      );
+                    },
+
+                    style:
+                        ElevatedButton
+                            .styleFrom(
+                      backgroundColor:
+                          pikkXBlack,
+                      foregroundColor:
+                          pikkXWhite,
+                      elevation:
+                          0,
+                      shape:
+                          RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius
+                                .circular(
+                          16,
+                        ),
+                      ),
+                    ),
+
+                    child:
+                        const Text(
+                      'Continue Shopping',
+                      style:
+                          TextStyle(
+                        fontWeight:
+                            FontWeight
+                                .w700,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -1068,53 +1643,187 @@ class _CheckoutPageState extends State<CheckoutPage> {
   // SECTION TITLE
   // ============================================================
 
-  Widget _sectionTitle(String title) {
+  Widget _sectionTitle(
+    String title,
+  ) {
     return Padding(
-      padding: const EdgeInsets.only(
+      padding:
+          const EdgeInsets.only(
         left: 4,
         bottom: 10,
       ),
+
       child: Text(
         title,
-        style: const TextStyle(
-          fontSize: 17,
-          fontWeight: FontWeight.w700,
-          color: Color(0xFF1D2635),
+        style:
+            const TextStyle(
+          color:
+              darkText,
+          fontSize:
+              17,
+          fontWeight:
+              FontWeight.w800,
         ),
       ),
     );
   }
 
   // ============================================================
-  // GRAPEGO GLASS CONTAINER
+  // GLASS FIXTURE
   // ============================================================
 
-  Widget _glassContainer({
+  Widget _glass({
     required Widget child,
+    double radius = 24,
   }) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
+      borderRadius:
+          BorderRadius.circular(
+        radius,
+      ),
+
       child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 15,
-          sigmaY: 15,
+        filter:
+            ImageFilter.blur(
+          sigmaX: 20,
+          sigmaY: 20,
         ),
+
         child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.72),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.85),
+          decoration:
+              BoxDecoration(
+            color:
+                pikkXWhite
+                    .withOpacity(
+              0.62,
             ),
+
+            borderRadius:
+                BorderRadius.circular(
+              radius,
+            ),
+
+            border:
+                Border.all(
+              color:
+                  pikkXWhite
+                      .withOpacity(
+                0.82,
+              ),
+              width: 1.1,
+            ),
+
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
+                color:
+                    pikkXBlack
+                        .withOpacity(
+                  0.055,
+                ),
+                blurRadius:
+                    24,
+                offset:
+                    const Offset(
+                  0,
+                  10,
+                ),
               ),
             ],
           ),
+
           child: child,
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // ICON BOX
+  // ============================================================
+
+  Widget _iconBox(
+    IconData icon, {
+    double size = 46,
+  }) {
+    return Container(
+      width: size,
+      height: size,
+
+      decoration:
+          BoxDecoration(
+        color:
+            pikkXNavy
+                .withOpacity(
+          0.09,
+        ),
+        borderRadius:
+            BorderRadius.circular(
+          size * 0.32,
+        ),
+      ),
+
+      child: Icon(
+        icon,
+        color:
+            pikkXNavy,
+        size:
+            size * 0.48,
+      ),
+    );
+  }
+
+  // ============================================================
+  // HELPERS
+  // ============================================================
+
+  double _toDouble(
+    dynamic value,
+  ) {
+    if (value is num) {
+      return value.toDouble();
+    }
+
+    return double.tryParse(
+          value?.toString() ?? '',
+        ) ??
+        0;
+  }
+
+  int _toInt(
+    dynamic value,
+  ) {
+    if (value is num) {
+      return value.toInt();
+    }
+
+    return int.tryParse(
+          value?.toString() ?? '',
+        ) ??
+        1;
+  }
+
+  void _showMessage(
+    String message,
+  ) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(
+      SnackBar(
+        content:
+            Text(message),
+        behavior:
+            SnackBarBehavior
+                .floating,
+        backgroundColor:
+            pikkXBlack,
+        shape:
+            RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.circular(
+            14,
+          ),
         ),
       ),
     );
