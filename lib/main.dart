@@ -24,6 +24,10 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   await GoogleSignIn.instance.initialize();
 
   runApp(const GrapeGoApp());
