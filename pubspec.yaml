@@ -5,50 +5,47 @@ publish_to: "none"
 version: 1.0.0+1
 
 environment:
-sdk: ">=3.6.0 <4.0.0"
+  sdk: ">=3.6.0 <4.0.0"
 
 dependencies:
-flutter:
-sdk: flutter
+  flutter:
+    sdk: flutter
 
-iOS icons
+  # iOS icons
+  cupertino_icons: ^1.0.8
 
-cupertino_icons: ^1.0.8
+  # UI / Fonts
+  google_fonts: ^6.2.1
 
-UI / Fonts
+  # Firebase
+  firebase_core: ^4.12.0
+  firebase_auth: ^6.5.5
+  cloud_firestore: ^6.7.0
 
-google_fonts: ^6.2.1
+  # Social Authentication
+  google_sign_in: ^7.2.0
+  flutter_facebook_auth: ^7.1.2
+  sign_in_with_apple: ^7.0.1
 
-Firebase
+  # Camera / Image Search
+  image_picker: ^1.1.2
 
-firebase_core: ^4.12.0
-firebase_auth: ^6.5.5
-cloud_firestore: ^6.7.0
+  # File / System
+  path_provider: ^2.1.6
+  process: ^5.0.6
+  file: ^7.0.1
 
-Social Authentication
-
-google_sign_in: ^7.2.0
-flutter_facebook_auth: ^7.1.2
-sign_in_with_apple: ^7.0.1
-
-Camera / Image Search
-
-image_picker: ^1.1.2
-
-File / System
-
-path_provider: ^2.1.6
-process: ^5.0.6
-file: ^7.0.1
+  # Google Maps
+  google_maps_flutter: ^2.14.0
 
 dev_dependencies:
-flutter_test:
-sdk: flutter
+  flutter_test:
+    sdk: flutter
 
-flutter_lints: ^6.0.0
+  flutter_lints: ^6.0.0
 
 flutter:
-uses-material-design: true
+  uses-material-design: true
 
-assets:
-- assets/
+  assets:
+    - assets/
