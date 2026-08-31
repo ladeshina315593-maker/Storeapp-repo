@@ -1,15 +1,49 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class SignUpScreen extends StatefulWidget {
-  SignUpScreen({Key? key}) : super(key: key);
+  const SignUpScreen({super.key});
 
   @override
-  _SignUpScreenState createState() => _SignUpScreenState();
+  State<SignUpScreen> createState() =>
+      _SignUpScreenState();
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  // ============================================================
+  // pikkX THEME
+  // ============================================================
+
+  static const Color pikkXBlack =
+      Color(0xFF050505);
+
+  static const Color pikkXWhite =
+      Color(0xFFFFFFFF);
+
+  static const Color pikkXNavy =
+      Color(0xFF10233F);
+
+  static const Color background =
+      Color(0xFFF7F7F7);
+
+  static const Color mutedText =
+      Color(0xFF777777);
+
+  static const Color lightGrey =
+      Color(0xFFE9E9E9);
+
+  // ============================================================
+  // FIREBASE
+  // ============================================================
+
+  final FirebaseAuth _auth =
+      FirebaseAuth.instance;
+
+  // ============================================================
+  // FORM
+  // ============================================================
 
   final GlobalKey<FormState> _formKey =
       GlobalKey<FormState>();
@@ -23,12 +57,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _passwordController =
       TextEditingController();
 
-  final TextEditingController _confirmPasswordController =
+  final TextEditingController
+      _confirmPasswordController =
       TextEditingController();
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
+
+  // ============================================================
+  // DISPOSE
+  // ============================================================
 
   @override
   void dispose() {
@@ -50,7 +89,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     if (_passwordController.text !=
         _confirmPasswordController.text) {
-      _showError('Passwords do not match.');
+      _showError(
+        'Passwords do not match.',
+      );
       return;
     }
 
@@ -59,13 +100,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
     });
 
     try {
-      UserCredential credential =
+      final UserCredential credential =
           await _auth.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
-      // Save the user's name in their Firebase profile.
+      // Save name to Firebase Authentication.
       if (credential.user != null) {
         await credential.user!.updateDisplayName(
           _nameController.text.trim(),
@@ -79,17 +120,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
         (route) => false,
       );
     } on FirebaseAuthException catch (e) {
-      _showError(_firebaseErrorMessage(e));
+      _showError(
+        _firebaseErrorMessage(e),
+      );
     } catch (e) {
       _showError(
         'Something went wrong. Please try again.',
       );
-    }
-
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -103,30 +146,36 @@ class _SignUpScreenState extends State<SignUpScreen> {
     });
 
     try {
-      GoogleAuthProvider provider =
+      final GoogleAuthProvider provider =
           GoogleAuthProvider();
 
-      UserCredential credential =
-          await _auth.signInWithPopup(provider);
+      final UserCredential credential =
+          await _auth.signInWithPopup(
+        provider,
+      );
 
-      if (credential.user != null && mounted) {
-        Navigator.of(context).pushNamedAndRemoveUntil(
+      if (credential.user != null &&
+          mounted) {
+        Navigator.of(context)
+            .pushNamedAndRemoveUntil(
           '/home',
           (route) => false,
         );
       }
     } on FirebaseAuthException catch (e) {
-      _showError(_firebaseErrorMessage(e));
+      _showError(
+        _firebaseErrorMessage(e),
+      );
     } catch (e) {
       _showError(
         'Google sign-up could not be completed.',
       );
-    }
-
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -151,7 +200,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   // ============================================================
-  // FIREBASE ERROR MESSAGES
+  // FIREBASE ERRORS
   // ============================================================
 
   String _firebaseErrorMessage(
@@ -171,13 +220,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
         return 'Please check your internet connection.';
 
       case 'operation-not-allowed':
-        return 'This sign-up method has not been enabled in Firebase.';
+        return 'This sign-up method is not enabled in Firebase.';
 
       default:
         return e.message ??
             'Unable to create your account.';
     }
   }
+
+  // ============================================================
+  // ERROR MESSAGE
+  // ============================================================
 
   void _showError(String message) {
     if (!mounted) return;
@@ -186,66 +239,96 @@ class _SignUpScreenState extends State<SignUpScreen> {
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
-        backgroundColor:
-            const Color(0xFF30243D),
+        backgroundColor: pikkXBlack,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius:
+              BorderRadius.circular(14),
         ),
       ),
     );
   }
 
   // ============================================================
-  // FLOATING GLASS FIELD
+  // GLASS FIELD
   // ============================================================
 
   Widget _glassField({
-    TextEditingController? controller,
-    String? hint,
-    IconData? icon,
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
     bool obscureText = false,
     Widget? suffix,
     TextInputType? keyboardType,
     FormFieldValidator<String>? validator,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.72),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.92),
-          width: 1.2,
+    return ClipRRect(
+      borderRadius:
+          BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: 15,
+          sigmaY: 15,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF8D61C5)
-                .withOpacity(0.08),
-            blurRadius: 22,
-            offset: const Offset(0, 9),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.70),
+            borderRadius:
+                BorderRadius.circular(20),
+            border: Border.all(
+              color:
+                  Colors.white.withOpacity(0.95),
+              width: 1.1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color:
+                    Colors.black.withOpacity(0.045),
+                blurRadius: 20,
+                offset:
+                    const Offset(0, 8),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: TextFormField(
-        controller: controller,
-        obscureText: obscureText,
-        keyboardType: keyboardType,
-        validator: validator,
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          prefixIcon: Icon(
-            icon,
-            color: const Color(0xFF8D61C5),
-          ),
-          suffixIcon: suffix,
-          hintText: hint,
-          hintStyle: const TextStyle(
-            color: Color(0xFF9B91A5),
-            fontSize: 13,
-          ),
-          contentPadding:
-              const EdgeInsets.symmetric(
-            horizontal: 18,
-            vertical: 18,
+          child: TextFormField(
+            controller: controller,
+            obscureText: obscureText,
+            keyboardType: keyboardType,
+            validator: validator,
+            style: const TextStyle(
+              color: pikkXBlack,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              prefixIcon: Container(
+                margin:
+                    const EdgeInsets.all(9),
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: pikkXNavy
+                      .withOpacity(0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  color: pikkXNavy,
+                  size: 19,
+                ),
+              ),
+              suffixIcon: suffix,
+              hintText: hint,
+              hintStyle: const TextStyle(
+                color: mutedText,
+                fontSize: 13,
+              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(
+                horizontal: 18,
+                vertical: 18,
+              ),
+            ),
           ),
         ),
       ),
@@ -264,40 +347,57 @@ class _SignUpScreenState extends State<SignUpScreen> {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: _isLoading ? null : onTap,
-        borderRadius: BorderRadius.circular(19),
-        child: Container(
-          height: 54,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.68),
-            borderRadius: BorderRadius.circular(19),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.9),
+        onTap:
+            _isLoading ? null : onTap,
+        borderRadius:
+            BorderRadius.circular(19),
+        child: ClipRRect(
+          borderRadius:
+              BorderRadius.circular(19),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(
+              sigmaX: 12,
+              sigmaY: 12,
             ),
-            boxShadow: [
-              BoxShadow(
+            child: Container(
+              height: 54,
+              decoration: BoxDecoration(
                 color:
-                    Colors.black.withOpacity(0.035),
-                blurRadius: 18,
-                offset: const Offset(0, 7),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment:
-                MainAxisAlignment.center,
-            children: [
-              icon,
-              const SizedBox(width: 10),
-              Text(
-                text,
-                style: const TextStyle(
-                  color: Color(0xFF30243D),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
+                    Colors.white.withOpacity(0.68),
+                borderRadius:
+                    BorderRadius.circular(19),
+                border: Border.all(
+                  color:
+                      Colors.white.withOpacity(0.92),
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color:
+                        Colors.black.withOpacity(0.035),
+                    blurRadius: 18,
+                    offset:
+                        const Offset(0, 7),
+                  ),
+                ],
               ),
-            ],
+              child: Row(
+                mainAxisAlignment:
+                    MainAxisAlignment.center,
+                children: [
+                  icon,
+                  const SizedBox(width: 10),
+                  Text(
+                    text,
+                    style: const TextStyle(
+                      color: pikkXBlack,
+                      fontSize: 13,
+                      fontWeight:
+                          FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -311,47 +411,53 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          const Color(0xFFF7F2FF),
+      backgroundColor: background,
       body: SafeArea(
         child: Stack(
           children: [
+            // ----------------------------------------------------
+            // SUBTLE NAVY BACKGROUND GLOW
+            // ----------------------------------------------------
 
-            // Background floating glow
             Positioned(
-              top: -100,
+              top: -110,
               right: -80,
               child: Container(
-                width: 230,
-                height: 230,
+                width: 240,
+                height: 240,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFFB98BEF)
-                      .withOpacity(0.13),
+                  color: pikkXNavy
+                      .withOpacity(0.055),
                 ),
               ),
             ),
 
             Positioned(
-              bottom: -100,
-              left: -80,
+              bottom: -110,
+              left: -90,
               child: Container(
-                width: 230,
-                height: 230,
+                width: 240,
+                height: 240,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFFD8BFFF)
-                      .withOpacity(0.18),
+                  color: pikkXNavy
+                      .withOpacity(0.035),
                 ),
               ),
             ),
+
+            // ----------------------------------------------------
+            // CONTENT
+            // ----------------------------------------------------
 
             SingleChildScrollView(
               physics:
                   const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(
+              padding:
+                  const EdgeInsets.fromLTRB(
                 24,
-                25,
+                22,
                 24,
                 35,
               ),
@@ -361,70 +467,91 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   crossAxisAlignment:
                       CrossAxisAlignment.start,
                   children: [
+                    // ------------------------------------------------
+                    // BACK BUTTON
+                    // ------------------------------------------------
 
-                    // BACK
                     _glassBackButton(),
 
-                    const SizedBox(height: 30),
+                    const SizedBox(height: 28),
 
-                    // BRAND
+                    // ------------------------------------------------
+                    // pikkX BRAND
+                    // ------------------------------------------------
+
                     Center(
                       child: Column(
                         children: [
                           Container(
                             height: 64,
                             width: 64,
-                            decoration: BoxDecoration(
+                            decoration:
+                                BoxDecoration(
                               color: Colors.white
                                   .withOpacity(0.72),
-                              shape: BoxShape.circle,
-                              border: Border.all(
+                              shape:
+                                  BoxShape.circle,
+                              border:
+                                  Border.all(
                                 color: Colors.white
                                     .withOpacity(0.95),
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color:
-                                      const Color(
-                                    0xFF8D61C5,
-                                  ).withOpacity(0.12),
+                                  color: pikkXNavy
+                                      .withOpacity(
+                                          0.10),
                                   blurRadius: 24,
                                   offset:
-                                      const Offset(0, 9),
+                                      const Offset(
+                                    0,
+                                    9,
+                                  ),
                                 ),
                               ],
                             ),
                             child: const Center(
                               child: Text(
-                                '🍇',
+                                'p',
                                 style: TextStyle(
-                                  fontSize: 33,
+                                  color:
+                                      pikkXBlack,
+                                  fontSize: 34,
+                                  fontWeight:
+                                      FontWeight.w900,
                                 ),
                               ),
                             ),
                           ),
-                          const SizedBox(height: 11),
+
+                          const SizedBox(
+                            height: 11,
+                          ),
+
                           RichText(
-                            text: const TextSpan(
+                            text:
+                                const TextSpan(
                               children: [
                                 TextSpan(
-                                  text: 'Grape',
-                                  style: TextStyle(
+                                  text: 'pikk',
+                                  style:
+                                      TextStyle(
                                     color:
-                                        Color(0xFF30243D),
-                                    fontSize: 24,
+                                        pikkXBlack,
+                                    fontSize: 25,
                                     fontWeight:
-                                        FontWeight.w800,
+                                        FontWeight.w900,
                                   ),
                                 ),
                                 TextSpan(
-                                  text: 'Go',
-                                  style: TextStyle(
+                                  text: 'X',
+                                  style:
+                                      TextStyle(
                                     color:
-                                        Color(0xFF8D61C5),
-                                    fontSize: 24,
+                                        pikkXNavy,
+                                    fontSize: 25,
                                     fontWeight:
-                                        FontWeight.w800,
+                                        FontWeight.w900,
                                   ),
                                 ),
                               ],
@@ -436,35 +563,43 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                     const SizedBox(height: 30),
 
+                    // ------------------------------------------------
+                    // TITLE
+                    // ------------------------------------------------
+
                     const Text(
                       'Create your account',
                       style: TextStyle(
-                        color: Color(0xFF30243D),
+                        color: pikkXBlack,
                         fontSize: 28,
-                        fontWeight: FontWeight.w800,
+                        fontWeight:
+                            FontWeight.w900,
                       ),
                     ),
 
                     const SizedBox(height: 7),
 
                     const Text(
-                      'Join Grape Go and start discovering products you love.',
+                      'Join pikkX and discover products from stores and sellers you can trust.',
                       style: TextStyle(
-                        color: Color(0xFF8F8499),
+                        color: mutedText,
                         fontSize: 13,
-                        height: 1.45,
+                        height: 1.5,
                       ),
                     ),
 
                     const SizedBox(height: 25),
 
+                    // ------------------------------------------------
                     // NAME
+                    // ------------------------------------------------
+
                     _glassField(
                       controller:
                           _nameController,
                       hint: 'Full name',
-                      icon:
-                          Icons.person_outline_rounded,
+                      icon: Icons
+                          .person_outline_rounded,
                       keyboardType:
                           TextInputType.name,
                       validator: (value) {
@@ -478,7 +613,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                     const SizedBox(height: 14),
 
+                    // ------------------------------------------------
                     // EMAIL
+                    // ------------------------------------------------
+
                     _glassField(
                       controller:
                           _emailController,
@@ -503,7 +641,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                     const SizedBox(height: 14),
 
+                    // ------------------------------------------------
                     // PASSWORD
+                    // ------------------------------------------------
+
                     _glassField(
                       controller:
                           _passwordController,
@@ -519,8 +660,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   .visibility_off_outlined
                               : Icons
                                   .visibility_outlined,
-                          color:
-                              const Color(0xFF8D61C5),
+                          color: pikkXNavy,
                         ),
                         onPressed: () {
                           setState(() {
@@ -529,8 +669,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           });
                         },
                       ),
-                      keyboardType:
-                          TextInputType.text,
                       validator: (value) {
                         if (value == null ||
                             value.isEmpty) {
@@ -547,7 +685,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                     const SizedBox(height: 14),
 
+                    // ------------------------------------------------
                     // CONFIRM PASSWORD
+                    // ------------------------------------------------
+
                     _glassField(
                       controller:
                           _confirmPasswordController,
@@ -563,8 +704,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   .visibility_off_outlined
                               : Icons
                                   .visibility_outlined,
-                          color:
-                              const Color(0xFF8D61C5),
+                          color: pikkXNavy,
                         ),
                         onPressed: () {
                           setState(() {
@@ -573,8 +713,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           });
                         },
                       ),
-                      keyboardType:
-                          TextInputType.text,
                       validator: (value) {
                         if (value == null ||
                             value.isEmpty) {
@@ -592,7 +730,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                     const SizedBox(height: 22),
 
+                    // ------------------------------------------------
                     // CREATE ACCOUNT
+                    // ------------------------------------------------
+
                     SizedBox(
                       width: double.infinity,
                       height: 55,
@@ -604,18 +745,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         style:
                             ElevatedButton.styleFrom(
                           backgroundColor:
-                              const Color(0xFF8D61C5),
+                              pikkXBlack,
                           disabledBackgroundColor:
-                              const Color(0xFFBFA4DC),
-                          elevation: 8,
+                              Colors.black
+                                  .withOpacity(0.45),
+                          elevation: 7,
                           shadowColor:
-                              const Color(0xFF8D61C5)
-                                  .withOpacity(0.25),
+                              Colors.black
+                                  .withOpacity(0.20),
                           shape:
                               RoundedRectangleBorder(
                             borderRadius:
                                 BorderRadius.circular(
-                                    19),
+                              19,
+                            ),
                           ),
                         ),
                         child: _isLoading
@@ -634,8 +777,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               )
                             : const Text(
                                 'Create Account',
-                                style: TextStyle(
-                                  color: Colors.white,
+                                style:
+                                    TextStyle(
+                                  color:
+                                      Colors.white,
                                   fontSize: 14,
                                   fontWeight:
                                       FontWeight.w800,
@@ -646,12 +791,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                     const SizedBox(height: 23),
 
+                    // ------------------------------------------------
+                    // DIVIDER
+                    // ------------------------------------------------
+
                     Row(
                       children: [
                         Expanded(
                           child: Divider(
-                            color: Colors.white
-                                .withOpacity(0.9),
+                            color: Colors.black
+                                .withOpacity(0.08),
                           ),
                         ),
                         const Padding(
@@ -662,8 +811,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           child: Text(
                             'OR SIGN UP WITH',
                             style: TextStyle(
-                              color:
-                                  Color(0xFF9B91A5),
+                              color: mutedText,
                               fontSize: 9,
                               fontWeight:
                                   FontWeight.w700,
@@ -672,8 +820,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         ),
                         Expanded(
                           child: Divider(
-                            color: Colors.white
-                                .withOpacity(0.9),
+                            color: Colors.black
+                                .withOpacity(0.08),
                           ),
                         ),
                       ],
@@ -681,12 +829,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                     const SizedBox(height: 18),
 
+                    // ------------------------------------------------
                     // GOOGLE
+                    // ------------------------------------------------
+
                     _socialButton(
                       icon: const Text(
                         'G',
                         style: TextStyle(
-                          color: Color(0xFF4285F4),
+                          color:
+                              Color(0xFF4285F4),
                           fontSize: 19,
                           fontWeight:
                               FontWeight.w800,
@@ -700,12 +852,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                     const SizedBox(height: 12),
 
+                    // ------------------------------------------------
                     // PHONE
+                    // ------------------------------------------------
+
                     _socialButton(
                       icon: const Icon(
                         Icons.phone_rounded,
-                        color:
-                            Color(0xFF8D61C5),
+                        color: pikkXNavy,
                         size: 20,
                       ),
                       text:
@@ -716,7 +870,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                     const SizedBox(height: 25),
 
+                    // ------------------------------------------------
                     // LOGIN
+                    // ------------------------------------------------
+
                     Center(
                       child: Wrap(
                         alignment:
@@ -725,8 +882,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           const Text(
                             'Already have an account? ',
                             style: TextStyle(
-                              color:
-                                  Color(0xFF8F8499),
+                              color: mutedText,
                               fontSize: 12,
                             ),
                           ),
@@ -734,12 +890,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             onTap: _openLogin,
                             child: const Text(
                               'Login',
-                              style: TextStyle(
-                                color:
-                                    Color(0xFF8D61C5),
+                              style:
+                                  TextStyle(
+                                color: pikkXNavy,
                                 fontSize: 12,
                                 fontWeight:
-                                    FontWeight.w800,
+                                    FontWeight.w900,
                               ),
                             ),
                           ),
@@ -753,8 +909,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       child: Text(
                         'Secure authentication powered by Firebase',
                         style: TextStyle(
-                          color:
-                              Color(0xFFA79DAF),
+                          color: Color(0xFF999999),
                           fontSize: 9,
                         ),
                       ),
@@ -770,36 +925,56 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   // ============================================================
-  // BACK BUTTON
+  // GLASS BACK BUTTON
   // ============================================================
 
   Widget _glassBackButton() {
-    return Container(
-      height: 46,
-      width: 46,
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.68),
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: Colors.white.withOpacity(0.9),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: IconButton(
-        icon: const Icon(
-          Icons.arrow_back_ios_new,
-          size: 18,
-        ),
-        color: const Color(0xFF30243D),
-        onPressed: () {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
           Navigator.of(context).pop();
         },
+        borderRadius:
+            BorderRadius.circular(15),
+        child: ClipRRect(
+          borderRadius:
+              BorderRadius.circular(15),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(
+              sigmaX: 12,
+              sigmaY: 12,
+            ),
+            child: Container(
+              height: 46,
+              width: 46,
+              decoration: BoxDecoration(
+                color:
+                    Colors.white.withOpacity(0.68),
+                borderRadius:
+                    BorderRadius.circular(15),
+                border: Border.all(
+                  color:
+                      Colors.white.withOpacity(0.92),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color:
+                        Colors.black.withOpacity(0.04),
+                    blurRadius: 16,
+                    offset:
+                        const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 18,
+                color: pikkXBlack,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
