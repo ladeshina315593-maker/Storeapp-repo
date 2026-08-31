@@ -11,9 +11,7 @@ import 'package:flutter_ecommerce_app/src/pages/delivery_address_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/notifications_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/settings_page.dart';
 
-import 'package:flutter_ecommerce_app/src/themes/theme.dart';
 import 'package:flutter_ecommerce_app/src/widgets/BottomNavigationBar/bottom_navigation_bar.dart';
-import 'package:flutter_ecommerce_app/src/widgets/title_text.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({
@@ -28,7 +26,20 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> {
-  int _selectedIndex = 0;
+  // ============================================================
+  // PIKKX COLORS
+  // ============================================================
+
+  static const Color pikkXBlack = Color(0xFF050505);
+  static const Color pikkXWhite = Color(0xFFFFFFFF);
+  static const Color pikkXNavy = Color(0xFF10233F);
+  static const Color pikkXBackground = Color(0xFFF7F7F7);
+  static const Color pikkXGrey = Color(0xFF777777);
+  static const Color pikkXLightGrey = Color(0xFFE8E8E8);
+
+  // ============================================================
+  // FIREBASE
+  // ============================================================
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore =
@@ -36,9 +47,11 @@ class _MainPageState extends State<MainPage> {
 
   User? get currentUser => _auth.currentUser;
 
-  // ==================================================
-  // MAIN NAVIGATION
-  // ==================================================
+  // ============================================================
+  // NAVIGATION
+  // ============================================================
+
+  int _selectedIndex = 0;
 
   Widget _buildCurrentPage() {
     switch (_selectedIndex) {
@@ -60,106 +73,271 @@ class _MainPageState extends State<MainPage> {
   }
 
   void _onBottomIconPressed(int index) {
-    if (index < 0 || index > 3) return;
+    if (index < 0 || index > 3) {
+      return;
+    }
 
     setState(() {
       _selectedIndex = index;
     });
   }
 
-  // ==================================================
-  // TOP GLASS ICON
-  // ==================================================
+  // ============================================================
+  // GLASS ICON
+  // ============================================================
 
   Widget _glassIcon(
     IconData icon, {
     Color? iconColor,
     required VoidCallback onPressed,
   }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          height: 46,
-          width: 46,
-          decoration: BoxDecoration(
-            color: AppTheme.glassWhite,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: 14,
+          sigmaY: 14,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onPressed,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.85),
-              width: 1,
+            child: Container(
+              height: 46,
+              width: 46,
+              decoration: BoxDecoration(
+                color: pikkXWhite.withOpacity(0.72),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: pikkXWhite.withOpacity(0.92),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: pikkXBlack.withOpacity(0.055),
+                    blurRadius: 16,
+                    offset: const Offset(0, 7),
+                  ),
+                ],
+              ),
+              child: Icon(
+                icon,
+                color: iconColor ?? pikkXNavy,
+                size: 21,
+              ),
             ),
-            boxShadow: AppTheme.shadow,
-          ),
-          child: Icon(
-            icon,
-            color: iconColor ?? AppTheme.darkText,
-            size: 21,
           ),
         ),
       ),
     );
   }
 
-  // ==================================================
+  // ============================================================
   // APP BAR
-  // ==================================================
+  // ============================================================
 
   Widget _appBar() {
     return Padding(
-      padding: AppTheme.padding,
+      padding: const EdgeInsets.fromLTRB(
+        20,
+        14,
+        20,
+        10,
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // MENU
-          _glassIcon(
-            Icons.menu_rounded,
-            onPressed: _openMenu,
+          // ------------------------------------------------------
+          // PIKKX LOGO
+          // ------------------------------------------------------
+
+          GestureDetector(
+            onTap: _openMenu,
+            child: Container(
+              width: 46,
+              height: 46,
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: pikkXWhite,
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(
+                  color: pikkXNavy.withOpacity(0.08),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: pikkXBlack.withOpacity(0.045),
+                    blurRadius: 14,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Image.asset(
+                'assets/images/pikkx_icon(1).png',
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) {
+                  return const Icon(
+                    Icons.shopping_bag_rounded,
+                    color: pikkXNavy,
+                    size: 24,
+                  );
+                },
+              ),
+            ),
           ),
 
-          Row(
-            children: [
-              // NOTIFICATIONS
-              _glassIcon(
-                Icons.notifications_none_rounded,
-                onPressed: _openNotifications,
-              ),
+          const SizedBox(width: 12),
 
-              const SizedBox(width: 10),
+          // ------------------------------------------------------
+          // BRAND
+          // ------------------------------------------------------
 
-              // PROFILE
-              GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedIndex = 3;
-                  });
-                },
-                child: Container(
-                  height: 46,
-                  width: 46,
-                  padding: const EdgeInsets.all(3),
-                  decoration: BoxDecoration(
-                    color: AppTheme.glassWhite,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.85),
-                    ),
-                    boxShadow: AppTheme.shadow,
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(13),
-                    child: _buildProfileImage(),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Welcome to',
+                  style: TextStyle(
+                    color: pikkXGrey,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
+                const SizedBox(height: 1),
+                const Text(
+                  'pikkX',
+                  style: TextStyle(
+                    color: pikkXBlack,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.8,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ------------------------------------------------------
+          // NOTIFICATION
+          // ------------------------------------------------------
+
+          _notificationButton(),
+
+          const SizedBox(width: 9),
+
+          // ------------------------------------------------------
+          // PROFILE
+          // ------------------------------------------------------
+
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _selectedIndex = 3;
+              });
+            },
+            child: Container(
+              height: 46,
+              width: 46,
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: pikkXWhite,
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(
+                  color: pikkXNavy.withOpacity(0.08),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: pikkXBlack.withOpacity(0.045),
+                    blurRadius: 14,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
-            ],
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(13),
+                child: _buildProfileImage(),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
+
+  // ============================================================
+  // NOTIFICATION BUTTON
+  // ============================================================
+
+  Widget _notificationButton() {
+    final user = currentUser;
+
+    if (user == null) {
+      return _glassIcon(
+        Icons.notifications_none_rounded,
+        onPressed: _openNotifications,
+      );
+    }
+
+    return StreamBuilder<
+        QuerySnapshot<Map<String, dynamic>>>(
+      stream: _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('notifications')
+          .snapshots(),
+      builder: (context, snapshot) {
+        int unread = 0;
+
+        if (snapshot.hasData) {
+          unread = snapshot.data!.docs.where((doc) {
+            return doc.data()['read'] != true;
+          }).length;
+        }
+
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            _glassIcon(
+              Icons.notifications_none_rounded,
+              onPressed: _openNotifications,
+            ),
+
+            if (unread > 0)
+              Positioned(
+                right: -3,
+                top: -4,
+                child: Container(
+                  constraints: const BoxConstraints(
+                    minWidth: 17,
+                  ),
+                  height: 17,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                  ),
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                    color: pikkXNavy,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    unread > 9 ? '9+' : '$unread',
+                    style: const TextStyle(
+                      color: pikkXWhite,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  // ============================================================
+  // PROFILE IMAGE
+  // ============================================================
 
   Widget _buildProfileImage() {
     final String? photoUrl = currentUser?.photoURL;
@@ -168,7 +346,7 @@ class _MainPageState extends State<MainPage> {
       return Image.network(
         photoUrl,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
+        errorBuilder: (_, __, ___) {
           return _defaultProfileIcon();
         },
       );
@@ -179,18 +357,18 @@ class _MainPageState extends State<MainPage> {
 
   Widget _defaultProfileIcon() {
     return Container(
-      color: const Color(0xFFF8F5FF),
+      color: pikkXBackground,
       child: const Icon(
-        Icons.person_rounded,
-        color: Color(0xFFB98BEF),
+        Icons.person_outline_rounded,
+        color: pikkXNavy,
         size: 25,
       ),
     );
   }
 
-  // ==================================================
+  // ============================================================
   // PAGE TITLE
-  // ==================================================
+  // ============================================================
 
   Widget _title() {
     String first;
@@ -222,36 +400,48 @@ class _MainPageState extends State<MainPage> {
         second = 'Products';
     }
 
-    return Container(
-      margin: AppTheme.padding,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        20,
+        5,
+        20,
+        12,
+      ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TitleText(
-                text: first,
-                fontSize: 27,
-                fontWeight: FontWeight.w400,
-                color: AppTheme.darkText,
+              Text(
+                first,
+                style: const TextStyle(
+                  color: pikkXBlack,
+                  fontSize: 25,
+                  height: 1,
+                  fontWeight: FontWeight.w400,
+                ),
               ),
-              TitleText(
-                text: second,
-                fontSize: 27,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.darkText,
+              const SizedBox(height: 2),
+              Text(
+                second,
+                style: const TextStyle(
+                  color: pikkXBlack,
+                  fontSize: 27,
+                  height: 1,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.7,
+                ),
               ),
             ],
           ),
 
           const Spacer(),
 
-          // CLEAR CART BUTTON
           if (_selectedIndex == 1)
             _glassIcon(
               Icons.delete_outline_rounded,
-              iconColor: AppTheme.grapePurple,
+              iconColor: pikkXNavy,
               onPressed: _clearCart,
             ),
         ],
@@ -259,9 +449,9 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
-  // ==================================================
+  // ============================================================
   // NOTIFICATIONS
-  // ==================================================
+  // ============================================================
 
   void _openNotifications() {
     Navigator.push(
@@ -272,9 +462,9 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
-  // ==================================================
+  // ============================================================
   // MENU
-  // ==================================================
+  // ============================================================
 
   void _openMenu() {
     showModalBottomSheet(
@@ -293,48 +483,84 @@ class _MainPageState extends State<MainPage> {
           borderRadius: BorderRadius.circular(30),
           child: BackdropFilter(
             filter: ImageFilter.blur(
-              sigmaX: 20,
-              sigmaY: 20,
+              sigmaX: 22,
+              sigmaY: 22,
             ),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.90),
+                color: pikkXWhite.withOpacity(0.90),
                 borderRadius: BorderRadius.circular(30),
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.9),
+                  color: pikkXWhite.withOpacity(0.95),
+                  width: 1,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: pikkXBlack.withOpacity(0.08),
+                    blurRadius: 30,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
               ),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
                   20,
+                  15,
                   20,
-                  20,
-                  16,
+                  18,
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // HANDLE
                     Container(
                       width: 42,
                       height: 5,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFDCC7FA),
-                        borderRadius: BorderRadius.circular(10),
+                        color: pikkXLightGrey,
+                        borderRadius:
+                            BorderRadius.circular(10),
                       ),
                     ),
 
                     const SizedBox(height: 20),
 
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'GrapeGo Menu',
-                        style: TextStyle(
-                          color: Color(0xFF1D2635),
-                          fontSize: 21,
-                          fontWeight: FontWeight.w800,
+                    // BRAND
+                    Row(
+                      children: [
+                        Container(
+                          width: 42,
+                          height: 42,
+                          padding:
+                              const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: pikkXBackground,
+                            borderRadius:
+                                BorderRadius.circular(13),
+                          ),
+                          child: Image.asset(
+                            'assets/images/pikkx_icon(1).png',
+                            fit: BoxFit.contain,
+                            errorBuilder:
+                                (_, __, ___) {
+                              return const Icon(
+                                Icons
+                                    .shopping_bag_rounded,
+                                color: pikkXNavy,
+                              );
+                            },
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'pikkX Menu',
+                          style: TextStyle(
+                            color: pikkXBlack,
+                            fontSize: 21,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
                     ),
 
                     const SizedBox(height: 15),
@@ -405,14 +631,14 @@ class _MainPageState extends State<MainPage> {
 
                     const Divider(
                       height: 22,
-                      color: Color(0xFFE1E2E4),
+                      color: pikkXLightGrey,
                     ),
 
                     _menuItem(
                       Icons.logout_rounded,
                       'Log Out',
                       _logout,
-                      iconColor: const Color(0xFFE65829),
+                      iconColor: pikkXBlack,
                     ),
                   ],
                 ),
@@ -423,6 +649,10 @@ class _MainPageState extends State<MainPage> {
       ),
     );
   }
+
+  // ============================================================
+  // MENU ITEM
+  // ============================================================
 
   Widget _menuItem(
     IconData icon,
@@ -437,22 +667,24 @@ class _MainPageState extends State<MainPage> {
         borderRadius: BorderRadius.circular(18),
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            vertical: 13,
-            horizontal: 6,
+            vertical: 8,
+            horizontal: 5,
           ),
           child: Row(
             children: [
               Container(
-                width: 42,
-                height: 42,
+                width: 43,
+                height: 43,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8F5FF),
+                  color: pikkXBackground,
                   borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: pikkXNavy.withOpacity(0.05),
+                  ),
                 ),
                 child: Icon(
                   icon,
-                  color:
-                      iconColor ?? AppTheme.grapePurple,
+                  color: iconColor ?? pikkXNavy,
                   size: 21,
                 ),
               ),
@@ -463,17 +695,17 @@ class _MainPageState extends State<MainPage> {
                 child: Text(
                   title,
                   style: const TextStyle(
-                    color: Color(0xFF1D2635),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+                    color: pikkXBlack,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
 
               const Icon(
                 Icons.arrow_forward_ios_rounded,
-                size: 14,
-                color: Color(0xFFA1A3A6),
+                size: 13,
+                color: pikkXGrey,
               ),
             ],
           ),
@@ -481,6 +713,10 @@ class _MainPageState extends State<MainPage> {
       ),
     );
   }
+
+  // ============================================================
+  // PUSH PAGE
+  // ============================================================
 
   void _pushPage(Widget page) {
     Navigator.push(
@@ -491,9 +727,9 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
-  // ==================================================
+  // ============================================================
   // CLEAR FIREBASE CART
-  // ==================================================
+  // ============================================================
 
   Future<void> _clearCart() async {
     final user = currentUser;
@@ -508,35 +744,44 @@ class _MainPageState extends State<MainPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor: pikkXWhite,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
           title: const Text(
             'Clear cart?',
             style: TextStyle(
-              fontWeight: FontWeight.w800,
+              color: pikkXBlack,
+              fontWeight: FontWeight.w900,
             ),
           ),
           content: const Text(
             'This will remove all items from your cart.',
+            style: TextStyle(
+              color: pikkXGrey,
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(context, false);
               },
-              child: const Text('Cancel'),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(
+                  color: pikkXBlack,
+                ),
+              ),
             ),
             TextButton(
               onPressed: () {
                 Navigator.pop(context, true);
               },
-              child: Text(
+              child: const Text(
                 'Clear',
                 style: TextStyle(
-                  color: AppTheme.grapePurple,
-                  fontWeight: FontWeight.w700,
+                  color: pikkXNavy,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
@@ -545,7 +790,9 @@ class _MainPageState extends State<MainPage> {
       },
     );
 
-    if (shouldClear != true) return;
+    if (shouldClear != true) {
+      return;
+    }
 
     try {
       final snapshot = await _firestore
@@ -576,9 +823,9 @@ class _MainPageState extends State<MainPage> {
     }
   }
 
-  // ==================================================
+  // ============================================================
   // LOGOUT
-  // ==================================================
+  // ============================================================
 
   Future<void> _logout() async {
     final bool? shouldLogout =
@@ -586,25 +833,34 @@ class _MainPageState extends State<MainPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor: pikkXWhite,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
           title: const Text(
             'Log out?',
             style: TextStyle(
-              fontWeight: FontWeight.w800,
+              color: pikkXBlack,
+              fontWeight: FontWeight.w900,
             ),
           ),
           content: const Text(
             'Are you sure you want to log out?',
+            style: TextStyle(
+              color: pikkXGrey,
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(context, false);
               },
-              child: const Text('Cancel'),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(
+                  color: pikkXBlack,
+                ),
+              ),
             ),
             TextButton(
               onPressed: () {
@@ -613,8 +869,8 @@ class _MainPageState extends State<MainPage> {
               child: const Text(
                 'Log Out',
                 style: TextStyle(
-                  color: Color(0xFFE65829),
-                  fontWeight: FontWeight.w700,
+                  color: pikkXNavy,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
@@ -623,56 +879,78 @@ class _MainPageState extends State<MainPage> {
       },
     );
 
-    if (shouldLogout != true) return;
+    if (shouldLogout != true) {
+      return;
+    }
 
     try {
       await _auth.signOut();
 
       if (!mounted) return;
 
-      _showMessage('You have been logged out.');
+      _showMessage(
+        'You have been logged out.',
+      );
+
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        '/login',
+        (route) => false,
+      );
     } catch (e) {
       debugPrint('Logout error: $e');
 
       if (!mounted) return;
 
-      _showMessage('Could not log out.');
+      _showMessage(
+        'Could not log out.',
+      );
     }
   }
 
+  // ============================================================
+  // MESSAGE
+  // ============================================================
+
   void _showMessage(String message) {
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
-        backgroundColor: AppTheme.grapePurple,
+        content: Text(
+          message,
+          style: const TextStyle(
+            color: pikkXWhite,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        backgroundColor: pikkXNavy,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
       ),
     );
   }
 
-  // ==================================================
+  // ============================================================
   // BUILD
-  // ==================================================
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.grapeLightPurple,
+      backgroundColor: pikkXBackground,
 
       body: SafeArea(
         child: Stack(
           fit: StackFit.expand,
           children: [
+            // ----------------------------------------------------
+            // MAIN BACKGROUND
+            // ----------------------------------------------------
+
             Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppTheme.grapeLightPurple,
-                    Colors.white,
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
+              color: pikkXBackground,
 
               child: Column(
                 crossAxisAlignment:
@@ -684,20 +962,30 @@ class _MainPageState extends State<MainPage> {
                   Expanded(
                     child: AnimatedSwitcher(
                       duration:
-                          const Duration(milliseconds: 300),
+                          const Duration(
+                        milliseconds: 260,
+                      ),
                       switchInCurve:
-                          Curves.easeInToLinear,
+                          Curves.easeOut,
                       switchOutCurve:
-                          Curves.easeOutBack,
+                          Curves.easeIn,
                       child: KeyedSubtree(
-                        key: ValueKey(_selectedIndex),
-                        child: _buildCurrentPage(),
+                        key:
+                            ValueKey(
+                          _selectedIndex,
+                        ),
+                        child:
+                            _buildCurrentPage(),
                       ),
                     ),
                   ),
                 ],
               ),
             ),
+
+            // ----------------------------------------------------
+            // FLOATING GLASS NAVIGATION
+            // ----------------------------------------------------
 
             Positioned(
               bottom: 0,
@@ -716,17 +1004,21 @@ class _MainPageState extends State<MainPage> {
   }
 }
 
-// ======================================================
+// ==================================================================
 // FAVOURITE PAGE
-// ======================================================
+// ==================================================================
 
 class FavouritePage extends StatelessWidget {
   const FavouritePage({super.key});
 
+  static const Color pikkXBlack = Color(0xFF050505);
+  static const Color pikkXWhite = Color(0xFFFFFFFF);
+  static const Color pikkXNavy = Color(0xFF10233F);
+  static const Color pikkXBackground = Color(0xFFF7F7F7);
+
   @override
   Widget build(BuildContext context) {
-    final user =
-        FirebaseAuth.instance.currentUser;
+    final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
       return const _SimpleEmptyState(
@@ -749,7 +1041,7 @@ class FavouritePage extends StatelessWidget {
             ConnectionState.waiting) {
           return const Center(
             child: CircularProgressIndicator(
-              color: Color(0xFFB98BEF),
+              color: pikkXNavy,
             ),
           );
         }
@@ -762,7 +1054,8 @@ class FavouritePage extends StatelessWidget {
           );
         }
 
-        final docs = snapshot.data?.docs ?? [];
+        final docs =
+            snapshot.data?.docs ?? [];
 
         if (docs.isEmpty) {
           return const _SimpleEmptyState(
@@ -794,9 +1087,12 @@ class FavouritePage extends StatelessWidget {
 
             return Padding(
               padding:
-                  const EdgeInsets.only(bottom: 12),
+                  const EdgeInsets.only(
+                bottom: 12,
+              ),
               child: _GlassListTile(
-                icon: Icons.favorite_rounded,
+                icon:
+                    Icons.favorite_rounded,
                 title: name,
                 subtitle: '₦$price',
               ),
@@ -808,12 +1104,18 @@ class FavouritePage extends StatelessWidget {
   }
 }
 
-// ======================================================
+// ==================================================================
 // PROFILE PAGE
-// ======================================================
+// ==================================================================
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
+
+  static const Color pikkXBlack = Color(0xFF050505);
+  static const Color pikkXWhite = Color(0xFFFFFFFF);
+  static const Color pikkXNavy = Color(0xFF10233F);
+  static const Color pikkXBackground = Color(0xFFF7F7F7);
+  static const Color pikkXGrey = Color(0xFF777777);
 
   @override
   Widget build(BuildContext context) {
@@ -829,8 +1131,10 @@ class ProfilePage extends StatelessWidget {
       );
     }
 
-    final name = user.displayName?.trim();
-    final email = user.email ?? '';
+    final name =
+        user.displayName?.trim();
+    final email =
+        user.email ?? '';
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
@@ -840,62 +1144,85 @@ class ProfilePage extends StatelessWidget {
         90,
       ),
       children: [
+        // --------------------------------------------------------
+        // PROFILE GLASS CARD
+        // --------------------------------------------------------
+
         ClipRRect(
           borderRadius:
               BorderRadius.circular(28),
           child: BackdropFilter(
             filter: ImageFilter.blur(
-              sigmaX: 15,
-              sigmaY: 15,
+              sigmaX: 16,
+              sigmaY: 16,
             ),
             child: Container(
               padding:
                   const EdgeInsets.all(22),
-              decoration: BoxDecoration(
-                color: Colors.white
-                    .withOpacity(0.72),
+              decoration:
+                  BoxDecoration(
+                color:
+                    pikkXWhite.withOpacity(0.72),
                 borderRadius:
                     BorderRadius.circular(28),
                 border: Border.all(
-                  color: Colors.white
-                      .withOpacity(0.85),
+                  color:
+                      pikkXWhite.withOpacity(0.92),
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color:
+                        pikkXBlack.withOpacity(0.04),
+                    blurRadius: 20,
+                    offset:
+                        const Offset(0, 8),
+                  ),
+                ],
               ),
               child: Column(
                 children: [
                   CircleAvatar(
                     radius: 42,
                     backgroundColor:
-                        const Color(0xFFF8F5FF),
+                        pikkXBackground,
                     backgroundImage:
-                        user.photoURL != null
+                        user.photoURL != null &&
+                                user.photoURL!
+                                    .isNotEmpty
                             ? NetworkImage(
                                 user.photoURL!,
                               )
                             : null,
                     child:
-                        user.photoURL == null
+                        user.photoURL == null ||
+                                user.photoURL!
+                                    .isEmpty
                             ? const Icon(
-                                Icons.person_rounded,
+                                Icons
+                                    .person_outline_rounded,
                                 size: 42,
                                 color:
-                                    Color(0xFFB98BEF),
+                                    pikkXNavy,
                               )
                             : null,
                   ),
 
-                  const SizedBox(height: 14),
+                  const SizedBox(
+                    height: 14,
+                  ),
 
                   Text(
-                    (name == null || name.isEmpty)
-                        ? 'GrapeGo User'
+                    (name == null ||
+                            name.isEmpty)
+                        ? 'pikkX User'
                         : name,
-                    style: const TextStyle(
+                    style:
+                        const TextStyle(
                       fontSize: 21,
                       fontWeight:
-                          FontWeight.w800,
+                          FontWeight.w900,
                       color:
-                          Color(0xFF1D2635),
+                          pikkXBlack,
                     ),
                   ),
 
@@ -903,9 +1230,10 @@ class ProfilePage extends StatelessWidget {
                     const SizedBox(height: 5),
                     Text(
                       email,
-                      style: const TextStyle(
+                      style:
+                          const TextStyle(
                         color:
-                            Color(0xFF797878),
+                            pikkXGrey,
                         fontSize: 13,
                       ),
                     ),
@@ -922,7 +1250,8 @@ class ProfilePage extends StatelessWidget {
           icon:
               Icons.shopping_bag_outlined,
           title: 'My Orders',
-          subtitle: 'View your orders',
+          subtitle:
+              'View your orders',
           onTap: () {
             Navigator.push(
               context,
@@ -939,7 +1268,8 @@ class ProfilePage extends StatelessWidget {
         _GlassListTile(
           icon:
               Icons.location_on_outlined,
-          title: 'Delivery Addresses',
+          title:
+              'Delivery Addresses',
           subtitle:
               'Manage your addresses',
           onTap: () {
@@ -956,8 +1286,10 @@ class ProfilePage extends StatelessWidget {
         const SizedBox(height: 10),
 
         _GlassListTile(
-          icon: Icons.settings_outlined,
-          title: 'Settings',
+          icon:
+              Icons.settings_outlined,
+          title:
+              'Settings',
           subtitle:
               'Manage your account',
           onTap: () {
@@ -975,11 +1307,12 @@ class ProfilePage extends StatelessWidget {
   }
 }
 
-// ======================================================
+// ==================================================================
 // GLASS LIST TILE
-// ======================================================
+// ==================================================================
 
-class _GlassListTile extends StatelessWidget {
+class _GlassListTile
+    extends StatelessWidget {
   const _GlassListTile({
     required this.icon,
     required this.title,
@@ -992,6 +1325,21 @@ class _GlassListTile extends StatelessWidget {
   final String? subtitle;
   final VoidCallback? onTap;
 
+  static const Color pikkXBlack =
+      Color(0xFF050505);
+
+  static const Color pikkXWhite =
+      Color(0xFFFFFFFF);
+
+  static const Color pikkXNavy =
+      Color(0xFF10233F);
+
+  static const Color pikkXBackground =
+      Color(0xFFF7F7F7);
+
+  static const Color pikkXGrey =
+      Color(0xFF777777);
+
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
@@ -1003,15 +1351,24 @@ class _GlassListTile extends StatelessWidget {
           sigmaY: 14,
         ),
         child: Material(
-          color: Colors.white
-              .withOpacity(0.72),
+          color:
+              pikkXWhite.withOpacity(0.72),
           child: InkWell(
             onTap: onTap,
             borderRadius:
                 BorderRadius.circular(22),
-            child: Padding(
+            child: Container(
               padding:
                   const EdgeInsets.all(15),
+              decoration:
+                  BoxDecoration(
+                border: Border.all(
+                  color:
+                      pikkXWhite.withOpacity(0.90),
+                ),
+                borderRadius:
+                    BorderRadius.circular(22),
+              ),
               child: Row(
                 children: [
                   Container(
@@ -1020,44 +1377,51 @@ class _GlassListTile extends StatelessWidget {
                     decoration:
                         BoxDecoration(
                       color:
-                          const Color(0xFFF8F5FF),
+                          pikkXBackground,
                       borderRadius:
-                          BorderRadius.circular(15),
+                          BorderRadius.circular(
+                        15,
+                      ),
                     ),
                     child: Icon(
                       icon,
                       color:
-                          const Color(0xFFB98BEF),
+                          pikkXNavy,
                     ),
                   ),
 
-                  const SizedBox(width: 13),
+                  const SizedBox(
+                    width: 13,
+                  ),
 
                   Expanded(
                     child: Column(
                       crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                          CrossAxisAlignment
+                              .start,
                       children: [
                         Text(
                           title,
                           style:
                               const TextStyle(
                             fontWeight:
-                                FontWeight.w700,
+                                FontWeight.w800,
                             color:
-                                Color(0xFF1D2635),
+                                pikkXBlack,
                           ),
                         ),
 
                         if (subtitle != null) ...[
-                          const SizedBox(height: 3),
+                          const SizedBox(
+                            height: 3,
+                          ),
                           Text(
                             subtitle!,
                             style:
                                 const TextStyle(
                               fontSize: 12,
                               color:
-                                  Color(0xFF797878),
+                                  pikkXGrey,
                             ),
                           ),
                         ],
@@ -1067,10 +1431,11 @@ class _GlassListTile extends StatelessWidget {
 
                   if (onTap != null)
                     const Icon(
-                      Icons.arrow_forward_ios_rounded,
+                      Icons
+                          .arrow_forward_ios_rounded,
                       size: 14,
                       color:
-                          Color(0xFFA1A3A6),
+                          pikkXGrey,
                     ),
                 ],
               ),
@@ -1082,9 +1447,9 @@ class _GlassListTile extends StatelessWidget {
   }
 }
 
-// ======================================================
+// ==================================================================
 // EMPTY STATE
-// ======================================================
+// ==================================================================
 
 class _SimpleEmptyState
     extends StatelessWidget {
@@ -1098,6 +1463,21 @@ class _SimpleEmptyState
   final String title;
   final String subtitle;
 
+  static const Color pikkXBlack =
+      Color(0xFF050505);
+
+  static const Color pikkXWhite =
+      Color(0xFFFFFFFF);
+
+  static const Color pikkXNavy =
+      Color(0xFF10233F);
+
+  static const Color pikkXBackground =
+      Color(0xFFF7F7F7);
+
+  static const Color pikkXGrey =
+      Color(0xFF777777);
+
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -1108,21 +1488,44 @@ class _SimpleEmptyState
           mainAxisSize:
               MainAxisSize.min,
           children: [
-            Container(
-              width: 78,
-              height: 78,
-              decoration:
-                  BoxDecoration(
-                color:
-                    const Color(0xFFF8F5FF),
-                borderRadius:
-                    BorderRadius.circular(24),
-              ),
-              child: Icon(
-                icon,
-                size: 40,
-                color:
-                    const Color(0xFFB98BEF),
+            ClipRRect(
+              borderRadius:
+                  BorderRadius.circular(24),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(
+                  sigmaX: 14,
+                  sigmaY: 14,
+                ),
+                child: Container(
+                  width: 78,
+                  height: 78,
+                  decoration:
+                      BoxDecoration(
+                    color:
+                        pikkXWhite.withOpacity(0.72),
+                    borderRadius:
+                        BorderRadius.circular(24),
+                    border: Border.all(
+                      color:
+                          pikkXWhite.withOpacity(0.92),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color:
+                            pikkXBlack.withOpacity(0.04),
+                        blurRadius: 18,
+                        offset:
+                            const Offset(0, 7),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 40,
+                    color:
+                        pikkXNavy,
+                  ),
+                ),
               ),
             ),
 
@@ -1136,9 +1539,9 @@ class _SimpleEmptyState
                   const TextStyle(
                 fontSize: 19,
                 fontWeight:
-                    FontWeight.w700,
+                    FontWeight.w800,
                 color:
-                    Color(0xFF1D2635),
+                    pikkXBlack,
               ),
             ),
 
@@ -1151,7 +1554,7 @@ class _SimpleEmptyState
               style:
                   const TextStyle(
                 color:
-                    Color(0xFF797878),
+                    pikkXGrey,
                 height: 1.4,
               ),
             ),
