@@ -1,12 +1,15 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_ecommerce_app/src/model/data.dart';
 import 'package:flutter_ecommerce_app/src/themes/theme.dart';
 
 class ProductDetailPage extends StatefulWidget {
-  ProductDetailPage({super.key});
+  const ProductDetailPage({super.key});
 
   @override
-  _ProductDetailPageState createState() => _ProductDetailPageState();
+  State<ProductDetailPage> createState() =>
+      _ProductDetailPageState();
 }
 
 class _ProductDetailPageState extends State<ProductDetailPage>
@@ -20,20 +23,28 @@ class _ProductDetailPageState extends State<ProductDetailPage>
   int selectedImage = 0;
 
   final List<String> sizes = [
-    "US 6",
-    "US 7",
-    "US 8",
-    "US 9",
+    'US 6',
+    'US 7',
+    'US 8',
+    'US 9',
   ];
 
-  // Grape Go purple-only palette.
-  final List<Color> colors = [
-    AppTheme.grapePurple,
-    AppTheme.grapeSoftPurple,
-    Color(0xFF9670D8),
-    Color(0xFF7450B5),
-    Color(0xFFC9A8F5),
+  // pikkX palette:
+  // Black / White identity with a small navy accent.
+  final List<Color> colors = const [
+    Color(0xFF050505),
+    Color(0xFFFFFFFF),
+    Color(0xFF10233F),
+    Color(0xFF5A6472),
+    Color(0xFFD9DDE3),
   ];
+
+  static const Color pikkXBlack = Color(0xFF050505);
+  static const Color pikkXWhite = Color(0xFFFFFFFF);
+  static const Color pikkXBackground = Color(0xFFF7F7F7);
+  static const Color pikkXNavy = Color(0xFF10233F);
+  static const Color pikkXMuted = Color(0xFF747F8F);
+  static const Color pikkXBorder = Color(0xFFE1E2E4);
 
   @override
   void initState() {
@@ -41,7 +52,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
 
     controller = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 500),
     );
 
     animation = Tween<double>(
@@ -63,9 +74,9 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     super.dispose();
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // GLASS BUTTON
-  // ------------------------------------------------------------
+  // ============================================================
 
   Widget _glassButton({
     required IconData icon,
@@ -77,35 +88,49 @@ class _ProductDetailPageState extends State<ProductDetailPage>
       child: InkWell(
         onTap: onPressed,
         borderRadius: BorderRadius.circular(16),
-        child: Container(
-          height: 46,
-          width: 46,
-          decoration: BoxDecoration(
-            color: AppTheme.glassWhite,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.85),
-              width: 1,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(
+              sigmaX: 12,
+              sigmaY: 12,
             ),
-            boxShadow: AppTheme.shadow,
-          ),
-          child: Icon(
-            icon,
-            color: iconColor ?? AppTheme.darkText,
-            size: 21,
+            child: Container(
+              height: 46,
+              width: 46,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.78),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.9),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 16,
+                    offset: const Offset(0, 7),
+                  ),
+                ],
+              ),
+              child: Icon(
+                icon,
+                color: iconColor,
+                size: 21,
+              ),
+            ),
           ),
         ),
       ),
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // TOP BAR
-  // ------------------------------------------------------------
+  // ============================================================
 
   Widget _appBar() {
     return Padding(
-      padding: EdgeInsets.symmetric(
+      padding: const EdgeInsets.symmetric(
         horizontal: 20,
         vertical: 12,
       ),
@@ -114,19 +139,16 @@ class _ProductDetailPageState extends State<ProductDetailPage>
         children: [
           _glassButton(
             icon: Icons.arrow_back_ios_new_rounded,
-            iconColor: AppTheme.darkText,
+            iconColor: pikkXBlack,
             onPressed: () {
               Navigator.of(context).pop();
             },
           ),
-
           _glassButton(
             icon: isLiked
                 ? Icons.favorite_rounded
                 : Icons.favorite_border_rounded,
-            iconColor: isLiked
-                ? AppTheme.grapePurple
-                : AppTheme.darkText,
+            iconColor: isLiked ? pikkXNavy : pikkXBlack,
             onPressed: () {
               setState(() {
                 isLiked = !isLiked;
@@ -138,12 +160,30 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // PRODUCT IMAGE
-  // ------------------------------------------------------------
+  // ============================================================
 
   Widget _productImage() {
-    String image = AppData.showThumbnailList[selectedImage];
+    if (AppData.showThumbnailList.isEmpty) {
+      return const Expanded(
+        child: Center(
+          child: Icon(
+            Icons.image_not_supported_outlined,
+            size: 60,
+            color: pikkXMuted,
+          ),
+        ),
+      );
+    }
+
+    final int safeIndex = selectedImage.clamp(
+      0,
+      AppData.showThumbnailList.length - 1,
+    );
+
+    final String image =
+        AppData.showThumbnailList[safeIndex];
 
     return Expanded(
       child: AnimatedBuilder(
@@ -162,64 +202,62 @@ class _ProductDetailPageState extends State<ProductDetailPage>
         },
         child: Center(
           child: Container(
-            margin: EdgeInsets.symmetric(
+            margin: const EdgeInsets.symmetric(
               horizontal: 25,
               vertical: 10,
             ),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.white.withOpacity(0.96),
-                  AppTheme.grapeLightPurple,
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: pikkXWhite,
               borderRadius: BorderRadius.circular(32),
               border: Border.all(
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withOpacity(0.95),
                 width: 1.2,
               ),
-              boxShadow: AppTheme.shadow,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.07),
+                  blurRadius: 25,
+                  offset: const Offset(0, 12),
+                ),
+              ],
             ),
             child: Stack(
               alignment: Alignment.center,
               children: [
-                // Soft decorative glow.
+                // Small navy decorative glow.
                 Positioned(
-                  top: -30,
-                  left: -30,
+                  top: -35,
+                  left: -35,
                   child: Container(
-                    width: 130,
-                    height: 130,
+                    width: 135,
+                    height: 135,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppTheme.grapePurple
-                          .withOpacity(0.08),
+                      color: pikkXNavy.withOpacity(0.06),
                     ),
                   ),
                 ),
 
-                // Trending badge.
+                // Small accent badge.
                 Positioned(
                   right: 20,
                   top: 20,
                   child: Container(
-                    padding: EdgeInsets.symmetric(
+                    padding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 7,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.65),
+                      color: pikkXNavy.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.8),
+                        color: pikkXNavy.withOpacity(0.12),
                       ),
                     ),
-                    child: Text(
-                      "TRENDING",
+                    child: const Text(
+                      'TRENDING',
                       style: TextStyle(
-                        color: AppTheme.grapePurple,
+                        color: pikkXNavy,
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.5,
@@ -228,9 +266,8 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                   ),
                 ),
 
-                // Main product image.
                 Padding(
-                  padding: EdgeInsets.all(35),
+                  padding: const EdgeInsets.all(35),
                   child: Image.asset(
                     image,
                     fit: BoxFit.contain,
@@ -244,9 +281,9 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // THUMBNAILS
-  // ------------------------------------------------------------
+  // ============================================================
 
   Widget _thumbnail(String image, int index) {
     final bool selected = selectedImage == index;
@@ -258,25 +295,24 @@ class _ProductDetailPageState extends State<ProductDetailPage>
         });
       },
       child: AnimatedContainer(
-        duration: Duration(milliseconds: 250),
-        margin: EdgeInsets.symmetric(horizontal: 5),
+        duration: const Duration(milliseconds: 250),
+        margin: const EdgeInsets.symmetric(horizontal: 5),
         height: 58,
         width: 58,
-        padding: EdgeInsets.all(6),
+        padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.72),
+          color: Colors.white.withOpacity(0.78),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected
-                ? AppTheme.grapePurple
-                : Colors.white.withOpacity(0.8),
+                ? pikkXNavy
+                : Colors.white.withOpacity(0.85),
             width: selected ? 2 : 1,
           ),
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: AppTheme.grapePurple
-                        .withOpacity(0.18),
+                    color: pikkXNavy.withOpacity(0.15),
                     blurRadius: 12,
                     spreadRadius: 1,
                   ),
@@ -292,8 +328,12 @@ class _ProductDetailPageState extends State<ProductDetailPage>
   }
 
   Widget _thumbnailRow() {
+    if (AppData.showThumbnailList.isEmpty) {
+      return const SizedBox(height: 12);
+    }
+
     return Padding(
-      padding: EdgeInsets.only(
+      padding: const EdgeInsets.only(
         left: 20,
         right: 20,
         bottom: 12,
@@ -314,36 +354,32 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // RATING
-  // ------------------------------------------------------------
+  // ============================================================
 
   Widget _rating() {
     return Row(
       children: [
-        Icon(
+        const Icon(
           Icons.star_rounded,
-          color: AppTheme.grapePurple,
+          color: pikkXNavy,
           size: 19,
         ),
-
-        SizedBox(width: 4),
-
-        Text(
-          "4.8",
+        const SizedBox(width: 4),
+        const Text(
+          '4.8',
           style: TextStyle(
-            color: AppTheme.darkText,
+            color: pikkXBlack,
             fontSize: 13,
             fontWeight: FontWeight.w700,
           ),
         ),
-
-        SizedBox(width: 5),
-
-        Text(
-          "(120 reviews)",
+        const SizedBox(width: 5),
+        const Text(
+          '(120 reviews)',
           style: TextStyle(
-            color: AppTheme.mutedText,
+            color: pikkXMuted,
             fontSize: 12,
           ),
         ),
@@ -351,9 +387,9 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // DETAILS SHEET
-  // ------------------------------------------------------------
+  // ============================================================
 
   Widget _detailWidget() {
     return DraggableScrollableSheet(
@@ -362,7 +398,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
       minChildSize: 0.56,
       builder: (context, scrollController) {
         return Container(
-          padding: EdgeInsets.fromLTRB(
+          padding: const EdgeInsets.fromLTRB(
             20,
             8,
             20,
@@ -370,7 +406,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
           ),
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.97),
-            borderRadius: BorderRadius.only(
+            borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(34),
               topRight: Radius.circular(34),
             ),
@@ -380,15 +416,15 @@ class _ProductDetailPageState extends State<ProductDetailPage>
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.07),
+                color: Colors.black.withOpacity(0.08),
                 blurRadius: 25,
-                offset: Offset(0, -5),
+                offset: const Offset(0, -5),
               ),
             ],
           ),
           child: SingleChildScrollView(
             controller: scrollController,
-            physics: BouncingScrollPhysics(),
+            physics: const BouncingScrollPhysics(),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -398,13 +434,14 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                     height: 5,
                     width: 45,
                     decoration: BoxDecoration(
-                      color: AppTheme.grapeSoftPurple,
-                      borderRadius: BorderRadius.circular(10),
+                      color: pikkXNavy,
+                      borderRadius:
+                          BorderRadius.circular(10),
                     ),
                   ),
                 ),
 
-                SizedBox(height: 18),
+                const SizedBox(height: 18),
 
                 // PRODUCT TITLE + PRICE
                 Row(
@@ -416,54 +453,46 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                         crossAxisAlignment:
                             CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            "NIKE AIR MAX 200",
+                          const Text(
+                            'NIKE AIR MAX 200',
                             style: TextStyle(
-                              color: AppTheme.darkText,
+                              color: pikkXBlack,
                               fontSize: 23,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
-
-                          SizedBox(height: 6),
-
-                          Text(
-                            "Trending Now",
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Trending Now',
                             style: TextStyle(
-                              color: AppTheme.grapePurple,
+                              color: pikkXNavy,
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-
-                          SizedBox(height: 10),
-
+                          const SizedBox(height: 10),
                           _rating(),
                         ],
                       ),
                     ),
-
-                    SizedBox(width: 15),
-
+                    const SizedBox(width: 15),
                     Column(
                       crossAxisAlignment:
                           CrossAxisAlignment.end,
                       children: [
-                        Text(
-                          "\$240",
+                        const Text(
+                          '\$240',
                           style: TextStyle(
-                            color: AppTheme.darkText,
+                            color: pikkXBlack,
                             fontSize: 25,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-
-                        SizedBox(height: 5),
-
-                        Text(
-                          "In stock",
+                        const SizedBox(height: 5),
+                        const Text(
+                          'In stock',
                           style: TextStyle(
-                            color: AppTheme.grapePurple,
+                            color: pikkXNavy,
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
@@ -473,12 +502,12 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                   ],
                 ),
 
-                SizedBox(height: 25),
+                const SizedBox(height: 25),
 
                 // SIZE
-                _sectionTitle("Available Size"),
+                _sectionTitle('Available Size'),
 
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
 
                 Row(
                   children: List.generate(
@@ -486,8 +515,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                     (index) => Expanded(
                       child: Padding(
                         padding: EdgeInsets.only(
-                          right: index ==
-                                  sizes.length - 1
+                          right: index == sizes.length - 1
                               ? 0
                               : 8,
                         ),
@@ -500,20 +528,19 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                   ),
                 ),
 
-                SizedBox(height: 24),
+                const SizedBox(height: 24),
 
                 // COLOR
-                _sectionTitle("Available Color"),
+                _sectionTitle('Available Color'),
 
-                SizedBox(height: 14),
+                const SizedBox(height: 14),
 
                 Row(
                   children: List.generate(
                     colors.length,
                     (index) => Padding(
-                      padding: EdgeInsets.only(
-                        right: 18,
-                      ),
+                      padding:
+                          const EdgeInsets.only(right: 18),
                       child: _colorWidget(
                         colors[index],
                         index,
@@ -522,41 +549,39 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                   ),
                 ),
 
-                SizedBox(height: 25),
+                const SizedBox(height: 25),
 
                 // DESCRIPTION
-                _sectionTitle("Description"),
+                _sectionTitle('Description'),
 
-                SizedBox(height: 10),
+                const SizedBox(height: 10),
 
-                Text(
-                  "Quality product from a trusted seller",
+                const Text(
+                  'Quality product from a trusted seller.',
                   style: TextStyle(
-                    color: AppTheme.mutedText,
+                    color: pikkXMuted,
                     fontSize: 13,
                     height: 1.65,
                   ),
                 ),
 
-                SizedBox(height: 25),
+                const SizedBox(height: 25),
 
-                // DELIVERY
                 _infoRow(
                   Icons.local_shipping_outlined,
-                  "Fast delivery",
-                  "Get your order delivered quickly",
+                  'Fast delivery',
+                  'Get your order delivered quickly',
                 ),
 
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
 
-                // VERIFICATION
                 _infoRow(
                   Icons.verified_outlined,
-                  "Grape Go verified",
-                  "Quality product from a trusted seller",
+                  'pikkX verified',
+                  'Quality product from a trusted seller',
                 ),
 
-                SizedBox(height: 90),
+                const SizedBox(height: 90),
               ],
             ),
           ),
@@ -565,24 +590,24 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // SECTION TITLE
-  // ------------------------------------------------------------
+  // ============================================================
 
   Widget _sectionTitle(String title) {
     return Text(
       title,
-      style: TextStyle(
-        color: AppTheme.darkText,
+      style: const TextStyle(
+        color: pikkXBlack,
         fontSize: 15,
         fontWeight: FontWeight.w800,
       ),
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // SIZE SELECTOR
-  // ------------------------------------------------------------
+  // ============================================================
 
   Widget _sizeWidget(String text, int index) {
     final bool selected = selectedSize == index;
@@ -594,26 +619,25 @@ class _ProductDetailPageState extends State<ProductDetailPage>
         });
       },
       child: AnimatedContainer(
-        duration: Duration(milliseconds: 220),
+        duration: const Duration(milliseconds: 220),
         height: 45,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: selected
-              ? AppTheme.grapePurple
-              : AppTheme.grapeLightPurple,
+              ? pikkXNavy
+              : pikkXBackground,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: selected
-                ? AppTheme.grapePurple
-                : AppTheme.grapeSoftPurple,
+                ? pikkXNavy
+                : pikkXBorder,
           ),
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: AppTheme.grapePurple
-                        .withOpacity(0.20),
+                    color: pikkXNavy.withOpacity(0.18),
                     blurRadius: 10,
-                    offset: Offset(0, 4),
+                    offset: const Offset(0, 4),
                   ),
                 ]
               : [],
@@ -623,7 +647,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
           style: TextStyle(
             color: selected
                 ? Colors.white
-                : AppTheme.darkText,
+                : pikkXBlack,
             fontSize: 12,
             fontWeight: FontWeight.w700,
           ),
@@ -632,9 +656,9 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // COLOR SELECTOR
-  // ------------------------------------------------------------
+  // ============================================================
 
   Widget _colorWidget(Color color, int index) {
     final bool selected = selectedColor == index;
@@ -646,15 +670,15 @@ class _ProductDetailPageState extends State<ProductDetailPage>
         });
       },
       child: AnimatedContainer(
-        duration: Duration(milliseconds: 200),
+        duration: const Duration(milliseconds: 200),
         height: 38,
         width: 38,
-        padding: EdgeInsets.all(3),
+        padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(
             color: selected
-                ? AppTheme.grapePurple
+                ? pikkXNavy
                 : Colors.transparent,
             width: 2,
           ),
@@ -667,7 +691,9 @@ class _ProductDetailPageState extends State<ProductDetailPage>
           child: selected
               ? Icon(
                   Icons.check_rounded,
-                  color: Colors.white,
+                  color: color == Colors.white
+                      ? pikkXBlack
+                      : Colors.white,
                   size: 17,
                 )
               : null,
@@ -676,9 +702,9 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // INFORMATION ROW
-  // ------------------------------------------------------------
+  // ============================================================
 
   Widget _infoRow(
     IconData icon,
@@ -686,13 +712,12 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     String subtitle,
   ) {
     return Container(
-      padding: EdgeInsets.all(13),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: AppTheme.grapeLightPurple,
+        color: pikkXBackground,
         borderRadius: BorderRadius.circular(17),
         border: Border.all(
-          color: AppTheme.grapeSoftPurple
-              .withOpacity(0.5),
+          color: pikkXBorder,
         ),
       ),
       child: Row(
@@ -701,19 +726,16 @@ class _ProductDetailPageState extends State<ProductDetailPage>
             height: 38,
             width: 38,
             decoration: BoxDecoration(
-              color: AppTheme.grapePurple
-                  .withOpacity(0.15),
+              color: pikkXNavy.withOpacity(0.09),
               shape: BoxShape.circle,
             ),
             child: Icon(
               icon,
-              color: AppTheme.grapePurple,
+              color: pikkXNavy,
               size: 20,
             ),
           ),
-
-          SizedBox(width: 12),
-
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment:
@@ -721,19 +743,17 @@ class _ProductDetailPageState extends State<ProductDetailPage>
               children: [
                 Text(
                   title,
-                  style: TextStyle(
-                    color: AppTheme.darkText,
+                  style: const TextStyle(
+                    color: pikkXBlack,
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-
-                SizedBox(height: 3),
-
+                const SizedBox(height: 3),
                 Text(
                   subtitle,
-                  style: TextStyle(
-                    color: AppTheme.mutedText,
+                  style: const TextStyle(
+                    color: pikkXMuted,
                     fontSize: 10,
                   ),
                 ),
@@ -745,24 +765,35 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // ADD TO CART
-  // ------------------------------------------------------------
+  // ============================================================
 
   Widget _floatingCartButton() {
     return Container(
-      margin: EdgeInsets.only(
+      margin: const EdgeInsets.only(
         right: 5,
         bottom: 8,
       ),
       child: FloatingActionButton.extended(
         elevation: 8,
-        backgroundColor: AppTheme.grapePurple,
+        backgroundColor: pikkXBlack,
         onPressed: () {
-          // Add the selected product to the cart.
+          if (AppData.productList.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Product is currently unavailable.',
+                ),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+            return;
+          }
+
           if (AppData.cartList.isEmpty ||
               !AppData.cartList.any(
-                (item) => item.name == "Nike Air Max 200",
+                (item) => item.name == 'Nike Air Max 200',
               )) {
             AppData.cartList.add(
               AppData.productList.first,
@@ -771,28 +802,24 @@ class _ProductDetailPageState extends State<ProductDetailPage>
 
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                "Nike Air Max 200 added to cart",
+              content: const Text(
+                'Nike Air Max 200 added to cart',
               ),
-              backgroundColor:
-                  AppTheme.grapePurple,
-              behavior:
-                  SnackBarBehavior.floating,
+              backgroundColor: pikkXNavy,
+              behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
-                borderRadius:
-                    BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(14),
               ),
-              duration:
-                  Duration(seconds: 2),
+              duration: const Duration(seconds: 2),
             ),
           );
         },
-        icon: Icon(
+        icon: const Icon(
           Icons.shopping_bag_outlined,
           color: Colors.white,
         ),
-        label: Text(
-          "Add to Cart",
+        label: const Text(
+          'Add to Cart',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w800,
@@ -803,25 +830,21 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // BUILD
-  // ------------------------------------------------------------
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          AppTheme.grapeLightPurple,
-
-      floatingActionButton:
-          _floatingCartButton(),
-
+      backgroundColor: pikkXBackground,
+      floatingActionButton: _floatingCartButton(),
       body: SafeArea(
         child: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                AppTheme.grapeLightPurple,
+                pikkXBackground,
                 Colors.white,
               ],
               begin: Alignment.topCenter,
@@ -837,7 +860,6 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                   _thumbnailRow(),
                 ],
               ),
-
               _detailWidget(),
             ],
           ),
