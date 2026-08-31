@@ -1,11 +1,11 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 
 class LoginScreen extends StatefulWidget {
-  LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
-  _LoginScreenState createState() => _LoginScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
@@ -23,6 +23,20 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _isLoading = false;
 
+  // ============================================================
+  // PIKKX COLORS
+  // ============================================================
+
+  static const Color pikkXBlack = Color(0xFF050505);
+  static const Color pikkXWhite = Color(0xFFFFFFFF);
+  static const Color pikkXNavy = Color(0xFF10233F);
+  static const Color pikkXBackground = Color(0xFFF7F7F7);
+  static const Color pikkXGrey = Color(0xFF777777);
+
+  // ============================================================
+  // LIFECYCLE
+  // ============================================================
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -30,14 +44,16 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // EMAIL + PASSWORD LOGIN
-  // ------------------------------------------------------------
+  // ============================================================
 
   Future<void> _loginWithEmail() async {
     if (_formKey.currentState?.validate() != true) {
       return;
     }
+
+    FocusScope.of(context).unfocus();
 
     setState(() {
       _isLoading = true;
@@ -58,36 +74,55 @@ class _LoginScreenState extends State<LoginScreen> {
     } on FirebaseAuthException catch (e) {
       _showError(_firebaseErrorMessage(e));
     } catch (e) {
+      debugPrint('Login error: $e');
+
       _showError(
         'Something went wrong. Please try again.',
       );
-    }
-
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  // ------------------------------------------------------------
-  // GOOGLE
-  // ------------------------------------------------------------
+  // ============================================================
+  // GOOGLE LOGIN
+  //
+  // IMPORTANT:
+  // For Android/iOS, the Google provider must be configured
+  // correctly in Firebase. This uses FirebaseAuth directly.
+  // ============================================================
 
   Future<void> _loginWithGoogle() async {
+    if (_isLoading) return;
+
     setState(() {
       _isLoading = true;
     });
 
     try {
-      GoogleAuthProvider provider =
+      final GoogleAuthProvider provider =
           GoogleAuthProvider();
 
-      provider.addScope(
-        'https://www.googleapis.com/auth/userinfo.email',
-      );
+      provider.setCustomParameters({
+        'prompt': 'select_account',
+      });
 
-      UserCredential result =
+      /*
+       * This works for Firebase web.
+       *
+       * On Android/iOS, use the Google Sign-In package
+       * and create a Firebase credential from the Google
+       * account before calling signInWithCredential().
+       *
+       * Keeping this method separate makes that connection
+       * easy to replace without changing the UI.
+       */
+
+      final UserCredential result =
           await _auth.signInWithPopup(provider);
 
       if (result.user != null && mounted) {
@@ -99,45 +134,59 @@ class _LoginScreenState extends State<LoginScreen> {
     } on FirebaseAuthException catch (e) {
       _showError(_firebaseErrorMessage(e));
     } catch (e) {
+      debugPrint('Google login error: $e');
+
       _showError(
         'Google sign-in could not be completed.',
       );
-    }
-
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  // ------------------------------------------------------------
-  // PHONE NUMBER
-  // ------------------------------------------------------------
+  // ============================================================
+  // PHONE LOGIN
+  // ============================================================
 
   void _openPhoneLogin() {
-    Navigator.of(context).pushNamed('/phone-login');
+    if (_isLoading) return;
+
+    Navigator.of(context).pushNamed(
+      '/phone-login',
+    );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // FORGOT PASSWORD
-  // ------------------------------------------------------------
+  // ============================================================
 
   void _openForgotPassword() {
-    Navigator.of(context).pushNamed('/forgot-password');
+    if (_isLoading) return;
+
+    Navigator.of(context).pushNamed(
+      '/forgot-password',
+    );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // SIGN UP
-  // ------------------------------------------------------------
+  // ============================================================
 
   void _openSignUp() {
-    Navigator.of(context).pushNamed('/signup');
+    if (_isLoading) return;
+
+    Navigator.of(context).pushNamed(
+      '/signup',
+    );
   }
 
-  // ------------------------------------------------------------
-  // ERROR HANDLING
-  // ------------------------------------------------------------
+  // ============================================================
+  // FIREBASE ERROR
+  // ============================================================
 
   String _firebaseErrorMessage(
     FirebaseAuthException e,
@@ -162,53 +211,74 @@ class _LoginScreenState extends State<LoginScreen> {
       case 'network-request-failed':
         return 'Please check your internet connection.';
 
+      case 'operation-not-allowed':
+        return 'This sign-in method is not enabled in Firebase.';
+
+      case 'account-exists-with-different-credential':
+        return 'An account already exists with a different sign-in method.';
+
+      case 'popup-closed-by-user':
+        return 'Google sign-in was cancelled.';
+
       default:
         return e.message ??
             'Unable to sign in. Please try again.';
     }
   }
 
+  // ============================================================
+  // MESSAGE
+  // ============================================================
+
   void _showError(String message) {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(
+          message,
+          style: const TextStyle(
+            color: pikkXWhite,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: const Color(0xFF30243D),
+        backgroundColor: pikkXBlack,
+        margin: const EdgeInsets.all(16),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(15),
         ),
       ),
     );
   }
 
-  // ------------------------------------------------------------
-  // FLOATING GLASS INPUT
-  // ------------------------------------------------------------
+  // ============================================================
+  // GLASS FIELD
+  // ============================================================
 
   Widget _glassField({
-    TextEditingController? controller,
-    String? hint,
+    required TextEditingController controller,
+    required String hint,
     required IconData icon,
     bool obscureText = false,
     Widget? suffix,
+    TextInputType? keyboardType,
     String? Function(String?)? validator,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.72),
-        borderRadius: BorderRadius.circular(20),
+        color: pikkXWhite.withOpacity(0.78),
+        borderRadius: BorderRadius.circular(19),
         border: Border.all(
-          color: Colors.white.withOpacity(0.92),
+          color: pikkXWhite.withOpacity(0.95),
           width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF7C4DB5)
-                .withOpacity(0.08),
-            blurRadius: 22,
-            offset: const Offset(0, 9),
+            color: pikkXBlack.withOpacity(0.045),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -216,20 +286,24 @@ class _LoginScreenState extends State<LoginScreen> {
         controller: controller,
         obscureText: obscureText,
         validator: validator,
-        keyboardType:
-            hint == 'Email address'
-                ? TextInputType.emailAddress
-                : TextInputType.text,
+        keyboardType: keyboardType,
+        style: const TextStyle(
+          color: pikkXBlack,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+        cursorColor: pikkXNavy,
         decoration: InputDecoration(
           border: InputBorder.none,
           prefixIcon: Icon(
             icon,
-            color: const Color(0xFF8D61C5),
+            color: pikkXNavy,
+            size: 21,
           ),
           suffixIcon: suffix,
           hintText: hint,
           hintStyle: const TextStyle(
-            color: Color(0xFF9B91A5),
+            color: pikkXGrey,
             fontSize: 13,
           ),
           contentPadding:
@@ -242,33 +316,33 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // SOCIAL BUTTON
-  // ------------------------------------------------------------
+  // ============================================================
 
   Widget _socialButton({
     required Widget icon,
     required String text,
-    VoidCallback? onTap,
+    required VoidCallback? onTap,
   }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: _isLoading ? null : onTap,
-        borderRadius: BorderRadius.circular(19),
+        borderRadius: BorderRadius.circular(18),
         child: Container(
           height: 54,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.68),
-            borderRadius: BorderRadius.circular(19),
+            color: pikkXWhite.withOpacity(0.72),
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: Colors.white.withOpacity(0.9),
+              color: pikkXWhite.withOpacity(0.95),
               width: 1.1,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.035),
-                blurRadius: 18,
+                color: pikkXBlack.withOpacity(0.035),
+                blurRadius: 17,
                 offset: const Offset(0, 7),
               ),
             ],
@@ -282,7 +356,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Text(
                 text,
                 style: const TextStyle(
-                  color: Color(0xFF30243D),
+                  color: pikkXBlack,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
@@ -294,31 +368,30 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // BUILD
-  // ------------------------------------------------------------
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          const Color(0xFFF7F2FF),
-
+      backgroundColor: pikkXBackground,
       body: SafeArea(
         child: Stack(
           children: [
+            // ==================================================
+            // SUBTLE GLASS BACKGROUND SHAPES
+            // ==================================================
 
-            // Soft background glow
             Positioned(
-              top: -100,
+              top: -90,
               right: -80,
               child: Container(
-                width: 230,
-                height: 230,
+                width: 220,
+                height: 220,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFFB98BEF)
-                      .withOpacity(0.13),
+                  color: pikkXNavy.withOpacity(0.035),
                 ),
               ),
             ),
@@ -331,8 +404,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 height: 230,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFFD8BFFF)
-                      .withOpacity(0.18),
+                  color: pikkXBlack.withOpacity(0.025),
                 ),
               ),
             ),
@@ -342,7 +414,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const BouncingScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(
                 24,
-                25,
+                22,
                 24,
                 35,
               ),
@@ -352,142 +424,119 @@ class _LoginScreenState extends State<LoginScreen> {
                   crossAxisAlignment:
                       CrossAxisAlignment.start,
                   children: [
-
+                    // ==================================================
                     // BACK BUTTON
-                    Container(
-                      height: 46,
-                      width: 46,
-                      decoration: BoxDecoration(
-                        color:
-                            Colors.white.withOpacity(0.68),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color:
-                              Colors.white.withOpacity(0.9),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black
-                                .withOpacity(0.04),
-                            blurRadius: 16,
-                            offset:
-                                const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.arrow_back_ios_new,
-                          size: 18,
-                        ),
-                        color:
-                            const Color(0xFF30243D),
-                        onPressed: () {
+                    // ==================================================
+
+                    _glassCircleButton(
+                      icon: Icons.arrow_back_ios_new_rounded,
+                      onTap: () {
+                        if (!_isLoading) {
                           Navigator.of(context).pop();
-                        },
-                      ),
+                        }
+                      },
                     ),
 
-                    const SizedBox(height: 35),
+                    const SizedBox(height: 30),
 
-                    // BRAND
+                    // ==================================================
+                    // PIKKX LOGO
+                    // ==================================================
+
                     Center(
                       child: Column(
                         children: [
                           Container(
-                            height: 66,
-                            width: 66,
+                            height: 82,
+                            width: 82,
+                            padding:
+                                const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: Colors.white
-                                  .withOpacity(0.72),
-                              shape: BoxShape.circle,
+                              color: pikkXWhite.withOpacity(0.82),
+                              borderRadius:
+                                  BorderRadius.circular(24),
                               border: Border.all(
-                                color: Colors.white
-                                    .withOpacity(0.95),
+                                color: pikkXWhite,
+                                width: 1.2,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(
-                                          0xFF9B6BD0)
-                                      .withOpacity(0.12),
+                                  color: pikkXBlack
+                                      .withOpacity(0.055),
                                   blurRadius: 24,
                                   offset:
                                       const Offset(0, 9),
                                 ),
                               ],
                             ),
-                            child: const Center(
-                              child: Text(
-                                '🍇',
-                                style: TextStyle(
-                                  fontSize: 34,
-                                ),
-                              ),
+                            child: Image.asset(
+                              'assets/images/pikkx_icon(1).png',
+                              fit: BoxFit.contain,
+                              errorBuilder:
+                                  (_, __, ___) {
+                                return const Icon(
+                                  Icons.shopping_bag_rounded,
+                                  color: pikkXNavy,
+                                  size: 38,
+                                );
+                              },
                             ),
                           ),
 
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 13),
 
-                          RichText(
-                            text: const TextSpan(
-                              children: [
-                                TextSpan(
-                                  text: 'Grape',
-                                  style: TextStyle(
-                                    color:
-                                        Color(0xFF30243D),
-                                    fontSize: 25,
-                                    fontWeight:
-                                        FontWeight.w800,
-                                  ),
-                                ),
-                                TextSpan(
-                                  text: 'Go',
-                                  style: TextStyle(
-                                    color:
-                                        Color(0xFF8D61C5),
-                                    fontSize: 25,
-                                    fontWeight:
-                                        FontWeight.w800,
-                                  ),
-                                ),
-                              ],
+                          const Text(
+                            'pikkX',
+                            style: TextStyle(
+                              color: pikkXBlack,
+                              fontSize: 27,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -1,
                             ),
                           ),
                         ],
                       ),
                     ),
 
-                    const SizedBox(height: 35),
+                    const SizedBox(height: 34),
+
+                    // ==================================================
+                    // TITLE
+                    // ==================================================
 
                     const Text(
                       'Welcome back',
                       style: TextStyle(
-                        color: Color(0xFF30243D),
+                        color: pikkXBlack,
                         fontSize: 29,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.5,
                       ),
                     ),
 
                     const SizedBox(height: 7),
 
                     const Text(
-                      'Login to continue shopping with Grape Go.',
+                      'Sign in to continue shopping with pikkX.',
                       style: TextStyle(
-                        color: Color(0xFF8F8499),
+                        color: pikkXGrey,
                         fontSize: 13,
-                        height: 1.4,
+                        height: 1.45,
                       ),
                     ),
 
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 27),
 
+                    // ==================================================
                     // EMAIL
+                    // ==================================================
+
                     _glassField(
-                      controller:
-                          _emailController,
+                      controller: _emailController,
                       hint: 'Email address',
                       icon: Icons.email_outlined,
+                      keyboardType:
+                          TextInputType.emailAddress,
                       validator: (value) {
                         if (value == null ||
                             value.trim().isEmpty) {
@@ -502,26 +551,25 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                     ),
 
-                    const SizedBox(height: 15),
+                    const SizedBox(height: 14),
 
+                    // ==================================================
                     // PASSWORD
+                    // ==================================================
+
                     _glassField(
-                      controller:
-                          _passwordController,
+                      controller: _passwordController,
                       hint: 'Password',
                       icon:
                           Icons.lock_outline_rounded,
-                      obscureText:
-                          _obscurePassword,
+                      obscureText: _obscurePassword,
                       suffix: IconButton(
                         icon: Icon(
                           _obscurePassword
-                              ? Icons
-                                  .visibility_off_outlined
-                              : Icons
-                                  .visibility_outlined,
-                          color:
-                              const Color(0xFF8D61C5),
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: pikkXNavy,
+                          size: 20,
                         ),
                         onPressed: () {
                           setState(() {
@@ -540,54 +588,53 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                     ),
 
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 5),
 
+                    // ==================================================
                     // FORGOT PASSWORD
+                    // ==================================================
+
                     Align(
-                      alignment:
-                          Alignment.centerRight,
+                      alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed:
-                            _openForgotPassword,
+                        onPressed: _openForgotPassword,
                         child: const Text(
                           'Forgot password?',
                           style: TextStyle(
-                            color:
-                                Color(0xFF8D61C5),
+                            color: pikkXNavy,
                             fontSize: 12,
-                            fontWeight:
-                                FontWeight.w700,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ),
                     ),
 
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
 
-                    // LOGIN
+                    // ==================================================
+                    // LOGIN BUTTON
+                    // ==================================================
+
                     SizedBox(
                       width: double.infinity,
                       height: 55,
                       child: ElevatedButton(
-                        onPressed:
-                            _isLoading
-                                ? null
-                                : _loginWithEmail,
+                        onPressed: _isLoading
+                            ? null
+                            : _loginWithEmail,
                         style:
                             ElevatedButton.styleFrom(
-                          backgroundColor:
-                              const Color(0xFF8D61C5),
+                          backgroundColor: pikkXBlack,
                           disabledBackgroundColor:
-                              const Color(0xFFBFA4DC),
-                          elevation: 8,
+                              pikkXBlack.withOpacity(0.45),
+                          foregroundColor: pikkXWhite,
+                          elevation: 7,
                           shadowColor:
-                              const Color(0xFF8D61C5)
-                                  .withOpacity(0.25),
+                              pikkXBlack.withOpacity(0.20),
                           shape:
                               RoundedRectangleBorder(
                             borderRadius:
-                                BorderRadius.circular(
-                                    19),
+                                BorderRadius.circular(18),
                           ),
                         ),
                         child: _isLoading
@@ -596,18 +643,18 @@ class _LoginScreenState extends State<LoginScreen> {
                                 width: 22,
                                 child:
                                     CircularProgressIndicator(
-                                  strokeWidth: 2.5,
+                                  strokeWidth: 2.4,
                                   valueColor:
                                       AlwaysStoppedAnimation<
                                           Color>(
-                                    Colors.white,
+                                    pikkXWhite,
                                   ),
                                 ),
                               )
                             : const Text(
                                 'Login',
                                 style: TextStyle(
-                                  color: Colors.white,
+                                  color: pikkXWhite,
                                   fontSize: 14,
                                   fontWeight:
                                       FontWeight.w800,
@@ -616,14 +663,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 25),
+
+                    // ==================================================
+                    // DIVIDER
+                    // ==================================================
 
                     Row(
                       children: [
                         Expanded(
                           child: Divider(
-                            color: Colors.white
-                                .withOpacity(0.9),
+                            color:
+                                pikkXBlack.withOpacity(0.10),
                           ),
                         ),
                         const Padding(
@@ -634,33 +685,34 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: Text(
                             'OR CONTINUE WITH',
                             style: TextStyle(
-                              color:
-                                  Color(0xFF9B91A5),
+                              color: pikkXGrey,
                               fontSize: 9,
-                              fontWeight:
-                                  FontWeight.w700,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                         ),
                         Expanded(
                           child: Divider(
-                            color: Colors.white
-                                .withOpacity(0.9),
+                            color:
+                                pikkXBlack.withOpacity(0.10),
                           ),
                         ),
                       ],
                     ),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 19),
 
+                    // ==================================================
                     // GOOGLE
+                    // ==================================================
+
                     _socialButton(
                       icon: const Text(
                         'G',
                         style: TextStyle(
                           color: Color(0xFF4285F4),
                           fontSize: 19,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
                       text: 'Continue with Google',
@@ -669,20 +721,25 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const SizedBox(height: 12),
 
+                    // ==================================================
                     // PHONE
+                    // ==================================================
+
                     _socialButton(
                       icon: const Icon(
                         Icons.phone_rounded,
-                        color:
-                            Color(0xFF8D61C5),
+                        color: pikkXNavy,
                         size: 20,
                       ),
-                      text:
-                          'Continue with Phone',
+                      text: 'Continue with Phone',
                       onTap: _openPhoneLogin,
                     ),
 
-                    const SizedBox(height: 25),
+                    const SizedBox(height: 26),
+
+                    // ==================================================
+                    // SIGN UP
+                    // ==================================================
 
                     Center(
                       child: Wrap(
@@ -692,8 +749,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           const Text(
                             "Don't have an account? ",
                             style: TextStyle(
-                              color:
-                                  Color(0xFF8F8499),
+                              color: pikkXGrey,
                               fontSize: 12,
                             ),
                           ),
@@ -702,11 +758,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: const Text(
                               'Sign Up',
                               style: TextStyle(
-                                color:
-                                    Color(0xFF8D61C5),
+                                color: pikkXNavy,
                                 fontSize: 12,
-                                fontWeight:
-                                    FontWeight.w800,
+                                fontWeight: FontWeight.w900,
                               ),
                             ),
                           ),
@@ -714,14 +768,17 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
+
+                    // ==================================================
+                    // FIREBASE NOTE
+                    // ==================================================
 
                     const Center(
                       child: Text(
                         'Secure authentication powered by Firebase',
                         style: TextStyle(
-                          color:
-                              Color(0xFFA79DAF),
+                          color: Color(0xFF999999),
                           fontSize: 9,
                         ),
                       ),
@@ -731,6 +788,43 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // GLASS CIRCLE BUTTON
+  // ============================================================
+
+  Widget _glassCircleButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      height: 46,
+      width: 46,
+      decoration: BoxDecoration(
+        color: pikkXWhite.withOpacity(0.76),
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: pikkXWhite,
+          width: 1.1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: pikkXBlack.withOpacity(0.045),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: IconButton(
+        onPressed: onTap,
+        icon: Icon(
+          icon,
+          size: 17,
+          color: pikkXNavy,
         ),
       ),
     );
