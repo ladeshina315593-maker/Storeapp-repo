@@ -1095,10 +1095,3 @@ class _ChatPageState extends State<ChatPage> {
   }
 }
 
-[/writing]
-
-One important note: I intentionally did not change your Firebase structure, theme, navigation, or other pages. This file is only for the Chat screen.
-
-Next, we should fix the bottom navigation mapping in "mainPage.dart" so it becomes exactly:
-
-Home → Cart → Chat → Favourite → Profile.
