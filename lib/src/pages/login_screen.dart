@@ -470,12 +470,12 @@ class _LoginScreenState extends State<LoginScreen> {
                               ],
                             ),
                             child: Image.asset(
-                              'assets/images/pikkx_icon(1).png',
+                              'assets/images/pikkX_icon(1).png',
                               fit: BoxFit.contain,
                               errorBuilder:
                                   (_, __, ___) {
                                 return const Icon(
-                                  Icons.shopping_bag_rounded,
+                                  null,
                                   color: pikkXNavy,
                                   size: 38,
                                 );
@@ -717,6 +717,29 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       text: 'Continue with Google',
                       onTap: _loginWithGoogle,
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // ==================================================
+                    // APPLE
+                    // ==================================================
+
+                    _socialButton(
+                      icon: const Text(
+                        '',
+                        style: TextStyle(
+                          color: pikkXBlack,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      text: 'Continue with Apple',
+                      onTap: () {
+                        _showError(
+                          'Apple Sign-In setup is not connected yet.',
+                        );
+                      },
                     ),
 
                     const SizedBox(height: 12),

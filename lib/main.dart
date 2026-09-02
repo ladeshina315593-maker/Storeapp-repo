@@ -102,7 +102,7 @@ class PikkXApp extends StatelessWidget {
         // ------------------------------------------------------
 
         '/login': (context) => const LoginScreen(),
-        '/signup': (context) => const SignupScreen(),
+        '/signup': (context) => const SignUpScreen(),
         '/phone-login': (context) => const PhoneAuthScreen(),
 
         // ------------------------------------------------------
