@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_ecommerce_app/src/pages/home_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/cart_page.dart';
+import 'package:flutter_ecommerce_app/src/pages/chat_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/orders_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/delivery_address_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/notifications_page.dart';
@@ -42,6 +43,7 @@ class _MainPageState extends State<MainPage> {
   // ============================================================
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
+
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
 
@@ -53,6 +55,12 @@ class _MainPageState extends State<MainPage> {
 
   int _selectedIndex = 0;
 
+  // 0 = Home
+  // 1 = Cart
+  // 2 = Chat
+  // 3 = Favourite
+  // 4 = Profile
+
   Widget _buildCurrentPage() {
     switch (_selectedIndex) {
       case 0:
@@ -62,9 +70,12 @@ class _MainPageState extends State<MainPage> {
         return const CartPage();
 
       case 2:
-        return const FavouritePage();
+        return const ChatPage();
 
       case 3:
+        return const FavouritePage();
+
+      case 4:
         return const ProfilePage();
 
       default:
@@ -73,7 +84,7 @@ class _MainPageState extends State<MainPage> {
   }
 
   void _onBottomIconPressed(int index) {
-    if (index < 0 || index > 3) {
+    if (index < 0 || index > 4) {
       return;
     }
 
@@ -232,7 +243,7 @@ class _MainPageState extends State<MainPage> {
           GestureDetector(
             onTap: () {
               setState(() {
-                _selectedIndex = 3;
+                _selectedIndex = 4;
               });
             },
             child: Container(
@@ -386,11 +397,16 @@ class _MainPageState extends State<MainPage> {
         break;
 
       case 2:
+        first = 'Chat';
+        second = '';
+        break;
+
+      case 3:
         first = 'My';
         second = 'Favourites';
         break;
 
-      case 3:
+      case 4:
         first = 'My';
         second = 'Profile';
         break;
@@ -422,17 +438,20 @@ class _MainPageState extends State<MainPage> {
                   fontWeight: FontWeight.w400,
                 ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                second,
-                style: const TextStyle(
-                  color: pikkXBlack,
-                  fontSize: 27,
-                  height: 1,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.7,
+
+              if (second.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  second,
+                  style: const TextStyle(
+                    color: pikkXBlack,
+                    fontSize: 27,
+                    height: 1,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.7,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
 
@@ -551,7 +570,9 @@ class _MainPageState extends State<MainPage> {
                             },
                           ),
                         ),
+
                         const SizedBox(width: 12),
+
                         const Text(
                           'pikkX Menu',
                           style: TextStyle(
@@ -571,7 +592,7 @@ class _MainPageState extends State<MainPage> {
                       () {
                         Navigator.pop(context);
                         setState(() {
-                          _selectedIndex = 3;
+                          _selectedIndex = 4;
                         });
                       },
                     ),
@@ -604,7 +625,7 @@ class _MainPageState extends State<MainPage> {
                       () {
                         Navigator.pop(context);
                         setState(() {
-                          _selectedIndex = 2;
+                          _selectedIndex = 3;
                         });
                       },
                     ),
@@ -940,7 +961,6 @@ class _MainPageState extends State<MainPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: pikkXBackground,
-
       body: SafeArea(
         child: Stack(
           fit: StackFit.expand,
@@ -951,7 +971,6 @@ class _MainPageState extends State<MainPage> {
 
             Container(
               color: pikkXBackground,
-
               child: Column(
                 crossAxisAlignment:
                     CrossAxisAlignment.start,
@@ -970,8 +989,7 @@ class _MainPageState extends State<MainPage> {
                       switchOutCurve:
                           Curves.easeIn,
                       child: KeyedSubtree(
-                        key:
-                            ValueKey(
+                        key: ValueKey(
                           _selectedIndex,
                         ),
                         child:
@@ -991,8 +1009,10 @@ class _MainPageState extends State<MainPage> {
               bottom: 0,
               left: 0,
               right: 0,
-              child: CustomBottomNavigationBar(
-                selectedIndex: _selectedIndex,
+              child:
+                  CustomBottomNavigationBar(
+                selectedIndex:
+                    _selectedIndex,
                 onIconPressedCallback:
                     _onBottomIconPressed,
               ),
@@ -1011,36 +1031,49 @@ class _MainPageState extends State<MainPage> {
 class FavouritePage extends StatelessWidget {
   const FavouritePage({super.key});
 
-  static const Color pikkXBlack = Color(0xFF050505);
-  static const Color pikkXWhite = Color(0xFFFFFFFF);
-  static const Color pikkXNavy = Color(0xFF10233F);
-  static const Color pikkXBackground = Color(0xFFF7F7F7);
+  static const Color pikkXBlack =
+      Color(0xFF050505);
+
+  static const Color pikkXWhite =
+      Color(0xFFFFFFFF);
+
+  static const Color pikkXNavy =
+      Color(0xFF10233F);
+
+  static const Color pikkXBackground =
+      Color(0xFFF7F7F7);
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+    final user =
+        FirebaseAuth.instance.currentUser;
 
     if (user == null) {
       return const _SimpleEmptyState(
-        icon: Icons.favorite_outline_rounded,
-        title: 'Sign in to view favourites',
+        icon:
+            Icons.favorite_outline_rounded,
+        title:
+            'Sign in to view favourites',
         subtitle:
             'Your saved products will appear here.',
       );
     }
 
     return StreamBuilder<
-        QuerySnapshot<Map<String, dynamic>>>(
+        QuerySnapshot<
+            Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .collection('favorites')
           .snapshots(),
-      builder: (context, snapshot) {
+      builder:
+          (context, snapshot) {
         if (snapshot.connectionState ==
             ConnectionState.waiting) {
           return const Center(
-            child: CircularProgressIndicator(
+            child:
+                CircularProgressIndicator(
               color: pikkXNavy,
             ),
           );
@@ -1048,9 +1081,12 @@ class FavouritePage extends StatelessWidget {
 
         if (snapshot.hasError) {
           return const _SimpleEmptyState(
-            icon: Icons.error_outline_rounded,
-            title: 'Could not load favourites',
-            subtitle: 'Please try again.',
+            icon:
+                Icons.error_outline_rounded,
+            title:
+                'Could not load favourites',
+            subtitle:
+                'Please try again.',
           );
         }
 
@@ -1059,23 +1095,28 @@ class FavouritePage extends StatelessWidget {
 
         if (docs.isEmpty) {
           return const _SimpleEmptyState(
-            icon: Icons.favorite_outline_rounded,
-            title: 'No favourites yet',
+            icon:
+                Icons.favorite_outline_rounded,
+            title:
+                'No favourites yet',
             subtitle:
                 'Products you save will appear here.',
           );
         }
 
         return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(
+          padding:
+              const EdgeInsets.fromLTRB(
             16,
             5,
             16,
             90,
           ),
           itemCount: docs.length,
-          itemBuilder: (context, index) {
-            final data = docs[index].data();
+          itemBuilder:
+              (context, index) {
+            final data =
+                docs[index].data();
 
             final name =
                 data['name']?.toString() ??
@@ -1090,7 +1131,8 @@ class FavouritePage extends StatelessWidget {
                   const EdgeInsets.only(
                 bottom: 12,
               ),
-              child: _GlassListTile(
+              child:
+                  _GlassListTile(
                 icon:
                     Icons.favorite_rounded,
                 title: name,
@@ -1108,14 +1150,24 @@ class FavouritePage extends StatelessWidget {
 // PROFILE PAGE
 // ==================================================================
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage
+    extends StatelessWidget {
   const ProfilePage({super.key});
 
-  static const Color pikkXBlack = Color(0xFF050505);
-  static const Color pikkXWhite = Color(0xFFFFFFFF);
-  static const Color pikkXNavy = Color(0xFF10233F);
-  static const Color pikkXBackground = Color(0xFFF7F7F7);
-  static const Color pikkXGrey = Color(0xFF777777);
+  static const Color pikkXBlack =
+      Color(0xFF050505);
+
+  static const Color pikkXWhite =
+      Color(0xFFFFFFFF);
+
+  static const Color pikkXNavy =
+      Color(0xFF10233F);
+
+  static const Color pikkXBackground =
+      Color(0xFFF7F7F7);
+
+  static const Color pikkXGrey =
+      Color(0xFF777777);
 
   @override
   Widget build(BuildContext context) {
@@ -1124,8 +1176,10 @@ class ProfilePage extends StatelessWidget {
 
     if (user == null) {
       return const _SimpleEmptyState(
-        icon: Icons.person_outline_rounded,
-        title: 'You are not signed in',
+        icon:
+            Icons.person_outline_rounded,
+        title:
+            'You are not signed in',
         subtitle:
             'Sign in to view your profile.',
       );
@@ -1133,11 +1187,13 @@ class ProfilePage extends StatelessWidget {
 
     final name =
         user.displayName?.trim();
+
     final email =
         user.email ?? '';
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
+      padding:
+          const EdgeInsets.fromLTRB(
         16,
         5,
         16,
@@ -1227,7 +1283,9 @@ class ProfilePage extends StatelessWidget {
                   ),
 
                   if (email.isNotEmpty) ...[
-                    const SizedBox(height: 5),
+                    const SizedBox(
+                      height: 5,
+                    ),
                     Text(
                       email,
                       style:
@@ -1249,7 +1307,8 @@ class ProfilePage extends StatelessWidget {
         _GlassListTile(
           icon:
               Icons.shopping_bag_outlined,
-          title: 'My Orders',
+          title:
+              'My Orders',
           subtitle:
               'View your orders',
           onTap: () {
@@ -1397,8 +1456,7 @@ class _GlassListTile
                   Expanded(
                     child: Column(
                       crossAxisAlignment:
-                          CrossAxisAlignment
-                              .start,
+                          CrossAxisAlignment.start,
                       children: [
                         Text(
                           title,
@@ -1564,3 +1622,4 @@ class _SimpleEmptyState
     );
   }
 }
+
