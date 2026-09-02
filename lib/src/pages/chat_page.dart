@@ -35,6 +35,9 @@ class _ChatPageState extends State<ChatPage> {
 
   bool _isSending = false;
 
+  double _addButtonRight = 18;
+  double _addButtonBottom = 88;
+
   User? get _currentUser => _auth.currentUser;
 
   String? get _userId => _currentUser?.uid;
@@ -235,43 +238,235 @@ class _ChatPageState extends State<ChatPage> {
                 final chats =
                     snapshot.data?.docs ?? [];
 
-                if (chats.isEmpty) {
-                  return _buildEmptyInbox();
-                }
-
-                return ListView.builder(
-                  physics:
-                      const BouncingScrollPhysics(),
-                  padding:
-                      const EdgeInsets.fromLTRB(
-                    16,
-                    5,
-                    16,
-                    100,
-                  ),
-                  itemCount: chats.length,
-                  itemBuilder:
-                      (context, index) {
-                    final doc =
-                        chats[index];
-
-                    final data =
-                        doc.data();
-
-                    return Padding(
+                return Stack(
+                  children: [
+                    ListView(
+                      physics:
+                          const BouncingScrollPhysics(),
                       padding:
-                          const EdgeInsets.only(
-                        bottom: 12,
+                          const EdgeInsets.fromLTRB(
+                        16,
+                        5,
+                        16,
+                        120,
                       ),
-                      child: _buildChatTile(
-                        doc.id,
-                        data,
-                      ),
-                    );
-                  },
+                      children: [
+                        _buildPikkXWelcomeChat(),
+
+                        const SizedBox(height: 12),
+
+                        ...chats.map((doc) {
+                          final data =
+                              doc.data();
+
+                          return Padding(
+                            padding:
+                                const EdgeInsets.only(
+                              bottom: 12,
+                            ),
+                            child:
+                                _buildChatTile(
+                              doc.id,
+                              data,
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+
+                    _buildMovableAddButton(),
+                  ],
                 );
               },
             ),
+    );
+  }
+
+  // ============================================================
+  // PIKKX WELCOME CHAT
+  // ============================================================
+
+  Widget _buildPikkXWelcomeChat() {
+    return _glass(
+      radius: 23,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            _showMessage(
+              'PikkX support chat will be available soon.',
+            );
+          },
+          borderRadius:
+              BorderRadius.circular(23),
+          child: Padding(
+            padding:
+                const EdgeInsets.all(15),
+            child: Row(
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color:
+                        AppTheme.pikkXBlack,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppTheme.pikkXNavy
+                          .withOpacity(0.35),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons
+                        .shopping_bag_rounded,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+
+                const SizedBox(width: 13),
+
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'pikkx',
+                        style: TextStyle(
+                          color:
+                              AppTheme.darkText,
+                          fontSize: 15,
+                          fontWeight:
+                              FontWeight.w800,
+                        ),
+                      ),
+
+                      SizedBox(height: 5),
+
+                      Text(
+                        'Welcome to pikkx! 👋 We’re here to help with your shopping experience.',
+                        maxLines: 2,
+                        overflow:
+                            TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color:
+                              AppTheme.mutedText,
+                          fontSize: 12,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(width: 8),
+
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration:
+                      BoxDecoration(
+                    color:
+                        AppTheme.pikkXBlack,
+                    borderRadius:
+                        BorderRadius.circular(
+                      12,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons
+                        .arrow_forward_ios_rounded,
+                    color: Colors.white,
+                    size: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // MOVABLE ADD CHAT BUTTON
+  // ============================================================
+
+  Widget _buildMovableAddButton() {
+    return Positioned(
+      right: _addButtonRight,
+      bottom: _addButtonBottom,
+      child: GestureDetector(
+        onPanUpdate: (details) {
+          setState(() {
+            _addButtonRight -=
+                details.delta.dx;
+            _addButtonBottom -=
+                details.delta.dy;
+
+            final size =
+                MediaQuery.of(context)
+                    .size;
+
+            final maxRight =
+                size.width - 76;
+
+            final maxBottom =
+                size.height - 150;
+
+            _addButtonRight =
+                _addButtonRight.clamp(
+              8.0,
+              maxRight > 8
+                  ? maxRight
+                  : 8,
+            );
+
+            _addButtonBottom =
+                _addButtonBottom.clamp(
+              8.0,
+              maxBottom > 8
+                  ? maxBottom
+                  : 8,
+            );
+          });
+        },
+        onTap: () {
+          _showMessage(
+            'New chat coming soon.',
+          );
+        },
+        child: Container(
+          width: 58,
+          height: 58,
+          decoration: BoxDecoration(
+            color:
+                AppTheme.pikkXBlack,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: AppTheme.pikkXNavy
+                  .withOpacity(0.45),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black
+                    .withOpacity(0.18),
+                blurRadius: 18,
+                offset:
+                    const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.add_rounded,
+            color: Colors.white,
+            size: 30,
+          ),
+        ),
+      ),
     );
   }
 
@@ -364,7 +559,8 @@ class _ChatPageState extends State<ChatPage> {
                   height: 34,
                   decoration:
                       BoxDecoration(
-                    color: AppTheme.pikkXBlack,
+                    color:
+                        AppTheme.pikkXBlack,
                     borderRadius:
                         BorderRadius.circular(
                       12,
