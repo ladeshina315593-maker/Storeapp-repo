@@ -27,6 +27,9 @@ class AppTheme {
   static const Color lightText = Color(0xFF111111);
   static const Color lightMutedText = Color(0xFF777777);
 
+  // Compatibility name used by older pages.
+  static const Color mutedText = lightMutedText;
+
   static const Color darkText = Color(0xFFF5F5F5);
   static const Color darkMutedText = Color(0xFF9A9A9A);
 
@@ -191,25 +194,37 @@ class AppTheme {
     // BOTTOM NAVIGATION
     // ------------------------------------------------------------
 
-    navigationBarTheme: const NavigationBarThemeData(
+    navigationBarTheme: NavigationBarThemeData(
       backgroundColor: pikkXBlack,
       indicatorColor: Color(0xFF2A2A2A),
 
-      selectedIconTheme: IconThemeData(
-        color: Colors.white,
+      iconTheme: WidgetStateProperty.resolveWith<IconThemeData?>(
+        (states) {
+          if (states.contains(WidgetState.selected)) {
+            return const IconThemeData(
+              color: Colors.white,
+            );
+          }
+
+          return const IconThemeData(
+            color: Color(0xFF888888),
+          );
+        },
       ),
 
-      unselectedIconTheme: IconThemeData(
-        color: Color(0xFF888888),
-      ),
+      labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>(
+        (states) {
+          if (states.contains(WidgetState.selected)) {
+            return const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            );
+          }
 
-      selectedLabelTextStyle: TextStyle(
-        color: Colors.white,
-        fontWeight: FontWeight.w700,
-      ),
-
-      unselectedLabelTextStyle: TextStyle(
-        color: Color(0xFF888888),
+          return const TextStyle(
+            color: Color(0xFF888888),
+          );
+        },
       ),
     ),
   );
@@ -367,25 +382,37 @@ class AppTheme {
     // BOTTOM NAVIGATION
     // ------------------------------------------------------------
 
-    navigationBarTheme: const NavigationBarThemeData(
+    navigationBarTheme: NavigationBarThemeData(
       backgroundColor: Colors.black,
       indicatorColor: Color(0xFF242424),
 
-      selectedIconTheme: IconThemeData(
-        color: Colors.white,
+      iconTheme: WidgetStateProperty.resolveWith<IconThemeData?>(
+        (states) {
+          if (states.contains(WidgetState.selected)) {
+            return const IconThemeData(
+              color: Colors.white,
+            );
+          }
+
+          return const IconThemeData(
+            color: Color(0xFF777777),
+          );
+        },
       ),
 
-      unselectedIconTheme: IconThemeData(
-        color: Color(0xFF777777),
-      ),
+      labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>(
+        (states) {
+          if (states.contains(WidgetState.selected)) {
+            return const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            );
+          }
 
-      selectedLabelTextStyle: TextStyle(
-        color: Colors.white,
-        fontWeight: FontWeight.w700,
-      ),
-
-      unselectedLabelTextStyle: TextStyle(
-        color: Color(0xFF777777),
+          return const TextStyle(
+            color: Color(0xFF777777),
+          );
+        },
       ),
     ),
   );
