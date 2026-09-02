@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/material.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -11,16 +12,8 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  final TextEditingController _emailController =
-      TextEditingController();
 
-  final TextEditingController _passwordController =
-      TextEditingController();
 
-  final GlobalKey<FormState> _formKey =
-      GlobalKey<FormState>();
-
-  bool _obscurePassword = true;
   bool _isLoading = false;
 
   // ============================================================
@@ -39,53 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
     super.dispose();
-  }
-
-  // ============================================================
-  // EMAIL + PASSWORD LOGIN
-  // ============================================================
-
-  Future<void> _loginWithEmail() async {
-    if (_formKey.currentState?.validate() != true) {
-      return;
-    }
-
-    FocusScope.of(context).unfocus();
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      await _auth.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
-
-      if (!mounted) return;
-
-      Navigator.of(context).pushNamedAndRemoveUntil(
-        '/home',
-        (route) => false,
-      );
-    } on FirebaseAuthException catch (e) {
-      _showError(_firebaseErrorMessage(e));
-    } catch (e) {
-      debugPrint('Login error: $e');
-
-      _showError(
-        'Something went wrong. Please try again.',
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
   }
 
   // ============================================================
@@ -157,18 +104,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
     Navigator.of(context).pushNamed(
       '/phone-login',
-    );
-  }
-
-  // ============================================================
-  // FORGOT PASSWORD
-  // ============================================================
-
-  void _openForgotPassword() {
-    if (_isLoading) return;
-
-    Navigator.of(context).pushNamed(
-      '/forgot-password',
     );
   }
 
@@ -418,9 +353,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 24,
                 35,
               ),
-              child: Form(
-                key: _formKey,
-                child: Column(
+              child: Column(
                   crossAxisAlignment:
                       CrossAxisAlignment.start,
                   children: [
@@ -470,7 +403,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ],
                             ),
                             child: Image.asset(
-                              'assets/images/pikkX_icon(1).png',
+                              'assets/images/pikkx_icon (1).png',
                               fit: BoxFit.contain,
                               errorBuilder:
                                   (_, __, ___) {
@@ -526,144 +459,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
 
                     const SizedBox(height: 27),
-
-                    // ==================================================
-                    // EMAIL
-                    // ==================================================
-
-                    _glassField(
-                      controller: _emailController,
-                      hint: 'Email address',
-                      icon: Icons.email_outlined,
-                      keyboardType:
-                          TextInputType.emailAddress,
-                      validator: (value) {
-                        if (value == null ||
-                            value.trim().isEmpty) {
-                          return 'Enter your email.';
-                        }
-
-                        if (!value.contains('@')) {
-                          return 'Enter a valid email.';
-                        }
-
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 14),
-
-                    // ==================================================
-                    // PASSWORD
-                    // ==================================================
-
-                    _glassField(
-                      controller: _passwordController,
-                      hint: 'Password',
-                      icon:
-                          Icons.lock_outline_rounded,
-                      obscureText: _obscurePassword,
-                      suffix: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
-                          color: pikkXNavy,
-                          size: 20,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword =
-                                !_obscurePassword;
-                          });
-                        },
-                      ),
-                      validator: (value) {
-                        if (value == null ||
-                            value.isEmpty) {
-                          return 'Enter your password.';
-                        }
-
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 5),
-
-                    // ==================================================
-                    // FORGOT PASSWORD
-                    // ==================================================
-
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: _openForgotPassword,
-                        child: const Text(
-                          'Forgot password?',
-                          style: TextStyle(
-                            color: pikkXNavy,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 6),
-
-                    // ==================================================
-                    // LOGIN BUTTON
-                    // ==================================================
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: 55,
-                      child: ElevatedButton(
-                        onPressed: _isLoading
-                            ? null
-                            : _loginWithEmail,
-                        style:
-                            ElevatedButton.styleFrom(
-                          backgroundColor: pikkXBlack,
-                          disabledBackgroundColor:
-                              pikkXBlack.withOpacity(0.45),
-                          foregroundColor: pikkXWhite,
-                          elevation: 7,
-                          shadowColor:
-                              pikkXBlack.withOpacity(0.20),
-                          shape:
-                              RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(18),
-                          ),
-                        ),
-                        child: _isLoading
-                            ? const SizedBox(
-                                height: 22,
-                                width: 22,
-                                child:
-                                    CircularProgressIndicator(
-                                  strokeWidth: 2.4,
-                                  valueColor:
-                                      AlwaysStoppedAnimation<
-                                          Color>(
-                                    pikkXWhite,
-                                  ),
-                                ),
-                              )
-                            : const Text(
-                                'Login',
-                                style: TextStyle(
-                                  color: pikkXWhite,
-                                  fontSize: 14,
-                                  fontWeight:
-                                      FontWeight.w800,
-                                ),
-                              ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 25),
 
                     // ==================================================
                     // DIVIDER
@@ -807,7 +602,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ],
-                ),
               ),
             ),
           ],

@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -146,18 +147,24 @@ class _SignUpScreenState extends State<SignUpScreen> {
     });
 
     try {
-      final GoogleAuthProvider provider =
-          GoogleAuthProvider();
+      final GoogleSignInAccount googleUser =
+          await GoogleSignIn.instance.authenticate();
 
-      final UserCredential credential =
-          await _auth.signInWithPopup(
-        provider,
+      final GoogleSignInAuthentication googleAuth =
+          googleUser.authentication;
+
+      final AuthCredential credential =
+          GoogleAuthProvider.credential(
+        idToken: googleAuth.idToken,
       );
 
-      if (credential.user != null &&
-          mounted) {
-        Navigator.of(context)
-            .pushNamedAndRemoveUntil(
+      final UserCredential userCredential =
+          await _auth.signInWithCredential(
+        credential,
+      );
+
+      if (userCredential.user != null && mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil(
           '/home',
           (route) => false,
         );
