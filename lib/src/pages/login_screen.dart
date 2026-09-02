@@ -14,7 +14,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
 
 
+  final TextEditingController _emailController =
+      TextEditingController();
+
+  final TextEditingController _passwordController =
+      TextEditingController();
+
   bool _isLoading = false;
+  bool _obscurePassword = true;
 
   // ============================================================
   // PIKKX COLORS
@@ -32,6 +39,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -42,6 +51,58 @@ class _LoginScreenState extends State<LoginScreen> {
   // For Android/iOS, the Google provider must be configured
   // correctly in Firebase. This uses FirebaseAuth directly.
   // ============================================================
+
+  Future<void> _loginWithEmail() async {
+    if (_isLoading) return;
+
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty) {
+      _showError('Please enter your email address.');
+      return;
+    }
+
+    if (!email.contains('@')) {
+      _showError('Please enter a valid email address.');
+      return;
+    }
+
+    if (password.isEmpty) {
+      _showError('Please enter your password.');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final UserCredential result =
+          await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      if (result.user != null && mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          '/home',
+          (route) => false,
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      _showError(_firebaseErrorMessage(e));
+    } catch (e) {
+      debugPrint('Email login error: $e');
+      _showError('Unable to sign in. Please try again.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   Future<void> _loginWithGoogle() async {
     if (_isLoading) return;
@@ -408,7 +469,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               errorBuilder:
                                   (_, __, ___) {
                                 return const Icon(
-                                  null,
+                                  Icons.shopping_bag_rounded,
                                   color: pikkXNavy,
                                   size: 38,
                                 );
@@ -459,6 +520,86 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
 
                     const SizedBox(height: 27),
+
+                    // ==================================================
+                    // EMAIL / GMAIL
+                    // ==================================================
+
+                    _glassField(
+                      controller: _emailController,
+                      hint: 'Email or Gmail',
+                      icon: Icons.email_outlined,
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+
+                    const SizedBox(height: 13),
+
+                    // ==================================================
+                    // PASSWORD
+                    // ==================================================
+
+                    _glassField(
+                      controller: _passwordController,
+                      hint: 'Password',
+                      icon: Icons.lock_outline_rounded,
+                      obscureText: _obscurePassword,
+                      suffix: IconButton(
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: pikkXGrey,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    // ==================================================
+                    // SIGN IN
+                    // ==================================================
+
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _loginWithEmail,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: pikkXNavy,
+                          foregroundColor: pikkXWhite,
+                          disabledBackgroundColor:
+                              pikkXNavy.withOpacity(0.6),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 21,
+                                width: 21,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: pikkXWhite,
+                                ),
+                              )
+                            : const Text(
+                                'Sign In',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 26),
 
                     // ==================================================
                     // DIVIDER
