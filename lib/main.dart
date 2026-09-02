@@ -6,6 +6,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import 'package:flutter_ecommerce_app/src/pages/mainPage.dart';
 import 'package:flutter_ecommerce_app/src/pages/login_screen.dart';
+import 'package:flutter_ecommerce_app/src/pages/signup_screen.dart';
+import 'package:flutter_ecommerce_app/src/pages/phone_auth_screen.dart';
 import 'package:flutter_ecommerce_app/src/pages/product_detail.dart';
 import 'package:flutter_ecommerce_app/src/pages/shopping_cart_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/checkout_page.dart';
@@ -100,6 +102,8 @@ class PikkXApp extends StatelessWidget {
         // ------------------------------------------------------
 
         '/login': (context) => const LoginScreen(),
+        '/signup': (context) => const SignupScreen(),
+        '/phone-login': (context) => const PhoneAuthScreen(),
 
         // ------------------------------------------------------
         // HOME
