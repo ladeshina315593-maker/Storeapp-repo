@@ -19,6 +19,8 @@ class ProfileSetupScreen extends StatefulWidget {
 
 class _ProfileSetupScreenState
     extends State<ProfileSetupScreen> {
+  final ImagePicker _imagePicker = ImagePicker();
+  XFile? _profileImage;
   // ============================================================
   // pikkX THEME
   // ============================================================
