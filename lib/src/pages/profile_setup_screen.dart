@@ -116,28 +116,6 @@ class _ProfileSetupScreenState
     return ref.getDownloadURL();
   }
 
-  Future<void> _pickProfileImage() async {
-    final image = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 85,
-    );
-    if (image != null && mounted) {
-      setState(() {
-        _profileImage = image;
-      });
-    }
-  }
-
-  Future<String?> _uploadProfileImage(String uid) async {
-    if (_profileImage == null) return null;
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child('profile_images')
-        .child('$uid.jpg');
-    await ref.putData(await _profileImage!.readAsBytes());
-    return ref.getDownloadURL();
-  }
-
   Future<void> _continue() async {
     if (_nameController.text.trim().isEmpty) {
       _showMessage('Please enter your name.');
