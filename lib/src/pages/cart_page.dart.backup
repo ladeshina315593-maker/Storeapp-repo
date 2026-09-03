@@ -7,12 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_ecommerce_app/src/themes/theme.dart';
 
 class CartPage extends StatefulWidget {
-  const CartPage({
-    super.key,
-    this.onContinueShopping,
-  });
-
-  final VoidCallback? onContinueShopping;
+  const CartPage({super.key});
 
   @override
   State<CartPage> createState() => _CartPageState();
@@ -889,7 +884,7 @@ class _CartPageState extends State<CartPage> {
                 _smallActionButton(
                   text: 'Continue Shopping',
                   onPressed: () {
-                    widget.onContinueShopping?.call();
+                    Navigator.pop(context);
                   },
                 ),
               ],

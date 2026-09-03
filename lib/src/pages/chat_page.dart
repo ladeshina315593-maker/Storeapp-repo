@@ -35,9 +35,6 @@ class _ChatPageState extends State<ChatPage> {
 
   bool _isSending = false;
 
-  double _addButtonRight = 18.0;
-  double _addButtonBottom = 88.0;
-
   User? get _currentUser => _auth.currentUser;
 
   String? get _userId => _currentUser?.uid;
@@ -69,7 +66,8 @@ class _ChatPageState extends State<ChatPage> {
   // ============================================================
 
   Future<void> _sendMessage() async {
-    final text = _messageController.text.trim();
+    final text =
+        _messageController.text.trim();
 
     if (text.isEmpty ||
         _userId == null ||
@@ -83,8 +81,9 @@ class _ChatPageState extends State<ChatPage> {
     });
 
     try {
-      final chatRef =
-          _firestore.collection('chats').doc(widget.chatId);
+      final chatRef = _firestore
+          .collection('chats')
+          .doc(widget.chatId);
 
       final messageRef =
           chatRef.collection('messages').doc();
@@ -93,7 +92,8 @@ class _ChatPageState extends State<ChatPage> {
         'senderId': _userId,
         'text': text,
         'type': 'text',
-        'createdAt': FieldValue.serverTimestamp(),
+        'createdAt':
+            FieldValue.serverTimestamp(),
         'read': false,
       });
 
@@ -101,8 +101,10 @@ class _ChatPageState extends State<ChatPage> {
         {
           'lastMessage': text,
           'lastMessageSenderId': _userId,
-          'updatedAt': FieldValue.serverTimestamp(),
-          'participants': FieldValue.arrayUnion([
+          'updatedAt':
+              FieldValue.serverTimestamp(),
+          'participants':
+              FieldValue.arrayUnion([
             _userId,
           ]),
         },
@@ -111,10 +113,14 @@ class _ChatPageState extends State<ChatPage> {
 
       _messageController.clear();
     } catch (e) {
-      debugPrint('Send message error: $e');
+      debugPrint(
+        'Send message error: $e',
+      );
 
       if (mounted) {
-        _showMessage('Could not send message.');
+        _showMessage(
+          'Could not send message.',
+        );
       }
     } finally {
       if (mounted) {
@@ -129,7 +135,8 @@ class _ChatPageState extends State<ChatPage> {
   // CHAT INBOX
   // ============================================================
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> _chatStream() {
+  Stream<QuerySnapshot<Map<String, dynamic>>>
+      _chatStream() {
     return _firestore
         .collection('chats')
         .where(
@@ -181,7 +188,8 @@ class _ChatPageState extends State<ChatPage> {
 
   Widget _buildInbox() {
     return Scaffold(
-      backgroundColor: AppTheme.lightBackground,
+      backgroundColor:
+          AppTheme.lightBackground,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -196,9 +204,11 @@ class _ChatPageState extends State<ChatPage> {
           ),
         ),
       ),
+      floatingActionButton: _buildMovableAddButton(),
       body: _userId == null
           ? _buildSignInState()
-          : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          : StreamBuilder<
+              QuerySnapshot<Map<String, dynamic>>>(
               stream: _chatStream(),
               builder: (
                 context,
@@ -207,7 +217,8 @@ class _ChatPageState extends State<ChatPage> {
                 if (snapshot.connectionState ==
                     ConnectionState.waiting) {
                   return const Center(
-                    child: CircularProgressIndicator(
+                    child:
+                        CircularProgressIndicator(
                       color: AppTheme.pikkXNavy,
                     ),
                   );
@@ -215,146 +226,53 @@ class _ChatPageState extends State<ChatPage> {
 
                 if (snapshot.hasError) {
                   debugPrint(
-                    'Chat stream error: ${snapshot.error}',
+                    'Chat stream error: '
+                    '${snapshot.error}',
                   );
 
                   return _buildErrorState();
                 }
 
-                final chats = snapshot.data?.docs ?? [];
+                final chats =
+                    snapshot.data?.docs ?? [];
 
-                return Stack(
-                  children: [
-                    ListView(
-                      physics:
-                          const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(
-                        16,
-                        5,
-                        16,
-                        120,
+                if (chats.isEmpty) {
+                  return _buildEmptyInbox();
+                }
+
+                return ListView.builder(
+                  physics:
+                      const BouncingScrollPhysics(),
+                  padding:
+                      const EdgeInsets.fromLTRB(
+                    16,
+                    5,
+                    16,
+                    100,
+                  ),
+                  itemCount: chats.length,
+                  itemBuilder:
+                      (context, index) {
+                    final doc =
+                        chats[index];
+
+                    final data =
+                        doc.data();
+
+                    return Padding(
+                      padding:
+                          const EdgeInsets.only(
+                        bottom: 12,
                       ),
-                      children: [
-                        _buildPikkXWelcomeChat(),
-
-                        const SizedBox(height: 12),
-
-                        ...chats.map((doc) {
-                          final data = doc.data();
-
-                          return Padding(
-                            padding: const EdgeInsets.only(
-                              bottom: 12,
-                            ),
-                            child: _buildChatTile(
-                              doc.id,
-                              data,
-                            ),
-                          );
-                        }),
-                      ],
-                    ),
-
-                    _buildMovableAddButton(),
-                  ],
+                      child: _buildChatTile(
+                        doc.id,
+                        data,
+                      ),
+                    );
+                  },
                 );
               },
             ),
-    );
-  }
-
-  // ============================================================
-  // PIKKX WELCOME CHAT
-  // ============================================================
-
-  Widget _buildPikkXWelcomeChat() {
-    return _glass(
-      radius: 23,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            _showMessage(
-              'PikkX support chat will be available soon.',
-            );
-          },
-          borderRadius: BorderRadius.circular(23),
-          child: Padding(
-            padding: const EdgeInsets.all(15),
-            child: Row(
-              children: [
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: AppTheme.pikkXBlack,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: AppTheme.pikkXNavy
-                          .withOpacity(0.35),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.shopping_bag_rounded,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
-
-                const SizedBox(width: 13),
-
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'pikkx',
-                        style: TextStyle(
-                          color: AppTheme.darkText,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-
-                      SizedBox(height: 5),
-
-                      Text(
-                        'Welcome to pikkx! 👋 We’re here to help with your shopping experience.',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: AppTheme.mutedText,
-                          fontSize: 12,
-                          height: 1.35,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(width: 8),
-
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: AppTheme.pikkXBlack,
-                    borderRadius:
-                        BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    color: Colors.white,
-                    size: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -363,61 +281,46 @@ class _ChatPageState extends State<ChatPage> {
   // ============================================================
 
   Widget _buildMovableAddButton() {
-    return Positioned(
-      right: _addButtonRight,
-      bottom: _addButtonBottom,
-      child: GestureDetector(
-        onPanUpdate: (details) {
-          setState(() {
-            _addButtonRight -= details.delta.dx;
-            _addButtonBottom -= details.delta.dy;
+    return Draggable(
+      feedback: Material(
+        color: Colors.transparent,
+        child: _addChatButton(),
+      ),
+      childWhenDragging: const SizedBox(
+        width: 58,
+        height: 58,
+      ),
+      child: _addChatButton(),
+    );
+  }
 
-            final size = MediaQuery.of(context).size;
-
-            final maxRight = size.width - 76.0;
-            final maxBottom = size.height - 150.0;
-
-            _addButtonRight = _addButtonRight
-                .clamp(
-                  8.0,
-                  maxRight > 8.0 ? maxRight : 8.0,
-                )
-                .toDouble();
-
-            _addButtonBottom = _addButtonBottom
-                .clamp(
-                  8.0,
-                  maxBottom > 8.0 ? maxBottom : 8.0,
-                )
-                .toDouble();
-          });
-        },
-        onTap: () {
-          _showMessage('New chat coming soon.');
-        },
-        child: Container(
-          width: 58,
-          height: 58,
-          decoration: BoxDecoration(
-            color: AppTheme.pikkXBlack,
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: AppTheme.pikkXNavy.withOpacity(0.45),
-              width: 1.5,
+  Widget _addChatButton() {
+    return GestureDetector(
+      onTap: () {
+        _showMessage('New chat coming soon.');
+      },
+      child: Container(
+        width: 58,
+        height: 58,
+        decoration: BoxDecoration(
+          color: AppTheme.pikkXBlack,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: AppTheme.pikkXNavy.withOpacity(0.45),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.18),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.18),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: const Icon(
-            Icons.add_rounded,
-            color: Colors.white,
-            size: 30,
-          ),
+          ],
+        ),
+        child: const Icon(
+          Icons.add_rounded,
+          color: Colors.white,
+          size: 30,
         ),
       ),
     );
@@ -431,14 +334,19 @@ class _ChatPageState extends State<ChatPage> {
     String chatId,
     Map<String, dynamic> data,
   ) {
-    final name = data['otherUserName']?.toString();
+    final name =
+        data['otherUserName']?.toString();
 
     final lastMessage =
-        data['lastMessage']?.toString().trim() ??
-        'Start a conversation';
+        data['lastMessage']
+                ?.toString()
+                .trim() ??
+            'Start a conversation';
 
     final displayName =
-        name == null || name.isEmpty ? 'Chat' : name;
+        name == null || name.isEmpty
+            ? 'Chat'
+            : name;
 
     return _glass(
       radius: 23,
@@ -451,9 +359,11 @@ class _ChatPageState extends State<ChatPage> {
               name,
             );
           },
-          borderRadius: BorderRadius.circular(23),
+          borderRadius:
+              BorderRadius.circular(23),
           child: Padding(
-            padding: const EdgeInsets.all(15),
+            padding:
+                const EdgeInsets.all(15),
             child: Row(
               children: [
                 _chatAvatar(displayName),
@@ -468,11 +378,15 @@ class _ChatPageState extends State<ChatPage> {
                       Text(
                         displayName,
                         maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppTheme.darkText,
+                        overflow:
+                            TextOverflow.ellipsis,
+                        style:
+                            const TextStyle(
+                          color:
+                              AppTheme.darkText,
                           fontSize: 15,
-                          fontWeight: FontWeight.w800,
+                          fontWeight:
+                              FontWeight.w800,
                         ),
                       ),
 
@@ -481,9 +395,12 @@ class _ChatPageState extends State<ChatPage> {
                       Text(
                         lastMessage,
                         maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppTheme.mutedText,
+                        overflow:
+                            TextOverflow.ellipsis,
+                        style:
+                            const TextStyle(
+                          color:
+                              AppTheme.mutedText,
                           fontSize: 12,
                         ),
                       ),
@@ -496,13 +413,17 @@ class _ChatPageState extends State<ChatPage> {
                 Container(
                   width: 34,
                   height: 34,
-                  decoration: BoxDecoration(
+                  decoration:
+                      BoxDecoration(
                     color: AppTheme.pikkXBlack,
                     borderRadius:
-                        BorderRadius.circular(12),
+                        BorderRadius.circular(
+                      12,
+                    ),
                   ),
                   child: const Icon(
-                    Icons.arrow_forward_ios_rounded,
+                    Icons
+                        .arrow_forward_ios_rounded,
                     color: Colors.white,
                     size: 13,
                   ),
@@ -521,12 +442,14 @@ class _ChatPageState extends State<ChatPage> {
 
   Widget _buildConversation() {
     return Scaffold(
-      backgroundColor: AppTheme.lightBackground,
+      backgroundColor:
+          AppTheme.lightBackground,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
-        iconTheme: const IconThemeData(
+        iconTheme:
+            const IconThemeData(
           color: AppTheme.darkText,
         ),
         title: Row(
@@ -537,13 +460,18 @@ class _ChatPageState extends State<ChatPage> {
 
             Expanded(
               child: Text(
-                widget.otherUserName ?? 'Chat',
+                widget.otherUserName ??
+                    'Chat',
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppTheme.darkText,
+                overflow:
+                    TextOverflow.ellipsis,
+                style:
+                    const TextStyle(
+                  color:
+                      AppTheme.darkText,
                   fontSize: 19,
-                  fontWeight: FontWeight.w800,
+                  fontWeight:
+                      FontWeight.w800,
                 ),
               ),
             ),
@@ -554,19 +482,23 @@ class _ChatPageState extends State<ChatPage> {
         children: [
           Expanded(
             child: StreamBuilder<
-                QuerySnapshot<Map<String, dynamic>>>(
+                QuerySnapshot<
+                    Map<String, dynamic>>>(
               stream: _messagesRef
                   .orderBy(
                     'createdAt',
                     descending: false,
                   )
                   .snapshots(),
-              builder: (context, snapshot) {
+              builder:
+                  (context, snapshot) {
                 if (snapshot.connectionState ==
                     ConnectionState.waiting) {
                   return const Center(
-                    child: CircularProgressIndicator(
-                      color: AppTheme.pikkXNavy,
+                    child:
+                        CircularProgressIndicator(
+                      color:
+                          AppTheme.pikkXNavy,
                     ),
                   );
                 }
@@ -576,7 +508,8 @@ class _ChatPageState extends State<ChatPage> {
                 }
 
                 final messages =
-                    snapshot.data?.docs ?? [];
+                    snapshot.data?.docs ??
+                        [];
 
                 if (messages.isEmpty) {
                   return _buildStartConversation();
@@ -585,19 +518,24 @@ class _ChatPageState extends State<ChatPage> {
                 return ListView.builder(
                   physics:
                       const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(
+                  padding:
+                      const EdgeInsets.fromLTRB(
                     16,
                     12,
                     16,
                     12,
                   ),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
+                  itemCount:
+                      messages.length,
+                  itemBuilder:
+                      (context, index) {
                     final message =
                         messages[index].data();
 
                     final isMine =
-                        message['senderId'] == _userId;
+                        message[
+                                'senderId'] ==
+                            _userId;
 
                     return _messageBubble(
                       message,
@@ -623,7 +561,8 @@ class _ChatPageState extends State<ChatPage> {
     Map<String, dynamic> message,
     bool isMine,
   ) {
-    final text = message['text']?.toString() ?? '';
+    final text =
+        message['text']?.toString() ?? '';
 
     return Align(
       alignment: isMine
@@ -631,9 +570,15 @@ class _ChatPageState extends State<ChatPage> {
           : Alignment.centerLeft,
       child: Container(
         constraints:
-            const BoxConstraints(maxWidth: 295),
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(
+            const BoxConstraints(
+          maxWidth: 295,
+        ),
+        margin:
+            const EdgeInsets.only(
+          bottom: 10,
+        ),
+        padding:
+            const EdgeInsets.symmetric(
           horizontal: 15,
           vertical: 11,
         ),
@@ -641,26 +586,37 @@ class _ChatPageState extends State<ChatPage> {
           color: isMine
               ? AppTheme.pikkXBlack
               : Colors.white.withOpacity(0.72),
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(20),
-            topRight: const Radius.circular(20),
-            bottomLeft: Radius.circular(
+          borderRadius:
+              BorderRadius.only(
+            topLeft:
+                const Radius.circular(20),
+            topRight:
+                const Radius.circular(20),
+            bottomLeft:
+                Radius.circular(
               isMine ? 20 : 5,
             ),
-            bottomRight: Radius.circular(
+            bottomRight:
+                Radius.circular(
               isMine ? 5 : 20,
             ),
           ),
           border: Border.all(
             color: isMine
-                ? AppTheme.pikkXNavy.withOpacity(0.35)
-                : Colors.white.withOpacity(0.9),
+                ? AppTheme.pikkXNavy
+                    .withOpacity(0.35)
+                : Colors.white
+                    .withOpacity(0.9),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.035),
+              color:
+                  Colors.black.withOpacity(
+                0.035,
+              ),
               blurRadius: 12,
-              offset: const Offset(0, 5),
+              offset:
+                  const Offset(0, 5),
             ),
           ],
         ),
@@ -686,7 +642,8 @@ class _ChatPageState extends State<ChatPage> {
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(
+        padding:
+            const EdgeInsets.fromLTRB(
           12,
           8,
           12,
@@ -695,7 +652,8 @@ class _ChatPageState extends State<ChatPage> {
         child: _glass(
           radius: 22,
           child: Padding(
-            padding: const EdgeInsets.only(
+            padding:
+                const EdgeInsets.only(
               left: 4,
               right: 5,
             ),
@@ -703,23 +661,30 @@ class _ChatPageState extends State<ChatPage> {
               children: [
                 Expanded(
                   child: TextField(
-                    controller: _messageController,
+                    controller:
+                        _messageController,
                     textInputAction:
                         TextInputAction.send,
                     onSubmitted: (_) {
                       _sendMessage();
                     },
-                    style: const TextStyle(
-                      color: AppTheme.darkText,
+                    style:
+                        const TextStyle(
+                      color:
+                          AppTheme.darkText,
                       fontSize: 14,
                     ),
                     decoration:
                         const InputDecoration(
-                      hintText: 'Write a message...',
-                      hintStyle: TextStyle(
-                        color: AppTheme.mutedText,
+                      hintText:
+                          'Write a message...',
+                      hintStyle:
+                          TextStyle(
+                        color:
+                            AppTheme.mutedText,
                       ),
-                      border: InputBorder.none,
+                      border:
+                          InputBorder.none,
                       contentPadding:
                           EdgeInsets.symmetric(
                         horizontal: 14,
@@ -730,36 +695,101 @@ class _ChatPageState extends State<ChatPage> {
                 ),
 
                 Material(
-                  color: AppTheme.pikkXBlack,
+                  color:
+                      AppTheme.pikkXBlack,
                   borderRadius:
-                      BorderRadius.circular(16),
+                      BorderRadius.circular(
+                    16,
+                  ),
                   child: InkWell(
                     onTap: _isSending
                         ? null
                         : _sendMessage,
                     borderRadius:
-                        BorderRadius.circular(16),
+                        BorderRadius.circular(
+                      16,
+                    ),
                     child: SizedBox(
                       width: 44,
                       height: 44,
                       child: Center(
-                        child: _isSending
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child:
-                                    CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Icon(
-                                Icons.send_rounded,
-                                color: Colors.white,
-                                size: 19,
-                              ),
+                        child:
+                            _isSending
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child:
+                                        CircularProgressIndicator(
+                                      strokeWidth:
+                                          2,
+                                      color:
+                                          Colors.white,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons
+                                        .send_rounded,
+                                    color:
+                                        Colors.white,
+                                    size: 19,
+                                  ),
                       ),
                     ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // EMPTY INBOX
+  // ============================================================
+
+  Widget _buildEmptyInbox() {
+    return Center(
+      child: Padding(
+        padding:
+            const EdgeInsets.all(28),
+        child: _glass(
+          radius: 30,
+          child: Padding(
+            padding:
+                const EdgeInsets.all(30),
+            child: Column(
+              mainAxisSize:
+                  MainAxisSize.min,
+              children: [
+                _largeChatIcon(),
+
+                const SizedBox(height: 18),
+
+                const Text(
+                  'No chats yet',
+                  textAlign:
+                      TextAlign.center,
+                  style: TextStyle(
+                    color:
+                        AppTheme.darkText,
+                    fontSize: 20,
+                    fontWeight:
+                        FontWeight.w800,
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                const Text(
+                  'Your conversations with sellers and support will appear here.',
+                  textAlign:
+                      TextAlign.center,
+                  style: TextStyle(
+                    color:
+                        AppTheme.mutedText,
+                    height: 1.45,
                   ),
                 ),
               ],
@@ -777,13 +807,16 @@ class _ChatPageState extends State<ChatPage> {
   Widget _buildSignInState() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(28),
+        padding:
+            const EdgeInsets.all(28),
         child: _glass(
           radius: 30,
           child: Padding(
-            padding: const EdgeInsets.all(30),
+            padding:
+                const EdgeInsets.all(30),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize:
+                  MainAxisSize.min,
               children: [
                 _largeChatIcon(),
 
@@ -791,11 +824,14 @@ class _ChatPageState extends State<ChatPage> {
 
                 const Text(
                   'Sign in to use Chat',
-                  textAlign: TextAlign.center,
+                  textAlign:
+                      TextAlign.center,
                   style: TextStyle(
-                    color: AppTheme.darkText,
+                    color:
+                        AppTheme.darkText,
                     fontSize: 20,
-                    fontWeight: FontWeight.w800,
+                    fontWeight:
+                        FontWeight.w800,
                   ),
                 ),
 
@@ -803,9 +839,11 @@ class _ChatPageState extends State<ChatPage> {
 
                 const Text(
                   'Sign in to see your conversations and messages.',
-                  textAlign: TextAlign.center,
+                  textAlign:
+                      TextAlign.center,
                   style: TextStyle(
-                    color: AppTheme.mutedText,
+                    color:
+                        AppTheme.mutedText,
                     height: 1.45,
                   ),
                 ),
@@ -836,9 +874,11 @@ class _ChatPageState extends State<ChatPage> {
   Widget _buildStartConversation() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(30),
+        padding:
+            const EdgeInsets.all(30),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize:
+              MainAxisSize.min,
           children: [
             _largeChatIcon(),
 
@@ -846,11 +886,14 @@ class _ChatPageState extends State<ChatPage> {
 
             const Text(
               'Start the conversation',
-              textAlign: TextAlign.center,
+              textAlign:
+                  TextAlign.center,
               style: TextStyle(
-                color: AppTheme.darkText,
+                color:
+                    AppTheme.darkText,
                 fontSize: 18,
-                fontWeight: FontWeight.w800,
+                fontWeight:
+                    FontWeight.w800,
               ),
             ),
 
@@ -858,9 +901,11 @@ class _ChatPageState extends State<ChatPage> {
 
             const Text(
               'Send a message below to get started.',
-              textAlign: TextAlign.center,
+              textAlign:
+                  TextAlign.center,
               style: TextStyle(
-                color: AppTheme.mutedText,
+                color:
+                    AppTheme.mutedText,
               ),
             ),
           ],
@@ -876,14 +921,18 @@ class _ChatPageState extends State<ChatPage> {
   Widget _buildErrorState() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(30),
+        padding:
+            const EdgeInsets.all(30),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize:
+              MainAxisSize.min,
           children: [
             const Icon(
-              Icons.error_outline_rounded,
+              Icons
+                  .error_outline_rounded,
               size: 48,
-              color: AppTheme.pikkXNavy,
+              color:
+                  AppTheme.pikkXNavy,
             ),
 
             const SizedBox(height: 12),
@@ -891,9 +940,11 @@ class _ChatPageState extends State<ChatPage> {
             const Text(
               'Could not load chats',
               style: TextStyle(
-                color: AppTheme.darkText,
+                color:
+                    AppTheme.darkText,
                 fontSize: 18,
-                fontWeight: FontWeight.w800,
+                fontWeight:
+                    FontWeight.w800,
               ),
             ),
 
@@ -901,9 +952,11 @@ class _ChatPageState extends State<ChatPage> {
 
             const Text(
               'Please check your connection and try again.',
-              textAlign: TextAlign.center,
+              textAlign:
+                  TextAlign.center,
               style: TextStyle(
-                color: AppTheme.mutedText,
+                color:
+                    AppTheme.mutedText,
               ),
             ),
           ],
@@ -916,7 +969,9 @@ class _ChatPageState extends State<ChatPage> {
   // AVATARS
   // ============================================================
 
-  Widget _chatAvatar(String name) {
+  Widget _chatAvatar(
+    String name,
+  ) {
     return Container(
       width: 50,
       height: 50,
@@ -924,7 +979,8 @@ class _ChatPageState extends State<ChatPage> {
         color: AppTheme.pikkXBlack,
         shape: BoxShape.circle,
         border: Border.all(
-          color: AppTheme.pikkXNavy.withOpacity(0.30),
+          color: AppTheme.pikkXNavy
+              .withOpacity(0.30),
           width: 1.5,
         ),
       ),
@@ -936,7 +992,8 @@ class _ChatPageState extends State<ChatPage> {
           style: const TextStyle(
             color: Colors.white,
             fontSize: 18,
-            fontWeight: FontWeight.w800,
+            fontWeight:
+                FontWeight.w800,
           ),
         ),
       ),
@@ -960,10 +1017,11 @@ class _ChatPageState extends State<ChatPage> {
             BorderRadius.circular(27),
         boxShadow: [
           BoxShadow(
-            color:
-                AppTheme.pikkXNavy.withOpacity(0.16),
+            color: AppTheme.pikkXNavy
+                .withOpacity(0.16),
             blurRadius: 22,
-            offset: const Offset(0, 9),
+            offset:
+                const Offset(0, 9),
           ),
         ],
       ),
@@ -990,7 +1048,8 @@ class _ChatPageState extends State<ChatPage> {
         borderRadius:
             BorderRadius.circular(17),
         child: Container(
-          padding: const EdgeInsets.symmetric(
+          padding:
+              const EdgeInsets.symmetric(
             horizontal: 24,
             vertical: 13,
           ),
@@ -999,8 +1058,8 @@ class _ChatPageState extends State<ChatPage> {
             borderRadius:
                 BorderRadius.circular(17),
             border: Border.all(
-              color:
-                  AppTheme.pikkXNavy.withOpacity(0.30),
+              color: AppTheme.pikkXNavy
+                  .withOpacity(0.30),
             ),
           ),
           child: Text(
@@ -1008,7 +1067,8 @@ class _ChatPageState extends State<ChatPage> {
             style: const TextStyle(
               color: Colors.white,
               fontSize: 14,
-              fontWeight: FontWeight.w800,
+              fontWeight:
+                  FontWeight.w800,
             ),
           ),
         ),
@@ -1035,24 +1095,33 @@ class _ChatPageState extends State<ChatPage> {
         child: Container(
           decoration: BoxDecoration(
             color:
-                Colors.white.withOpacity(0.70),
+                Colors.white.withOpacity(
+              0.70,
+            ),
             borderRadius:
-                BorderRadius.circular(radius),
+                BorderRadius.circular(
+              radius,
+            ),
             border: Border.all(
               color:
-                  Colors.white.withOpacity(0.90),
+                  Colors.white.withOpacity(
+                0.90,
+              ),
               width: 1.2,
             ),
             boxShadow: [
               BoxShadow(
                 color:
-                    Colors.black.withOpacity(0.055),
+                    Colors.black.withOpacity(
+                  0.055,
+                ),
                 blurRadius: 22,
-                offset: const Offset(0, 10),
+                offset:
+                    const Offset(0, 10),
               ),
               BoxShadow(
-                color:
-                    AppTheme.pikkXNavy.withOpacity(0.045),
+                color: AppTheme.pikkXNavy
+                    .withOpacity(0.045),
                 blurRadius: 28,
                 spreadRadius: 1,
               ),
@@ -1079,10 +1148,12 @@ class _ChatPageState extends State<ChatPage> {
             message,
             style: const TextStyle(
               color: Colors.white,
-              fontWeight: FontWeight.w600,
+              fontWeight:
+                  FontWeight.w600,
             ),
           ),
-          backgroundColor: AppTheme.pikkXBlack,
+          backgroundColor:
+              AppTheme.pikkXBlack,
           behavior:
               SnackBarBehavior.floating,
           shape:
@@ -1094,4 +1165,3 @@ class _ChatPageState extends State<ChatPage> {
       );
   }
 }
-

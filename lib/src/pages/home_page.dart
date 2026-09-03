@@ -539,7 +539,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             child:
                 Image.asset(
-              'assets/images/pikkx_icon(1).png',
+              'assets/images/pikkx_icon (1).png',
               fit:
                   BoxFit.contain,
               errorBuilder:
