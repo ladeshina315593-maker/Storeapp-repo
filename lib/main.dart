@@ -7,6 +7,7 @@ import 'package:flutter_ecommerce_app/src/pages/mainPage.dart';
 import 'package:flutter_ecommerce_app/src/pages/login_screen.dart';
 import 'package:flutter_ecommerce_app/src/pages/signup_screen.dart';
 import 'package:flutter_ecommerce_app/src/pages/phone_auth_screen.dart';
+import 'package:flutter_ecommerce_app/src/pages/forgot_password_screen.dart';
 import 'package:flutter_ecommerce_app/src/pages/product_detail.dart';
 import 'package:flutter_ecommerce_app/src/pages/shopping_cart_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/checkout_page.dart';
@@ -18,7 +19,7 @@ import 'package:flutter_ecommerce_app/src/pages/chat_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/settings_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/dispatch_tracking_page.dart';
 
-// NEW: Legal pages
+// Legal pages
 import 'package:flutter_ecommerce_app/src/pages/terms_conditions_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/privacy_policy_page.dart';
 
@@ -42,8 +43,8 @@ Future<void> main() async {
   // PIKKX
   // ==========================================================
   //
-  // Google Sign-In initialization removed.
-  // PikkX authentication is now email/password only.
+  // Authentication UI is now email/password focused.
+  // Google Sign-In initialization has been removed.
   //
   // ==========================================================
 
@@ -113,7 +114,22 @@ class PikkXApp extends StatelessWidget {
         '/signup': (context) =>
             const SignUpScreen(),
 
+        // ------------------------------------------------------
+        // FORGOT PASSWORD
+        // ------------------------------------------------------
+
+        '/forgot-password': (context) =>
+            const ForgotPasswordScreen(),
+
+        // ------------------------------------------------------
+        // PHONE AUTH
+        // ------------------------------------------------------
+        //
         // Kept for now so existing app code does not break.
+        // It is not shown on the new Login/Sign Up UI.
+        //
+        // ------------------------------------------------------
+
         '/phone-login': (context) =>
             const PhoneAuthScreen(),
 
