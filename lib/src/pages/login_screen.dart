@@ -209,24 +209,26 @@ class _LoginScreenState extends State<LoginScreen> {
   void _showError(String message) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: const TextStyle(
-            color: pikkXWhite,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            message,
+            style: const TextStyle(
+              color: pikkXWhite,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: pikkXBlack,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
           ),
         ),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: pikkXBlack,
-        margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-      ),
-    );
+      );
   }
 
   // ============================================================
@@ -236,24 +238,26 @@ class _LoginScreenState extends State<LoginScreen> {
   void _showMessage(String message) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: const TextStyle(
-            color: pikkXWhite,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            message,
+            style: const TextStyle(
+              color: pikkXWhite,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: pikkXNavy,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
           ),
         ),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: pikkXNavy,
-        margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-      ),
-    );
+      );
   }
 
   // ============================================================
@@ -397,6 +401,52 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   // ============================================================
+  // GLASS CIRCLE BUTTON
+  // ============================================================
+
+  Widget _glassCircleButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(23),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: 12,
+          sigmaY: 12,
+        ),
+        child: Container(
+          height: 46,
+          width: 46,
+          decoration: BoxDecoration(
+            color: pikkXWhite.withOpacity(0.58),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: pikkXWhite.withOpacity(0.9),
+              width: 1.1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: pikkXBlack.withOpacity(0.045),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: IconButton(
+            onPressed: onTap,
+            icon: Icon(
+              icon,
+              size: 17,
+              color: pikkXNavy,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
   // BUILD
   // ============================================================
 
@@ -436,6 +486,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
+
+            // ==================================================
+            // CONTENT
+            // ==================================================
 
             SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
@@ -504,9 +558,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                 ],
                               ),
-
-                              // EXISTING PIKKX LOGO.
-                              // No shopping-bag fallback.
                               child: Image.asset(
                                 'assets/images/pikkx_icon (1).png',
                                 fit: BoxFit.contain,
@@ -627,7 +678,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 20),
 
                   // ==================================================
-                  // SIGN IN
+                  // SIGN IN BUTTON
                   // ==================================================
 
                   _glassButton(
@@ -685,6 +736,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             fontSize: 9.5,
                           ),
                         ),
+
                         GestureDetector(
                           onTap: _openTerms,
                           child: const Text(
@@ -696,6 +748,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         ),
+
                         const Text(
                           ' and ',
                           style: TextStyle(
@@ -703,6 +756,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             fontSize: 9.5,
                           ),
                         ),
+
                         GestureDetector(
                           onTap: _openPrivacy,
                           child: const Text(
@@ -714,11 +768,23 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         ),
+
+                        const Text(
+                          '.',
+                          style: TextStyle(
+                            color: pikkXGrey,
+                            fontSize: 9.5,
+                          ),
+                        ),
                       ],
                     ),
                   ),
 
                   const SizedBox(height: 15),
+
+                  // ==================================================
+                  // FIREBASE NOTE
+                  // ==================================================
 
                   const Center(
                     child: Text(
@@ -733,52 +799,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // GLASS CIRCLE BUTTON
-  // ============================================================
-
-  Widget _glassCircleButton({
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(23),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 12,
-          sigmaY: 12,
-        ),
-        child: Container(
-          height: 46,
-          width: 46,
-          decoration: BoxDecoration(
-            color: pikkXWhite.withOpacity(0.58),
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: pikkXWhite.withOpacity(0.9),
-              width: 1.1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: pikkXBlack.withOpacity(0.045),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: IconButton(
-            onPressed: onTap,
-            icon: Icon(
-              icon,
-              size: 17,
-              color: pikkXNavy,
-            ),
-          ),
         ),
       ),
     );
