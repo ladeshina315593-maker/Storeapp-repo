@@ -102,42 +102,17 @@ class _LoginScreenState extends State<LoginScreen> {
   // ============================================================
   // FORGOT PASSWORD
   // ============================================================
+  //
+  // Opens the custom PikkX recovery screen.
+  // The actual recovery flow is handled there.
+  //
 
-  Future<void> _forgotPassword() async {
+  void _forgotPassword() {
     if (_isLoading) return;
 
-    final email = _emailController.text.trim();
-
-    if (email.isEmpty) {
-      _showError(
-        'Enter your email first to reset your password.',
-      );
-      return;
-    }
-
-    if (!email.contains('@')) {
-      _showError('Please enter a valid email address.');
-      return;
-    }
-
-    try {
-      await _auth.sendPasswordResetEmail(
-        email: email,
-      );
-
-      if (mounted) {
-        _showMessage(
-          'Password reset email sent. Check your inbox.',
-        );
-      }
-    } on FirebaseAuthException catch (e) {
-      _showError(_firebaseErrorMessage(e));
-    } catch (e) {
-      debugPrint('Password reset error: $e');
-      _showError(
-        'Unable to send the reset email. Please try again.',
-      );
-    }
+    Navigator.of(context).pushNamed(
+      '/forgot-password',
+    );
   }
 
   // ============================================================
@@ -223,35 +198,6 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           behavior: SnackBarBehavior.floating,
           backgroundColor: pikkXBlack,
-          margin: const EdgeInsets.all(16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-        ),
-      );
-  }
-
-  // ============================================================
-  // SUCCESS MESSAGE
-  // ============================================================
-
-  void _showMessage(String message) {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            message,
-            style: const TextStyle(
-              color: pikkXWhite,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: pikkXNavy,
           margin: const EdgeInsets.all(16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
@@ -435,8 +381,8 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           child: IconButton(
             onPressed: onTap,
-            icon: Icon(
-              icon,
+            icon: const Icon(
+              Icons.arrow_back_ios_new_rounded,
               size: 17,
               color: pikkXNavy,
             ),
