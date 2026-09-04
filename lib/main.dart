@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 
 import 'package:flutter_ecommerce_app/src/pages/mainPage.dart';
 import 'package:flutter_ecommerce_app/src/pages/login_screen.dart';
@@ -18,6 +17,10 @@ import 'package:flutter_ecommerce_app/src/pages/notifications_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/chat_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/settings_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/dispatch_tracking_page.dart';
+
+// NEW: Legal pages
+import 'package:flutter_ecommerce_app/src/pages/terms_conditions_page.dart';
+import 'package:flutter_ecommerce_app/src/pages/privacy_policy_page.dart';
 
 import 'package:flutter_ecommerce_app/src/widgets/customRoute.dart';
 import 'package:flutter_ecommerce_app/src/themes/theme.dart';
@@ -36,10 +39,13 @@ Future<void> main() async {
   );
 
   // ==========================================================
-  // GOOGLE SIGN-IN
+  // PIKKX
   // ==========================================================
-
-  await GoogleSignIn.instance.initialize();
+  //
+  // Google Sign-In initialization removed.
+  // PikkX authentication is now email/password only.
+  //
+  // ==========================================================
 
   runApp(const PikkXApp());
 }
@@ -54,7 +60,7 @@ class PikkXApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'pikkX',
+      title: 'PikkX',
       debugShowCheckedModeBanner: false,
 
       // ========================================================
@@ -101,28 +107,51 @@ class PikkXApp extends StatelessWidget {
         // AUTH
         // ------------------------------------------------------
 
-        '/login': (context) => const LoginScreen(),
-        '/signup': (context) => const SignUpScreen(),
-        '/phone-login': (context) => const PhoneAuthScreen(),
-        '/phone-signup': (context) => const PhoneAuthScreen(),
+        '/login': (context) =>
+            const LoginScreen(),
+
+        '/signup': (context) =>
+            const SignUpScreen(),
+
+        // Kept for now so existing app code does not break.
+        '/phone-login': (context) =>
+            const PhoneAuthScreen(),
+
+        '/phone-signup': (context) =>
+            const PhoneAuthScreen(),
+
+        // ------------------------------------------------------
+        // TERMS & PRIVACY
+        // ------------------------------------------------------
+
+        '/terms': (context) =>
+            const TermsConditionsPage(),
+
+        '/privacy': (context) =>
+            const PrivacyPolicyPage(),
 
         // ------------------------------------------------------
         // HOME
         // ------------------------------------------------------
 
-        '/': (context) => const AuthGate(),
+        '/': (context) =>
+            const AuthGate(),
 
-        '/home': (context) => MainPage(),
+        '/home': (context) =>
+            MainPage(),
 
-        '/MainPage': (context) => MainPage(),
+        '/MainPage': (context) =>
+            MainPage(),
 
         // ------------------------------------------------------
         // SHOPPING
         // ------------------------------------------------------
 
-        '/cart': (context) => ShoppingCartPage(),
+        '/cart': (context) =>
+            ShoppingCartPage(),
 
-        '/checkout': (context) => CheckoutPage(),
+        '/checkout': (context) =>
+            CheckoutPage(),
 
         '/delivery-address': (context) =>
             DeliveryAddressPage(),
@@ -131,7 +160,8 @@ class PikkXApp extends StatelessWidget {
         // ORDERS
         // ------------------------------------------------------
 
-        '/orders': (context) => OrdersPage(),
+        '/orders': (context) =>
+            OrdersPage(),
 
         // ------------------------------------------------------
         // NOTIFICATIONS
@@ -144,14 +174,16 @@ class PikkXApp extends StatelessWidget {
         // SETTINGS
         // ------------------------------------------------------
 
-        '/settings': (context) => SettingsPage(),
+        '/settings': (context) =>
+            SettingsPage(),
       },
 
       // ========================================================
       // ROUTES THAT REQUIRE ARGUMENTS
       // ========================================================
 
-      onGenerateRoute: (RouteSettings settings) {
+      onGenerateRoute:
+          (RouteSettings settings) {
 
         // ======================================================
         // PRODUCT DETAILS
@@ -162,7 +194,8 @@ class PikkXApp extends StatelessWidget {
 
           if (product == null) {
             return MaterialPageRoute(
-              builder: (context) => const Scaffold(
+              builder: (context) =>
+                  const Scaffold(
                 body: Center(
                   child: Text(
                     'Product information is missing.',
@@ -187,9 +220,11 @@ class PikkXApp extends StatelessWidget {
           final orderId =
               settings.arguments?.toString();
 
-          if (orderId == null || orderId.isEmpty) {
+          if (orderId == null ||
+              orderId.isEmpty) {
             return MaterialPageRoute(
-              builder: (context) => const Scaffold(
+              builder: (context) =>
+                  const Scaffold(
                 body: Center(
                   child: Text(
                     'Order ID is missing.',
@@ -212,13 +247,16 @@ class PikkXApp extends StatelessWidget {
         // DISPATCH TRACKING
         // ======================================================
 
-        if (settings.name == '/dispatch-tracking') {
+        if (settings.name ==
+            '/dispatch-tracking') {
           final orderId =
               settings.arguments?.toString();
 
-          if (orderId == null || orderId.isEmpty) {
+          if (orderId == null ||
+              orderId.isEmpty) {
             return MaterialPageRoute(
-              builder: (context) => const Scaffold(
+              builder: (context) =>
+                  const Scaffold(
                 body: Center(
                   child: Text(
                     'Order ID is missing.',
@@ -242,7 +280,8 @@ class PikkXApp extends StatelessWidget {
         // ======================================================
 
         if (settings.name == '/chat') {
-          final arguments = settings.arguments;
+          final arguments =
+              settings.arguments;
 
           String? chatId;
           String? otherUserName;
@@ -255,12 +294,15 @@ class PikkXApp extends StatelessWidget {
                 arguments['otherUserName']
                     ?.toString();
           } else if (arguments != null) {
-            chatId = arguments.toString();
+            chatId =
+                arguments.toString();
           }
 
-          if (chatId == null || chatId.isEmpty) {
+          if (chatId == null ||
+              chatId.isEmpty) {
             return MaterialPageRoute(
-              builder: (context) => const Scaffold(
+              builder: (context) =>
+                  const Scaffold(
                 body: Center(
                   child: Text(
                     'Chat ID is missing.',
@@ -274,7 +316,8 @@ class PikkXApp extends StatelessWidget {
             builder: (BuildContext context) =>
                 ChatPage(
               chatId: chatId!,
-              otherUserName: otherUserName,
+              otherUserName:
+                  otherUserName,
             ),
             settings: settings,
           );
@@ -285,7 +328,8 @@ class PikkXApp extends StatelessWidget {
         // ======================================================
 
         return MaterialPageRoute(
-          builder: (context) => const Scaffold(
+          builder: (context) =>
+              const Scaffold(
             body: Center(
               child: Text(
                 'Page not found.',
@@ -326,8 +370,8 @@ class AuthGate extends StatelessWidget {
     return StreamBuilder<User?>(
       stream:
           FirebaseAuth.instance.authStateChanges(),
-      builder: (context, snapshot) {
 
+      builder: (context, snapshot) {
         // ------------------------------------------------------
         // CHECKING AUTH STATE
         // ------------------------------------------------------
