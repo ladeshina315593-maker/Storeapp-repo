@@ -49,7 +49,7 @@ class _MyHomePageState extends State<MyHomePage> {
   ];
 
   // ============================================================
-  // pikkX IDENTITY
+  // PILKX IDENTITY
   // ============================================================
 
   static const Color pikkXBlack =
@@ -517,9 +517,9 @@ class _MyHomePageState extends State<MyHomePage> {
       padding:
           const EdgeInsets.fromLTRB(
         20,
-        4,
+        0,
         20,
-        8,
+        4,
       ),
       child: Row(
         children: [
@@ -558,7 +558,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
           const Expanded(
             child: Text(
-              'pikkX',
+              'PilkX',
               style:
                   TextStyle(
                 color:
@@ -784,9 +784,9 @@ class _MyHomePageState extends State<MyHomePage> {
       padding:
           const EdgeInsets.fromLTRB(
         20,
-        2,
+        0,
         20,
-        10,
+        8,
       ),
       child: ClipRRect(
         borderRadius:
@@ -1010,9 +1010,9 @@ class _MyHomePageState extends State<MyHomePage> {
       padding:
           const EdgeInsets.fromLTRB(
         20,
-        12,
+        8,
         20,
-        6,
+        2,
       ),
       child: ClipRRect(
         borderRadius:
@@ -1236,86 +1236,49 @@ class _MyHomePageState extends State<MyHomePage> {
               }
             }
 
-            return Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
-              children: [
-                Padding(
-                  padding:
-                      const EdgeInsets
-                          .fromLTRB(
-                    20,
-                    14,
-                    20,
-                    8,
-                  ),
-                  child: Row(
-                    children: [
-                      const Text(
-                        'Popular Products',
-                        style:
-                            TextStyle(
-                          color:
-                              pikkXBlack,
-                          fontSize:
-                              19,
-                          fontWeight:
-                              FontWeight
-                                  .w900,
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        '${products.length}',
-                        style:
-                            const TextStyle(
-                          color:
-                              pikkXNavy,
-                          fontWeight:
-                              FontWeight
-                                  .w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (products.isEmpty)
-                  _emptyProducts()
-                else
-                  SizedBox(
-                    height: 292,
-                    child:
-                        ListView.builder(
-                      padding:
-                          const EdgeInsets
-                              .only(
-                        left: 20,
-                        right: 10,
-                      ),
-                      scrollDirection:
-                          Axis.horizontal,
-                      physics:
-                          const BouncingScrollPhysics(),
-                      itemCount:
-                          products.length,
-                      itemBuilder:
-                          (context, index) {
-                        final document =
-                            products[index];
+            // No "Popular Products" heading.
+            // No product count.
+            // No empty-state product box.
+            //
+            // If there are no products, simply
+            // return an empty widget.
 
-                        return _productCard(
-                          document.id,
-                          document.data(),
-                          favouriteIds
-                              .contains(
-                            document.id,
-                          ),
-                        );
-                      },
+            if (products.isEmpty) {
+              return const SizedBox
+                  .shrink();
+            }
+
+            return SizedBox(
+              height: 292,
+              child:
+                  ListView.builder(
+                padding:
+                    const EdgeInsets
+                        .only(
+                  left: 20,
+                  right: 10,
+                ),
+                scrollDirection:
+                    Axis.horizontal,
+                physics:
+                    const BouncingScrollPhysics(),
+                itemCount:
+                    products.length,
+                itemBuilder:
+                    (context, index) {
+                  final document =
+                      products[index];
+
+                  return _productCard(
+                    document.id,
+                    document.data(),
+                    favouriteIds
+                        .contains(
+                      document.id,
                     ),
-                  ),
-              ],
+                  );
+                },
+              ),
             );
           },
         );
@@ -2532,78 +2495,6 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   // ============================================================
-  // EMPTY PRODUCTS
-  // ============================================================
-
-  Widget _emptyProducts() {
-    return Container(
-      margin:
-          const EdgeInsets.fromLTRB(
-        20,
-        12,
-        20,
-        20,
-      ),
-      padding:
-          const EdgeInsets.all(
-        25,
-      ),
-      width:
-          double.infinity,
-      decoration:
-          _glassDecoration(
-        radius: 20,
-        color:
-            pikkXWhite.withOpacity(.82),
-        navyBorder: true,
-      ),
-      child: Column(
-        children: [
-          const Icon(
-            Icons
-                .search_off_rounded,
-            color:
-                pikkXNavy,
-            size: 38,
-          ),
-          const SizedBox(
-            height: 10,
-          ),
-          Text(
-            _searchController
-                    .text
-                    .isNotEmpty
-                ? 'No matching products'
-                : 'No products yet',
-            style:
-                const TextStyle(
-              color:
-                  pikkXBlack,
-              fontWeight:
-                  FontWeight.w800,
-            ),
-          ),
-          const SizedBox(
-            height: 4,
-          ),
-          Text(
-            'Products added to Firebase will appear here.',
-            textAlign:
-                TextAlign.center,
-            style:
-                TextStyle(
-              color:
-                  LightColor
-                      .mutedText,
-              fontSize: 11,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
   // FIREBASE ERROR
   // ============================================================
 
@@ -2733,9 +2624,6 @@ class _MyHomePageState extends State<MyHomePage> {
               _quickFilters(),
               _promoBanner(),
               _productWidget(),
-              const SizedBox(
-                height: 100,
-              ),
             ],
           ),
         ),
