@@ -1,5 +1,4 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/material.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -11,8 +10,6 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-
-
 
   final TextEditingController _emailController =
       TextEditingController();
@@ -45,11 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   // ============================================================
-  // GOOGLE LOGIN
-  //
-  // IMPORTANT:
-  // For Android/iOS, the Google provider must be configured
-  // correctly in Firebase. This uses FirebaseAuth directly.
+  // EMAIL / PASSWORD LOGIN
   // ============================================================
 
   Future<void> _loginWithEmail() async {
@@ -104,68 +97,41 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _loginWithGoogle() async {
+  // ============================================================
+  // FORGOT PASSWORD
+  // ============================================================
+
+  Future<void> _forgotPassword() async {
     if (_isLoading) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    final email = _emailController.text.trim();
+
+    if (email.isEmpty) {
+      _showError('Enter your email first to reset your password.');
+      return;
+    }
+
+    if (!email.contains('@')) {
+      _showError('Please enter a valid email address.');
+      return;
+    }
 
     try {
-      final GoogleAuthProvider provider =
-          GoogleAuthProvider();
+      await _auth.sendPasswordResetEmail(email: email);
 
-      provider.setCustomParameters({
-        'prompt': 'select_account',
-      });
-
-      /*
-       * This works for Firebase web.
-       *
-       * On Android/iOS, use the Google Sign-In package
-       * and create a Firebase credential from the Google
-       * account before calling signInWithCredential().
-       *
-       * Keeping this method separate makes that connection
-       * easy to replace without changing the UI.
-       */
-
-      final UserCredential result =
-          await _auth.signInWithPopup(provider);
-
-      if (result.user != null && mounted) {
-        Navigator.of(context).pushNamedAndRemoveUntil(
-          '/home',
-          (route) => false,
+      if (mounted) {
+        _showMessage(
+          'Password reset email sent. Check your inbox.',
         );
       }
     } on FirebaseAuthException catch (e) {
       _showError(_firebaseErrorMessage(e));
     } catch (e) {
-      debugPrint('Google login error: $e');
-
+      debugPrint('Password reset error: $e');
       _showError(
-        'Google sign-in could not be completed.',
+        'Unable to send the reset email. Please try again.',
       );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
     }
-  }
-
-  // ============================================================
-  // PHONE LOGIN
-  // ============================================================
-
-  void _openPhoneLogin() {
-    if (_isLoading) return;
-
-    Navigator.of(context).pushNamed(
-      '/phone-login',
-    );
   }
 
   // ============================================================
@@ -175,9 +141,23 @@ class _LoginScreenState extends State<LoginScreen> {
   void _openSignUp() {
     if (_isLoading) return;
 
-    Navigator.of(context).pushNamed(
-      '/signup',
-    );
+    Navigator.of(context).pushNamed('/signup');
+  }
+
+  // ============================================================
+  // TERMS & PRIVACY
+  // ============================================================
+
+  void _openTerms() {
+    if (_isLoading) return;
+
+    Navigator.of(context).pushNamed('/terms');
+  }
+
+  void _openPrivacy() {
+    if (_isLoading) return;
+
+    Navigator.of(context).pushNamed('/privacy');
   }
 
   // ============================================================
@@ -208,13 +188,7 @@ class _LoginScreenState extends State<LoginScreen> {
         return 'Please check your internet connection.';
 
       case 'operation-not-allowed':
-        return 'This sign-in method is not enabled in Firebase.';
-
-      case 'account-exists-with-different-credential':
-        return 'An account already exists with a different sign-in method.';
-
-      case 'popup-closed-by-user':
-        return 'Google sign-in was cancelled.';
+        return 'Email and password sign-in is not enabled in Firebase.';
 
       default:
         return e.message ??
@@ -223,7 +197,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   // ============================================================
-  // MESSAGE
+  // ERROR MESSAGE
   // ============================================================
 
   void _showError(String message) {
@@ -250,6 +224,33 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   // ============================================================
+  // SUCCESS MESSAGE
+  // ============================================================
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: const TextStyle(
+            color: pikkXWhite,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: pikkXNavy,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
   // GLASS FIELD
   // ============================================================
 
@@ -260,7 +261,6 @@ class _LoginScreenState extends State<LoginScreen> {
     bool obscureText = false,
     Widget? suffix,
     TextInputType? keyboardType,
-    String? Function(String?)? validator,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -281,7 +281,6 @@ class _LoginScreenState extends State<LoginScreen> {
       child: TextFormField(
         controller: controller,
         obscureText: obscureText,
-        validator: validator,
         keyboardType: keyboardType,
         style: const TextStyle(
           color: pikkXBlack,
@@ -302,62 +301,9 @@ class _LoginScreenState extends State<LoginScreen> {
             color: pikkXGrey,
             fontSize: 13,
           ),
-          contentPadding:
-              const EdgeInsets.symmetric(
+          contentPadding: const EdgeInsets.symmetric(
             horizontal: 18,
             vertical: 18,
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // SOCIAL BUTTON
-  // ============================================================
-
-  Widget _socialButton({
-    required Widget icon,
-    required String text,
-    required VoidCallback? onTap,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: _isLoading ? null : onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          height: 54,
-          decoration: BoxDecoration(
-            color: pikkXWhite.withOpacity(0.72),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: pikkXWhite.withOpacity(0.95),
-              width: 1.1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: pikkXBlack.withOpacity(0.035),
-                blurRadius: 17,
-                offset: const Offset(0, 7),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment:
-                MainAxisAlignment.center,
-            children: [
-              icon,
-              const SizedBox(width: 10),
-              Text(
-                text,
-                style: const TextStyle(
-                  color: pikkXBlack,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
           ),
         ),
       ),
@@ -376,7 +322,7 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Stack(
           children: [
             // ==================================================
-            // SUBTLE GLASS BACKGROUND SHAPES
+            // GLASS BACKGROUND SHAPES
             // ==================================================
 
             Positioned(
@@ -406,8 +352,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
 
             SingleChildScrollView(
-              physics:
-                  const BouncingScrollPhysics(),
+              physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(
                 24,
                 22,
@@ -415,334 +360,317 @@ class _LoginScreenState extends State<LoginScreen> {
                 35,
               ),
               child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                  children: [
-                    // ==================================================
-                    // BACK BUTTON
-                    // ==================================================
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ==================================================
+                  // BACK BUTTON
+                  // ==================================================
 
-                    _glassCircleButton(
-                      icon: Icons.arrow_back_ios_new_rounded,
-                      onTap: () {
-                        if (!_isLoading) {
-                          Navigator.of(context).pop();
-                        }
-                      },
-                    ),
+                  _glassCircleButton(
+                    icon: Icons.arrow_back_ios_new_rounded,
+                    onTap: () {
+                      if (!_isLoading) {
+                        Navigator.of(context).pop();
+                      }
+                    },
+                  ),
 
-                    const SizedBox(height: 30),
+                  const SizedBox(height: 30),
 
-                    // ==================================================
-                    // PIKKX LOGO
-                    // ==================================================
+                  // ==================================================
+                  // PIKKX LOGO
+                  // ==================================================
 
-                    Center(
-                      child: Column(
-                        children: [
-                          Container(
-                            height: 82,
-                            width: 82,
-                            padding:
-                                const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: pikkXWhite.withOpacity(0.82),
-                              borderRadius:
-                                  BorderRadius.circular(24),
-                              border: Border.all(
-                                color: pikkXWhite,
-                                width: 1.2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: pikkXBlack
-                                      .withOpacity(0.055),
-                                  blurRadius: 24,
-                                  offset:
-                                      const Offset(0, 9),
-                                ),
-                              ],
-                            ),
-                            child: Image.asset(
-                              'assets/images/pikkx_icon (1).png',
-                              fit: BoxFit.contain,
-                              errorBuilder:
-                                  (_, __, ___) {
-                                return const Icon(
-                                  Icons.shopping_bag_rounded,
-                                  color: pikkXNavy,
-                                  size: 38,
-                                );
-                              },
-                            ),
-                          ),
-
-                          const SizedBox(height: 13),
-
-                          const Text(
-                            'pikkX',
-                            style: TextStyle(
-                              color: pikkXBlack,
-                              fontSize: 27,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -1,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 34),
-
-                    // ==================================================
-                    // TITLE
-                    // ==================================================
-
-                    const Text(
-                      'Welcome back',
-                      style: TextStyle(
-                        color: pikkXBlack,
-                        fontSize: 29,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-
-                    const SizedBox(height: 7),
-
-                    const Text(
-                      'Sign in to continue shopping with pikkX.',
-                      style: TextStyle(
-                        color: pikkXGrey,
-                        fontSize: 13,
-                        height: 1.45,
-                      ),
-                    ),
-
-                    const SizedBox(height: 27),
-
-                    // ==================================================
-                    // EMAIL / GMAIL
-                    // ==================================================
-
-                    _glassField(
-                      controller: _emailController,
-                      hint: 'Email or Gmail',
-                      icon: Icons.email_outlined,
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-
-                    const SizedBox(height: 13),
-
-                    // ==================================================
-                    // PASSWORD
-                    // ==================================================
-
-                    _glassField(
-                      controller: _passwordController,
-                      hint: 'Password',
-                      icon: Icons.lock_outline_rounded,
-                      obscureText: _obscurePassword,
-                      suffix: IconButton(
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
-                          color: pikkXGrey,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 18),
-
-                    // ==================================================
-                    // SIGN IN
-                    // ==================================================
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: 54,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _loginWithEmail,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: pikkXNavy,
-                          foregroundColor: pikkXWhite,
-                          disabledBackgroundColor:
-                              pikkXNavy.withOpacity(0.6),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                        ),
-                        child: _isLoading
-                            ? const SizedBox(
-                                height: 21,
-                                width: 21,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: pikkXWhite,
-                                ),
-                              )
-                            : const Text(
-                                'Sign In',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 26),
-
-                    // ==================================================
-                    // DIVIDER
-                    // ==================================================
-
-                    Row(
+                  Center(
+                    child: Column(
                       children: [
-                        Expanded(
-                          child: Divider(
-                            color:
-                                pikkXBlack.withOpacity(0.10),
-                          ),
-                        ),
-                        const Padding(
-                          padding:
-                              EdgeInsets.symmetric(
-                            horizontal: 12,
-                          ),
-                          child: Text(
-                            'OR CONTINUE WITH',
-                            style: TextStyle(
-                              color: pikkXGrey,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
+                        Container(
+                          height: 82,
+                          width: 82,
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: pikkXWhite.withOpacity(0.82),
+                            borderRadius:
+                                BorderRadius.circular(24),
+                            border: Border.all(
+                              color: pikkXWhite,
+                              width: 1.2,
                             ),
+                            boxShadow: [
+                              BoxShadow(
+                                color:
+                                    pikkXBlack.withOpacity(0.055),
+                                blurRadius: 24,
+                                offset: const Offset(0, 9),
+                              ),
+                            ],
+                          ),
+
+                          // EXISTING PIKKX LOGO
+                          child: Image.asset(
+                            'assets/images/pikkx_icon (1).png',
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) {
+                              // No shopping bag fallback.
+                              return const Center(
+                                child: Text(
+                                  'pikkX',
+                                  style: TextStyle(
+                                    color: pikkXBlack,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ),
-                        Expanded(
-                          child: Divider(
-                            color:
-                                pikkXBlack.withOpacity(0.10),
+
+                        const SizedBox(height: 13),
+
+                        const Text(
+                          'pikkX',
+                          style: TextStyle(
+                            color: pikkXBlack,
+                            fontSize: 27,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -1,
                           ),
                         ),
                       ],
                     ),
+                  ),
 
-                    const SizedBox(height: 19),
+                  const SizedBox(height: 34),
 
-                    // ==================================================
-                    // GOOGLE
-                    // ==================================================
+                  // ==================================================
+                  // TITLE
+                  // ==================================================
 
-                    _socialButton(
-                      icon: const Text(
-                        'G',
-                        style: TextStyle(
-                          color: Color(0xFF4285F4),
-                          fontSize: 19,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      text: 'Continue with Google',
-                      onTap: _loginWithGoogle,
+                  const Text(
+                    'Welcome back',
+                    style: TextStyle(
+                      color: pikkXBlack,
+                      fontSize: 29,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.5,
                     ),
+                  ),
 
-                    const SizedBox(height: 12),
+                  const SizedBox(height: 7),
 
-                    // ==================================================
-                    // APPLE
-                    // ==================================================
+                  const Text(
+                    'Sign in to continue shopping with pikkX.',
+                    style: TextStyle(
+                      color: pikkXGrey,
+                      fontSize: 13,
+                      height: 1.45,
+                    ),
+                  ),
 
-                    _socialButton(
-                      icon: const Text(
-                        '',
-                        style: TextStyle(
-                          color: pikkXBlack,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      text: 'Continue with Apple',
-                      onTap: () {
-                        _showError(
-                          'Apple Sign-In setup is not connected yet.',
-                        );
+                  const SizedBox(height: 27),
+
+                  // ==================================================
+                  // EMAIL
+                  // ==================================================
+
+                  _glassField(
+                    controller: _emailController,
+                    hint: 'Email or Gmail',
+                    icon: Icons.email_outlined,
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+
+                  const SizedBox(height: 13),
+
+                  // ==================================================
+                  // PASSWORD
+                  // ==================================================
+
+                  _glassField(
+                    controller: _passwordController,
+                    hint: 'Password',
+                    icon: Icons.lock_outline_rounded,
+                    obscureText: _obscurePassword,
+                    suffix: IconButton(
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword =
+                              !_obscurePassword;
+                        });
                       },
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // ==================================================
-                    // PHONE
-                    // ==================================================
-
-                    _socialButton(
-                      icon: const Icon(
-                        Icons.phone_rounded,
-                        color: pikkXNavy,
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        color: pikkXGrey,
                         size: 20,
                       ),
-                      text: 'Continue with Phone',
-                      onTap: _openPhoneLogin,
                     ),
+                  ),
 
-                    const SizedBox(height: 26),
+                  const SizedBox(height: 12),
 
-                    // ==================================================
-                    // SIGN UP
-                    // ==================================================
+                  // ==================================================
+                  // FORGOT PASSWORD
+                  // ==================================================
 
-                    Center(
-                      child: Wrap(
-                        alignment:
-                            WrapAlignment.center,
-                        children: [
-                          const Text(
-                            "Don't have an account? ",
-                            style: TextStyle(
-                              color: pikkXGrey,
-                              fontSize: 12,
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: _openSignUp,
-                            child: const Text(
-                              'Sign Up',
-                              style: TextStyle(
-                                color: pikkXNavy,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // ==================================================
-                    // FIREBASE NOTE
-                    // ==================================================
-
-                    const Center(
-                      child: Text(
-                        'Secure authentication powered by Firebase',
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: GestureDetector(
+                      onTap: _forgotPassword,
+                      child: const Text(
+                        'Forgot Password?',
                         style: TextStyle(
-                          color: Color(0xFF999999),
-                          fontSize: 9,
+                          color: pikkXNavy,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
-                  ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // ==================================================
+                  // SIGN IN
+                  // ==================================================
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: ElevatedButton(
+                      onPressed:
+                          _isLoading ? null : _loginWithEmail,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: pikkXNavy,
+                        foregroundColor: pikkXWhite,
+                        disabledBackgroundColor:
+                            pikkXNavy.withOpacity(0.6),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(18),
+                        ),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 21,
+                              width: 21,
+                              child:
+                                  CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: pikkXWhite,
+                              ),
+                            )
+                          : const Text(
+                              'Sign In',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 25),
+
+                  // ==================================================
+                  // SIGN UP
+                  // ==================================================
+
+                  Center(
+                    child: Wrap(
+                      alignment: WrapAlignment.center,
+                      children: [
+                        const Text(
+                          "Don't have an account? ",
+                          style: TextStyle(
+                            color: pikkXGrey,
+                            fontSize: 12,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: _openSignUp,
+                          child: const Text(
+                            'Sign Up',
+                            style: TextStyle(
+                              color: pikkXNavy,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 22),
+
+                  // ==================================================
+                  // TERMS & PRIVACY
+                  // ==================================================
+
+                  Center(
+                    child: Wrap(
+                      alignment: WrapAlignment.center,
+                      children: [
+                        const Text(
+                          'By continuing, you agree to our ',
+                          style: TextStyle(
+                            color: pikkXGrey,
+                            fontSize: 9.5,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: _openTerms,
+                          child: const Text(
+                            'Terms & Conditions',
+                            style: TextStyle(
+                              color: pikkXNavy,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        const Text(
+                          ' and ',
+                          style: TextStyle(
+                            color: pikkXGrey,
+                            fontSize: 9.5,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: _openPrivacy,
+                          child: const Text(
+                            'Privacy Policy',
+                            style: TextStyle(
+                              color: pikkXNavy,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 15),
+
+                  // ==================================================
+                  // FIREBASE NOTE
+                  // ==================================================
+
+                  const Center(
+                    child: Text(
+                      'Secure authentication powered by Firebase',
+                      style: TextStyle(
+                        color: Color(0xFF999999),
+                        fontSize: 9,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
