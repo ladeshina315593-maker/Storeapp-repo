@@ -28,15 +28,22 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> {
   // ============================================================
-  // PIKKX COLORS
+  // PIKKX THEME
   // ============================================================
+  //
+  // NEW PikkX identity:
+  // Black + White + Light Grey + Glass
+  // NO BLUE
+  // NO NAVY
+  // NO PURPLE
+  //
 
   static const Color pikkXBlack = Color(0xFF050505);
   static const Color pikkXWhite = Color(0xFFFFFFFF);
-  static const Color pikkXNavy = Color(0xFF10233F);
   static const Color pikkXBackground = Color(0xFFF7F7F7);
   static const Color pikkXGrey = Color(0xFF777777);
   static const Color pikkXLightGrey = Color(0xFFE8E8E8);
+  static const Color pikkXGlassGrey = Color(0xFFEFEFEF);
 
   // ============================================================
   // FIREBASE
@@ -68,12 +75,12 @@ class _MainPageState extends State<MainPage> {
 
       case 1:
         return CartPage(
-        onContinueShopping: () {
-          setState(() {
-            _selectedIndex = 0;
-          });
-        },
-      );
+          onContinueShopping: () {
+            setState(() {
+              _selectedIndex = 0;
+            });
+          },
+        );
 
       case 2:
         return const ChatPage();
@@ -124,7 +131,7 @@ class _MainPageState extends State<MainPage> {
               height: 46,
               width: 46,
               decoration: BoxDecoration(
-                color: pikkXWhite.withOpacity(0.72),
+                color: pikkXWhite.withOpacity(0.68),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: pikkXWhite.withOpacity(0.92),
@@ -140,7 +147,7 @@ class _MainPageState extends State<MainPage> {
               ),
               child: Icon(
                 icon,
-                color: iconColor ?? pikkXNavy,
+                color: iconColor ?? pikkXBlack,
                 size: 21,
               ),
             ),
@@ -170,34 +177,44 @@ class _MainPageState extends State<MainPage> {
 
           GestureDetector(
             onTap: _openMenu,
-            child: Container(
-              width: 46,
-              height: 46,
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: pikkXWhite,
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(
-                  color: pikkXNavy.withOpacity(0.08),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(15),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(
+                  sigmaX: 12,
+                  sigmaY: 12,
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: pikkXBlack.withOpacity(0.045),
-                    blurRadius: 14,
-                    offset: const Offset(0, 6),
+                child: Container(
+                  width: 46,
+                  height: 46,
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: pikkXWhite.withOpacity(0.70),
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(
+                      color: pikkXWhite.withOpacity(0.92),
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: pikkXBlack.withOpacity(0.045),
+                        blurRadius: 14,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: Image.asset(
-                'assets/images/pikkx_icon (1).png',
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) {
-                  return const Icon(
-                    Icons.shopping_bag_rounded,
-                    color: pikkXNavy,
-                    size: 24,
-                  );
-                },
+                  child: Image.asset(
+                    'assets/images/pikkx_icon (1).png',
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) {
+                      return const Icon(
+                        Icons.shopping_bag_rounded,
+                        color: pikkXBlack,
+                        size: 24,
+                      );
+                    },
+                  ),
+                ),
               ),
             ),
           ),
@@ -211,17 +228,8 @@ class _MainPageState extends State<MainPage> {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Welcome to',
-                  style: TextStyle(
-                    color: pikkXGrey,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 1),
-                const Text(
+              children: const [
+                Text(
                   'pikkX',
                   style: TextStyle(
                     color: pikkXBlack,
@@ -252,27 +260,37 @@ class _MainPageState extends State<MainPage> {
                 _selectedIndex = 4;
               });
             },
-            child: Container(
-              height: 46,
-              width: 46,
-              padding: const EdgeInsets.all(2),
-              decoration: BoxDecoration(
-                color: pikkXWhite,
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(
-                  color: pikkXNavy.withOpacity(0.08),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(15),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(
+                  sigmaX: 12,
+                  sigmaY: 12,
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: pikkXBlack.withOpacity(0.045),
-                    blurRadius: 14,
-                    offset: const Offset(0, 6),
+                child: Container(
+                  height: 46,
+                  width: 46,
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: pikkXWhite.withOpacity(0.70),
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(
+                      color: pikkXWhite.withOpacity(0.92),
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: pikkXBlack.withOpacity(0.045),
+                        blurRadius: 14,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(13),
-                child: _buildProfileImage(),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(13),
+                    child: _buildProfileImage(),
+                  ),
+                ),
               ),
             ),
           ),
@@ -333,7 +351,7 @@ class _MainPageState extends State<MainPage> {
                   ),
                   alignment: Alignment.center,
                   decoration: const BoxDecoration(
-                    color: pikkXNavy,
+                    color: pikkXBlack,
                     shape: BoxShape.circle,
                   ),
                   child: Text(
@@ -377,7 +395,7 @@ class _MainPageState extends State<MainPage> {
       color: pikkXBackground,
       child: const Icon(
         Icons.person_outline_rounded,
-        color: pikkXNavy,
+        color: pikkXBlack,
         size: 25,
       ),
     );
@@ -444,7 +462,6 @@ class _MainPageState extends State<MainPage> {
                   fontWeight: FontWeight.w400,
                 ),
               ),
-
               if (second.isNotEmpty) ...[
                 const SizedBox(height: 2),
                 Text(
@@ -460,13 +477,11 @@ class _MainPageState extends State<MainPage> {
               ],
             ],
           ),
-
           const Spacer(),
-
           if (_selectedIndex == 1)
             _glassIcon(
               Icons.delete_outline_rounded,
-              iconColor: pikkXNavy,
+              iconColor: pikkXBlack,
               onPressed: _clearCart,
             ),
         ],
@@ -513,7 +528,7 @@ class _MainPageState extends State<MainPage> {
             ),
             child: Container(
               decoration: BoxDecoration(
-                color: pikkXWhite.withOpacity(0.90),
+                color: pikkXWhite.withOpacity(0.88),
                 borderRadius: BorderRadius.circular(30),
                 border: Border.all(
                   color: pikkXWhite.withOpacity(0.95),
@@ -543,8 +558,7 @@ class _MainPageState extends State<MainPage> {
                       height: 5,
                       decoration: BoxDecoration(
                         color: pikkXLightGrey,
-                        borderRadius:
-                            BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
 
@@ -553,27 +567,23 @@ class _MainPageState extends State<MainPage> {
                     // BRAND
                     Row(
                       children: [
-                        Container(
-                          width: 42,
-                          height: 42,
-                          padding:
-                              const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(13),
+                          child: Container(
+                            width: 42,
+                            height: 42,
+                            padding: const EdgeInsets.all(6),
                             color: pikkXBackground,
-                            borderRadius:
-                                BorderRadius.circular(13),
-                          ),
-                          child: Image.asset(
-                            'assets/images/pikkx_icon (1).png',
-                            fit: BoxFit.contain,
-                            errorBuilder:
-                                (_, __, ___) {
-                              return const Icon(
-                                Icons
-                                    .shopping_bag_rounded,
-                                color: pikkXNavy,
-                              );
-                            },
+                            child: Image.asset(
+                              'assets/images/pikkx_icon (1).png',
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) {
+                                return const Icon(
+                                  Icons.shopping_bag_rounded,
+                                  color: pikkXBlack,
+                                );
+                              },
+                            ),
                           ),
                         ),
 
@@ -706,12 +716,12 @@ class _MainPageState extends State<MainPage> {
                   color: pikkXBackground,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: pikkXNavy.withOpacity(0.05),
+                    color: pikkXBlack.withOpacity(0.05),
                   ),
                 ),
                 child: Icon(
                   icon,
-                  color: iconColor ?? pikkXNavy,
+                  color: iconColor ?? pikkXBlack,
                   size: 21,
                 ),
               ),
@@ -807,7 +817,7 @@ class _MainPageState extends State<MainPage> {
               child: const Text(
                 'Clear',
                 style: TextStyle(
-                  color: pikkXNavy,
+                  color: pikkXBlack,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -896,7 +906,7 @@ class _MainPageState extends State<MainPage> {
               child: const Text(
                 'Log Out',
                 style: TextStyle(
-                  color: pikkXNavy,
+                  color: pikkXBlack,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -914,10 +924,6 @@ class _MainPageState extends State<MainPage> {
       await _auth.signOut();
 
       if (!mounted) return;
-
-      _showMessage(
-        'You have been logged out.',
-      );
 
       Navigator.of(context).pushNamedAndRemoveUntil(
         '/login',
@@ -950,7 +956,7 @@ class _MainPageState extends State<MainPage> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        backgroundColor: pikkXNavy,
+        backgroundColor: pikkXBlack,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
@@ -978,27 +984,24 @@ class _MainPageState extends State<MainPage> {
             Container(
               color: pikkXBackground,
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                      _title(),
+                  // Only show this navigation-shell header
+                  // on non-home pages.
+                  if (_selectedIndex != 0) _appBar(),
+
+                  _title(),
 
                   Expanded(
                     child: AnimatedSwitcher(
-                      duration:
-                          const Duration(
+                      duration: const Duration(
                         milliseconds: 260,
                       ),
-                      switchInCurve:
-                          Curves.easeOut,
-                      switchOutCurve:
-                          Curves.easeIn,
+                      switchInCurve: Curves.easeOut,
+                      switchOutCurve: Curves.easeIn,
                       child: KeyedSubtree(
-                        key: ValueKey(
-                          _selectedIndex,
-                        ),
-                        child:
-                            _buildCurrentPage(),
+                        key: ValueKey(_selectedIndex),
+                        child: _buildCurrentPage(),
                       ),
                     ),
                   ),
@@ -1014,10 +1017,8 @@ class _MainPageState extends State<MainPage> {
               bottom: 0,
               left: 0,
               right: 0,
-              child:
-                  CustomBottomNavigationBar(
-                selectedIndex:
-                    _selectedIndex,
+              child: CustomBottomNavigationBar(
+                selectedIndex: _selectedIndex,
                 onIconPressedCallback:
                     _onBottomIconPressed,
               ),
@@ -1036,112 +1037,84 @@ class _MainPageState extends State<MainPage> {
 class FavouritePage extends StatelessWidget {
   const FavouritePage({super.key});
 
-  static const Color pikkXBlack =
-      Color(0xFF050505);
-
-  static const Color pikkXWhite =
-      Color(0xFFFFFFFF);
-
-  static const Color pikkXNavy =
-      Color(0xFF10233F);
-
-  static const Color pikkXBackground =
-      Color(0xFFF7F7F7);
+  static const Color pikkXBlack = Color(0xFF050505);
+  static const Color pikkXWhite = Color(0xFFFFFFFF);
+  static const Color pikkXBackground = Color(0xFFF7F7F7);
+  static const Color pikkXGrey = Color(0xFF777777);
 
   @override
   Widget build(BuildContext context) {
-    final user =
-        FirebaseAuth.instance.currentUser;
+    final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
       return const _SimpleEmptyState(
-        icon:
-            Icons.favorite_outline_rounded,
-        title:
-            'Sign in to view favourites',
-        subtitle:
-            'Your saved products will appear here.',
+        icon: Icons.favorite_outline_rounded,
+        title: 'Sign in to view favourites',
+        subtitle: 'Your saved products will appear here.',
       );
     }
 
     return StreamBuilder<
-        QuerySnapshot<
-            Map<String, dynamic>>>(
+        QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .collection('favorites')
           .snapshots(),
-      builder:
-          (context, snapshot) {
+      builder: (context, snapshot) {
         if (snapshot.connectionState ==
             ConnectionState.waiting) {
           return const Center(
-            child:
-                CircularProgressIndicator(
-              color: pikkXNavy,
+            child: CircularProgressIndicator(
+              color: pikkXBlack,
             ),
           );
         }
 
         if (snapshot.hasError) {
           return const _SimpleEmptyState(
-            icon:
-                Icons.error_outline_rounded,
-            title:
-                'Could not load favourites',
-            subtitle:
-                'Please try again.',
+            icon: Icons.error_outline_rounded,
+            title: 'Could not load favourites',
+            subtitle: 'Please try again.',
           );
         }
 
-        final docs =
-            snapshot.data?.docs ?? [];
+        final docs = snapshot.data?.docs ?? [];
 
         if (docs.isEmpty) {
           return const _SimpleEmptyState(
-            icon:
-                Icons.favorite_outline_rounded,
-            title:
-                'No favourites yet',
+            icon: Icons.favorite_outline_rounded,
+            title: 'No favourites yet',
             subtitle:
                 'Products you save will appear here.',
           );
         }
 
         return ListView.builder(
-          padding:
-              const EdgeInsets.fromLTRB(
+          padding: const EdgeInsets.fromLTRB(
             16,
             5,
             16,
             90,
           ),
           itemCount: docs.length,
-          itemBuilder:
-              (context, index) {
-            final data =
-                docs[index].data();
+          itemBuilder: (context, index) {
+            final data = docs[index].data();
 
             final name =
-                data['name']?.toString() ??
-                    'Product';
+                data['name']?.toString() ?? 'Product';
 
             final price =
-                data['price']?.toString() ??
-                    '0';
+                data['price']?.toString() ?? '0';
 
             return Padding(
-              padding:
-                  const EdgeInsets.only(
+              padding: const EdgeInsets.only(
                 bottom: 12,
               ),
-              child:
-                  _GlassListTile(
-                icon:
-                    Icons.favorite_rounded,
+              child: _GlassListTile(
+                icon: Icons.favorite_rounded,
                 title: name,
-                subtitle: '₦$price',
+                subtitle: price,
               ),
             );
           },
@@ -1155,50 +1128,31 @@ class FavouritePage extends StatelessWidget {
 // PROFILE PAGE
 // ==================================================================
 
-class ProfilePage
-    extends StatelessWidget {
+class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
-  static const Color pikkXBlack =
-      Color(0xFF050505);
-
-  static const Color pikkXWhite =
-      Color(0xFFFFFFFF);
-
-  static const Color pikkXNavy =
-      Color(0xFF10233F);
-
-  static const Color pikkXBackground =
-      Color(0xFFF7F7F7);
-
-  static const Color pikkXGrey =
-      Color(0xFF777777);
+  static const Color pikkXBlack = Color(0xFF050505);
+  static const Color pikkXWhite = Color(0xFFFFFFFF);
+  static const Color pikkXBackground = Color(0xFFF7F7F7);
+  static const Color pikkXGrey = Color(0xFF777777);
 
   @override
   Widget build(BuildContext context) {
-    final user =
-        FirebaseAuth.instance.currentUser;
+    final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
       return const _SimpleEmptyState(
-        icon:
-            Icons.person_outline_rounded,
-        title:
-            'You are not signed in',
-        subtitle:
-            'Sign in to view your profile.',
+        icon: Icons.person_outline_rounded,
+        title: 'You are not signed in',
+        subtitle: 'Sign in to view your profile.',
       );
     }
 
-    final name =
-        user.displayName?.trim();
-
-    final email =
-        user.email ?? '';
+    final name = user.displayName?.trim();
+    final email = user.email ?? '';
 
     return ListView(
-      padding:
-          const EdgeInsets.fromLTRB(
+      padding: const EdgeInsets.fromLTRB(
         16,
         5,
         16,
@@ -1210,33 +1164,25 @@ class ProfilePage
         // --------------------------------------------------------
 
         ClipRRect(
-          borderRadius:
-              BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(28),
           child: BackdropFilter(
             filter: ImageFilter.blur(
               sigmaX: 16,
               sigmaY: 16,
             ),
             child: Container(
-              padding:
-                  const EdgeInsets.all(22),
-              decoration:
-                  BoxDecoration(
-                color:
-                    pikkXWhite.withOpacity(0.72),
-                borderRadius:
-                    BorderRadius.circular(28),
+              padding: const EdgeInsets.all(22),
+              decoration: BoxDecoration(
+                color: pikkXWhite.withOpacity(0.72),
+                borderRadius: BorderRadius.circular(28),
                 border: Border.all(
-                  color:
-                      pikkXWhite.withOpacity(0.92),
+                  color: pikkXWhite.withOpacity(0.92),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color:
-                        pikkXBlack.withOpacity(0.04),
+                    color: pikkXBlack.withOpacity(0.04),
                     blurRadius: 20,
-                    offset:
-                        const Offset(0, 8),
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),
@@ -1244,59 +1190,42 @@ class ProfilePage
                 children: [
                   CircleAvatar(
                     radius: 42,
-                    backgroundColor:
-                        pikkXBackground,
+                    backgroundColor: pikkXBackground,
                     backgroundImage:
                         user.photoURL != null &&
-                                user.photoURL!
-                                    .isNotEmpty
-                            ? NetworkImage(
-                                user.photoURL!,
-                              )
+                                user.photoURL!.isNotEmpty
+                            ? NetworkImage(user.photoURL!)
                             : null,
                     child:
                         user.photoURL == null ||
-                                user.photoURL!
-                                    .isEmpty
+                                user.photoURL!.isEmpty
                             ? const Icon(
-                                Icons
-                                    .person_outline_rounded,
+                                Icons.person_outline_rounded,
                                 size: 42,
-                                color:
-                                    pikkXNavy,
+                                color: pikkXBlack,
                               )
                             : null,
                   ),
 
-                  const SizedBox(
-                    height: 14,
-                  ),
+                  const SizedBox(height: 14),
 
                   Text(
-                    (name == null ||
-                            name.isEmpty)
+                    (name == null || name.isEmpty)
                         ? 'pikkX User'
                         : name,
-                    style:
-                        const TextStyle(
+                    style: const TextStyle(
                       fontSize: 21,
-                      fontWeight:
-                          FontWeight.w900,
-                      color:
-                          pikkXBlack,
+                      fontWeight: FontWeight.w900,
+                      color: pikkXBlack,
                     ),
                   ),
 
                   if (email.isNotEmpty) ...[
-                    const SizedBox(
-                      height: 5,
-                    ),
+                    const SizedBox(height: 5),
                     Text(
                       email,
-                      style:
-                          const TextStyle(
-                        color:
-                            pikkXGrey,
+                      style: const TextStyle(
+                        color: pikkXGrey,
                         fontSize: 13,
                       ),
                     ),
@@ -1310,18 +1239,14 @@ class ProfilePage
         const SizedBox(height: 18),
 
         _GlassListTile(
-          icon:
-              Icons.shopping_bag_outlined,
-          title:
-              'My Orders',
-          subtitle:
-              'View your orders',
+          icon: Icons.shopping_bag_outlined,
+          title: 'My Orders',
+          subtitle: 'View your orders',
           onTap: () {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) =>
-                    const OrdersPage(),
+                builder: (_) => const OrdersPage(),
               ),
             );
           },
@@ -1330,12 +1255,9 @@ class ProfilePage
         const SizedBox(height: 10),
 
         _GlassListTile(
-          icon:
-              Icons.location_on_outlined,
-          title:
-              'Delivery Addresses',
-          subtitle:
-              'Manage your addresses',
+          icon: Icons.location_on_outlined,
+          title: 'Delivery Addresses',
+          subtitle: 'Manage your addresses',
           onTap: () {
             Navigator.push(
               context,
@@ -1350,18 +1272,30 @@ class ProfilePage
         const SizedBox(height: 10),
 
         _GlassListTile(
-          icon:
-              Icons.settings_outlined,
-          title:
-              'Settings',
-          subtitle:
-              'Manage your account',
+          icon: Icons.favorite_outline_rounded,
+          title: 'My Favourites',
+          subtitle: 'View saved products',
           onTap: () {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) =>
-                    const SettingsPage(),
+                builder: (_) => const FavouritePage(),
+              ),
+            );
+          },
+        ),
+
+        const SizedBox(height: 10),
+
+        _GlassListTile(
+          icon: Icons.settings_outlined,
+          title: 'Settings',
+          subtitle: 'Manage your account',
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const SettingsPage(),
               ),
             );
           },
@@ -1375,8 +1309,7 @@ class ProfilePage
 // GLASS LIST TILE
 // ==================================================================
 
-class _GlassListTile
-    extends StatelessWidget {
+class _GlassListTile extends StatelessWidget {
   const _GlassListTile({
     required this.icon,
     required this.title,
@@ -1389,74 +1322,56 @@ class _GlassListTile
   final String? subtitle;
   final VoidCallback? onTap;
 
-  static const Color pikkXBlack =
-      Color(0xFF050505);
-
-  static const Color pikkXWhite =
-      Color(0xFFFFFFFF);
-
-  static const Color pikkXNavy =
-      Color(0xFF10233F);
-
-  static const Color pikkXBackground =
-      Color(0xFFF7F7F7);
-
-  static const Color pikkXGrey =
-      Color(0xFF777777);
+  static const Color pikkXBlack = Color(0xFF050505);
+  static const Color pikkXWhite = Color(0xFFFFFFFF);
+  static const Color pikkXBackground = Color(0xFFF7F7F7);
+  static const Color pikkXGrey = Color(0xFF777777);
 
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius:
-          BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(22),
       child: BackdropFilter(
         filter: ImageFilter.blur(
           sigmaX: 14,
           sigmaY: 14,
         ),
         child: Material(
-          color:
-              pikkXWhite.withOpacity(0.72),
+          color: pikkXWhite.withOpacity(0.70),
           child: InkWell(
             onTap: onTap,
-            borderRadius:
-                BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(22),
             child: Container(
-              padding:
-                  const EdgeInsets.all(15),
-              decoration:
-                  BoxDecoration(
+              padding: const EdgeInsets.all(15),
+              decoration: BoxDecoration(
                 border: Border.all(
-                  color:
-                      pikkXWhite.withOpacity(0.90),
+                  color: pikkXWhite.withOpacity(0.90),
                 ),
-                borderRadius:
-                    BorderRadius.circular(22),
+                borderRadius: BorderRadius.circular(22),
+                boxShadow: [
+                  BoxShadow(
+                    color: pikkXBlack.withOpacity(0.025),
+                    blurRadius: 14,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
               ),
               child: Row(
                 children: [
                   Container(
                     width: 45,
                     height: 45,
-                    decoration:
-                        BoxDecoration(
-                      color:
-                          pikkXBackground,
-                      borderRadius:
-                          BorderRadius.circular(
-                        15,
-                      ),
+                    decoration: BoxDecoration(
+                      color: pikkXBackground,
+                      borderRadius: BorderRadius.circular(15),
                     ),
                     child: Icon(
                       icon,
-                      color:
-                          pikkXNavy,
+                      color: pikkXBlack,
                     ),
                   ),
 
-                  const SizedBox(
-                    width: 13,
-                  ),
+                  const SizedBox(width: 13),
 
                   Expanded(
                     child: Column(
@@ -1465,26 +1380,19 @@ class _GlassListTile
                       children: [
                         Text(
                           title,
-                          style:
-                              const TextStyle(
-                            fontWeight:
-                                FontWeight.w800,
-                            color:
-                                pikkXBlack,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: pikkXBlack,
                           ),
                         ),
 
                         if (subtitle != null) ...[
-                          const SizedBox(
-                            height: 3,
-                          ),
+                          const SizedBox(height: 3),
                           Text(
                             subtitle!,
-                            style:
-                                const TextStyle(
+                            style: const TextStyle(
                               fontSize: 12,
-                              color:
-                                  pikkXGrey,
+                              color: pikkXGrey,
                             ),
                           ),
                         ],
@@ -1494,11 +1402,9 @@ class _GlassListTile
 
                   if (onTap != null)
                     const Icon(
-                      Icons
-                          .arrow_forward_ios_rounded,
+                      Icons.arrow_forward_ios_rounded,
                       size: 14,
-                      color:
-                          pikkXGrey,
+                      color: pikkXGrey,
                     ),
                 ],
               ),
@@ -1514,8 +1420,7 @@ class _GlassListTile
 // EMPTY STATE
 // ==================================================================
 
-class _SimpleEmptyState
-    extends StatelessWidget {
+class _SimpleEmptyState extends StatelessWidget {
   const _SimpleEmptyState({
     required this.icon,
     required this.title,
@@ -1526,34 +1431,21 @@ class _SimpleEmptyState
   final String title;
   final String subtitle;
 
-  static const Color pikkXBlack =
-      Color(0xFF050505);
-
-  static const Color pikkXWhite =
-      Color(0xFFFFFFFF);
-
-  static const Color pikkXNavy =
-      Color(0xFF10233F);
-
-  static const Color pikkXBackground =
-      Color(0xFFF7F7F7);
-
-  static const Color pikkXGrey =
-      Color(0xFF777777);
+  static const Color pikkXBlack = Color(0xFF050505);
+  static const Color pikkXWhite = Color(0xFFFFFFFF);
+  static const Color pikkXBackground = Color(0xFFF7F7F7);
+  static const Color pikkXGrey = Color(0xFF777777);
 
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding:
-            const EdgeInsets.all(30),
+        padding: const EdgeInsets.all(30),
         child: Column(
-          mainAxisSize:
-              MainAxisSize.min,
+          mainAxisSize: MainAxisSize.min,
           children: [
             ClipRRect(
-              borderRadius:
-                  BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(24),
               child: BackdropFilter(
                 filter: ImageFilter.blur(
                   sigmaX: 14,
@@ -1562,31 +1454,24 @@ class _SimpleEmptyState
                 child: Container(
                   width: 78,
                   height: 78,
-                  decoration:
-                      BoxDecoration(
-                    color:
-                        pikkXWhite.withOpacity(0.72),
-                    borderRadius:
-                        BorderRadius.circular(24),
+                  decoration: BoxDecoration(
+                    color: pikkXWhite.withOpacity(0.70),
+                    borderRadius: BorderRadius.circular(24),
                     border: Border.all(
-                      color:
-                          pikkXWhite.withOpacity(0.92),
+                      color: pikkXWhite.withOpacity(0.92),
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color:
-                            pikkXBlack.withOpacity(0.04),
+                        color: pikkXBlack.withOpacity(0.04),
                         blurRadius: 18,
-                        offset:
-                            const Offset(0, 7),
+                        offset: const Offset(0, 7),
                       ),
                     ],
                   ),
                   child: Icon(
                     icon,
                     size: 40,
-                    color:
-                        pikkXNavy,
+                    color: pikkXBlack,
                   ),
                 ),
               ),
@@ -1596,15 +1481,11 @@ class _SimpleEmptyState
 
             Text(
               title,
-              textAlign:
-                  TextAlign.center,
-              style:
-                  const TextStyle(
+              textAlign: TextAlign.center,
+              style: const TextStyle(
                 fontSize: 19,
-                fontWeight:
-                    FontWeight.w800,
-                color:
-                    pikkXBlack,
+                fontWeight: FontWeight.w800,
+                color: pikkXBlack,
               ),
             ),
 
@@ -1612,12 +1493,9 @@ class _SimpleEmptyState
 
             Text(
               subtitle,
-              textAlign:
-                  TextAlign.center,
-              style:
-                  const TextStyle(
-                color:
-                    pikkXGrey,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: pikkXGrey,
                 height: 1.4,
               ),
             ),
@@ -1627,4 +1505,3 @@ class _SimpleEmptyState
     );
   }
 }
-
