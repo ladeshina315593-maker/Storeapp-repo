@@ -50,7 +50,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
   // ============================================================
   // pikkX IDENTITY
-  // BLACK + WHITE + SMALL NAVY ACCENT
   // ============================================================
 
   static const Color pikkXBlack =
@@ -518,13 +517,12 @@ class _MyHomePageState extends State<MyHomePage> {
       padding:
           const EdgeInsets.fromLTRB(
         20,
-        14,
+        4,
         20,
-        12,
+        8,
       ),
       child: Row(
         children: [
-          // LOGO
           Container(
             width: 48,
             height: 48,
@@ -558,44 +556,21 @@ class _MyHomePageState extends State<MyHomePage> {
             width: 12,
           ),
 
-          Expanded(
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
-              children: [
-                Text(
-                  'Welcome to',
-                  style:
-                      TextStyle(
-                    color: LightColor
-                        .mutedText,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(
-                  height: 2,
-                ),
-                const Text(
-                  'pikkX',
-                  style:
-                      TextStyle(
-                    color:
-                        pikkXBlack,
-                    fontSize: 25,
-                    fontWeight:
-                        FontWeight.w900,
-                    letterSpacing:
-                        -.8,
-                  ),
-                ),
-              ],
+          const Expanded(
+            child: Text(
+              'pikkX',
+              style:
+                  TextStyle(
+                color:
+                    pikkXBlack,
+                fontSize: 25,
+                fontWeight:
+                    FontWeight.w900,
+                letterSpacing:
+                    -.8,
+              ),
             ),
           ),
-
-          // ======================================================
-          // NOTIFICATIONS
-          // ======================================================
 
           StreamBuilder<
               QuerySnapshot<
@@ -677,10 +652,6 @@ class _MyHomePageState extends State<MyHomePage> {
             width: 8,
           ),
 
-          // ======================================================
-          // DISPATCH TRACKING BIKE
-          // ======================================================
-
           _headerButton(
             Icons.delivery_dining_rounded,
             onTap:
@@ -690,10 +661,6 @@ class _MyHomePageState extends State<MyHomePage> {
           const SizedBox(
             width: 8,
           ),
-
-          // ======================================================
-          // PROFILE
-          // ======================================================
 
           StreamBuilder<
               DocumentSnapshot<
@@ -817,9 +784,9 @@ class _MyHomePageState extends State<MyHomePage> {
       padding:
           const EdgeInsets.fromLTRB(
         20,
-        4,
+        2,
         20,
-        14,
+        10,
       ),
       child: ClipRRect(
         borderRadius:
@@ -1043,7 +1010,7 @@ class _MyHomePageState extends State<MyHomePage> {
       padding:
           const EdgeInsets.fromLTRB(
         20,
-        20,
+        12,
         20,
         6,
       ),
@@ -1279,7 +1246,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       const EdgeInsets
                           .fromLTRB(
                     20,
-                    24,
+                    14,
                     20,
                     8,
                   ),
