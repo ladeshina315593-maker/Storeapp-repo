@@ -1,9 +1,12 @@
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_ecommerce_app/src/themes/theme.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -13,22 +16,17 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  final FirebaseFirestore _firestore =
-      FirebaseFirestore.instance;
-
-  final FirebaseAuth _auth =
-      FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final ImagePicker _picker = ImagePicker();
 
   bool _isLoading = true;
+  bool _isUploadingPhoto = false;
 
   String _name = 'Your Name';
   String _email = '';
   String _phone = '';
   String _photoUrl = '';
-
-  // ============================================================
-  // INIT
-  // ============================================================
 
   @override
   void initState() {
@@ -102,13 +100,12 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // ============================================================
-  // GLASS FIXTURE
+  // GLASS CONTAINER
   // ============================================================
 
   Widget _glassContainer({
     required Widget child,
-    EdgeInsetsGeometry padding =
-        const EdgeInsets.all(16),
+    EdgeInsetsGeometry padding = const EdgeInsets.all(16),
   }) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
@@ -123,7 +120,7 @@ class _ProfilePageState extends State<ProfilePage> {
             color: Colors.white.withOpacity(0.72),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: Colors.white.withOpacity(0.92),
+              color: Colors.white.withOpacity(0.95),
               width: 1,
             ),
             boxShadow: [
@@ -146,17 +143,17 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _profileHeader() {
     return _glassContainer(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           _profileImage(),
 
-          const SizedBox(width: 15),
+          const SizedBox(width: 14),
 
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   _name,
@@ -164,14 +161,13 @@ class _ProfilePageState extends State<ProfilePage> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: AppTheme.pikkXBlack,
-                    fontSize: 20,
+                    fontSize: 19,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
 
-                const SizedBox(height: 5),
-
-                if (_email.isNotEmpty)
+                if (_email.isNotEmpty) ...[
+                  const SizedBox(height: 4),
                   Text(
                     _email,
                     maxLines: 1,
@@ -181,6 +177,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       fontSize: 12,
                     ),
                   ),
+                ],
 
                 if (_phone.isNotEmpty) ...[
                   const SizedBox(height: 3),
@@ -198,92 +195,243 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
 
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
 
-          _editButton(),
+          _editProfileButton(),
         ],
       ),
     );
   }
 
   // ============================================================
-  // PROFILE IMAGE
+  // PROFILE IMAGE + PENCIL BADGE
   // ============================================================
 
   Widget _profileImage() {
-    return Container(
-      height: 72,
-      width: 72,
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.white.withOpacity(0.78),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.95),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.pikkXNavy.withOpacity(0.12),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+    return GestureDetector(
+      onTap: _changeProfilePicture,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            height: 76,
+            width: 76,
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withOpacity(0.82),
+              border: Border.all(
+                color: Colors.white,
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: ClipOval(
+              child: _photoUrl.isNotEmpty
+                  ? Image.network(
+                      _photoUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (
+                        context,
+                        error,
+                        stackTrace,
+                      ) {
+                        return _defaultProfileIcon();
+                      },
+                    )
+                  : _defaultProfileIcon(),
+            ),
           ),
+
+          // CLEAR PENCIL
+          Positioned(
+            right: -2,
+            bottom: -2,
+            child: Container(
+              height: 29,
+              width: 29,
+              decoration: BoxDecoration(
+                color: AppTheme.pikkXBlack,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white,
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.14),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.edit_rounded,
+                color: Colors.white,
+                size: 14,
+              ),
+            ),
+          ),
+
+          if (_isUploadingPhoto)
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.42),
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
-      ),
-      child: ClipOval(
-        child: _photoUrl.isNotEmpty
-            ? Image.network(
-                _photoUrl,
-                fit: BoxFit.cover,
-                errorBuilder:
-                    (context, error, stackTrace) {
-                  return _defaultProfileIcon();
-                },
-              )
-            : _defaultProfileIcon(),
       ),
     );
   }
 
   Widget _defaultProfileIcon() {
     return Container(
-      color: const Color(0xFFF0F2F5),
+      color: const Color(0xFFF0F0F0),
       child: Icon(
         Icons.person_rounded,
-        color: AppTheme.pikkXNavy,
+        color: AppTheme.pikkXBlack,
         size: 38,
       ),
     );
   }
 
   // ============================================================
-  // EDIT BUTTON
+  // EDIT PROFILE BUTTON
   // ============================================================
 
-  Widget _editButton() {
+  Widget _editProfileButton() {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: _openEditProfile,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(15),
         child: Container(
           height: 42,
-          width: 42,
+          padding: const EdgeInsets.symmetric(horizontal: 11),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.75),
-            borderRadius: BorderRadius.circular(14),
+            color: Colors.white.withOpacity(0.82),
+            borderRadius: BorderRadius.circular(15),
             border: Border.all(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white,
+              width: 1,
             ),
           ),
-          child: Icon(
-            Icons.edit_rounded,
-            color: AppTheme.pikkXNavy,
-            size: 19,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.edit_rounded,
+                color: AppTheme.pikkXBlack,
+                size: 16,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Edit Profile',
+                style: TextStyle(
+                  color: AppTheme.pikkXBlack,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
+  }
+
+  // ============================================================
+  // CHANGE PROFILE PICTURE
+  // ============================================================
+
+  Future<void> _changeProfilePicture() async {
+    final user = _auth.currentUser;
+
+    if (user == null || _isUploadingPhoto) return;
+
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1200,
+        maxHeight: 1200,
+      );
+
+      if (pickedFile == null) return;
+
+      if (!mounted) return;
+
+      setState(() {
+        _isUploadingPhoto = true;
+      });
+
+      final file = File(pickedFile.path);
+
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('profile_pictures')
+          .child('${user.uid}.jpg');
+
+      await storageRef.putFile(file);
+
+      final downloadUrl =
+          await storageRef.getDownloadURL();
+
+      await user.updatePhotoURL(downloadUrl);
+
+      await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .set(
+        {
+          'photoUrl': downloadUrl,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _photoUrl = downloadUrl;
+        _isUploadingPhoto = false;
+      });
+
+      _showMessage(
+        'Profile picture updated successfully.',
+      );
+    } catch (e) {
+      debugPrint('Profile picture upload error: $e');
+
+      if (!mounted) return;
+
+      setState(() {
+        _isUploadingPhoto = false;
+      });
+
+      _showMessage(
+        'Unable to update profile picture. Please try again.',
+      );
+    }
   }
 
   // ============================================================
@@ -294,7 +442,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Padding(
       padding: const EdgeInsets.only(
         left: 4,
-        bottom: 10,
+        bottom: 9,
       ),
       child: Text(
         title,
@@ -318,9 +466,7 @@ class _ProfilePageState extends State<ProfilePage> {
     VoidCallback? onTap,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(
-        bottom: 10,
-      ),
+      padding: const EdgeInsets.only(bottom: 9),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: Material(
@@ -330,8 +476,8 @@ class _ProfilePageState extends State<ProfilePage> {
             borderRadius: BorderRadius.circular(20),
             child: _glassContainer(
               padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 13,
+                horizontal: 13,
+                vertical: 12,
               ),
               child: Row(
                 children: [
@@ -339,18 +485,17 @@ class _ProfilePageState extends State<ProfilePage> {
                     height: 42,
                     width: 42,
                     decoration: BoxDecoration(
-                      color:
-                          AppTheme.pikkXNavy.withOpacity(0.08),
+                      color: Colors.black.withOpacity(0.055),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       icon,
-                      color: AppTheme.pikkXNavy,
+                      color: AppTheme.pikkXBlack,
                       size: 20,
                     ),
                   ),
 
-                  const SizedBox(width: 13),
+                  const SizedBox(width: 12),
 
                   Expanded(
                     child: Column(
@@ -365,11 +510,11 @@ class _ProfilePageState extends State<ProfilePage> {
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-
                         const SizedBox(height: 3),
-
                         Text(
                           subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: AppTheme.mutedText,
                             fontSize: 10,
@@ -382,7 +527,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   Icon(
                     Icons.arrow_forward_ios_rounded,
                     color: AppTheme.mutedText,
-                    size: 15,
+                    size: 14,
                   ),
                 ],
               ),
@@ -402,39 +547,52 @@ class _ProfilePageState extends State<ProfilePage> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) {
+      builder: (sheetContext) {
         return _EditProfileSheet(
           currentName: _name,
-          onSave: _saveProfileName,
+          currentPhotoUrl: _photoUrl,
+          onSave: _saveProfile,
+          onChangePhoto: _changeProfilePicture,
+          isUploadingPhoto: _isUploadingPhoto,
         );
       },
     );
   }
 
-  Future<void> _saveProfileName(String name) async {
+  Future<void> _saveProfile(String name) async {
     final user = _auth.currentUser;
 
-    if (user == null) return;
+    if (user == null) {
+      throw Exception('No authenticated user.');
+    }
+
+    final cleanName = name.trim();
+
+    if (cleanName.isEmpty) {
+      throw Exception('Name cannot be empty.');
+    }
 
     await _firestore
         .collection('users')
         .doc(user.uid)
         .set(
       {
-        'name': name,
-        'email': user.email ?? '',
-        'phone': user.phoneNumber ?? '',
+        'uid': user.uid,
+        'name': cleanName,
+        'email': user.email ?? _email,
+        'phone': user.phoneNumber ?? _phone,
+        'photoUrl': _photoUrl,
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
     );
 
-    await user.updateDisplayName(name);
+    await user.updateDisplayName(cleanName);
 
     if (!mounted) return;
 
     setState(() {
-      _name = name;
+      _name = cleanName;
     });
 
     _showMessage('Profile updated successfully.');
@@ -458,10 +616,27 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  void _openFavourites() {
+    Navigator.pushNamed(
+      context,
+      '/favourites',
+    );
+  }
+
   void _openSettings() {
     Navigator.pushNamed(
       context,
       '/settings',
+    );
+  }
+
+  // ============================================================
+  // SECURITY
+  // ============================================================
+
+  void _openSecurity() {
+    _showMessage(
+      'Security settings will be connected here.',
     );
   }
 
@@ -499,7 +674,7 @@ class _ProfilePageState extends State<ProfilePage> {
               child: Text(
                 'Cancel',
                 style: TextStyle(
-                  color: AppTheme.pikkXNavy,
+                  color: AppTheme.pikkXBlack,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -552,16 +727,6 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // ============================================================
-  // SECURITY
-  // ============================================================
-
-  void _openSecurity() {
-    _showMessage(
-      'Security settings will be connected here.',
-    );
-  }
-
-  // ============================================================
   // MESSAGE
   // ============================================================
 
@@ -588,13 +753,13 @@ class _ProfilePageState extends State<ProfilePage> {
     if (_isLoading) {
       return Center(
         child: CircularProgressIndicator(
-          color: AppTheme.pikkXNavy,
+          color: AppTheme.pikkXBlack,
         ),
       );
     }
 
     return RefreshIndicator(
-      color: AppTheme.pikkXNavy,
+      color: AppTheme.pikkXBlack,
       onRefresh: _loadProfile,
       child: ListView(
         physics: const BouncingScrollPhysics(),
@@ -602,56 +767,58 @@ class _ProfilePageState extends State<ProfilePage> {
           20,
           12,
           20,
-          120,
+          110,
         ),
         children: [
           _profileHeader(),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 18),
 
           _sectionTitle('Account'),
 
           _profileOption(
             icon: Icons.receipt_long_rounded,
             title: 'My Orders',
-            subtitle:
-                'View your active and previous orders',
+            subtitle: 'View your active and previous orders',
             onTap: _openOrders,
           ),
 
           _profileOption(
             icon: Icons.location_on_outlined,
             title: 'Delivery Addresses',
-            subtitle:
-                'Manage your saved delivery addresses',
+            subtitle: 'Manage your saved delivery addresses',
             onTap: _openAddresses,
+          ),
+
+          _profileOption(
+            icon: Icons.favorite_outline_rounded,
+            title: 'Favourites',
+            subtitle: 'View your saved favourite products',
+            onTap: _openFavourites,
           ),
 
           _profileOption(
             icon: Icons.settings_outlined,
             title: 'Settings',
-            subtitle:
-                'Manage your pikkX preferences',
+            subtitle: 'Manage your PikkX preferences',
             onTap: _openSettings,
           ),
 
-          const SizedBox(height: 10),
+          const SizedBox(height: 7),
 
           _sectionTitle('Security'),
 
           _profileOption(
             icon: Icons.lock_outline_rounded,
             title: 'Password & Security',
-            subtitle:
-                'Manage your account security',
+            subtitle: 'Manage your account security',
             onTap: _openSecurity,
           ),
 
           _profileOption(
             icon: Icons.logout_rounded,
             title: 'Log Out',
-            subtitle:
-                'Sign out of your pikkX account',
+            subtitle: 'Sign out of your PikkX account',
             onTap: _signOut,
           ),
         ],
@@ -693,11 +860,17 @@ class _ProfilePageState extends State<ProfilePage> {
 
 class _EditProfileSheet extends StatefulWidget {
   final String currentName;
+  final String currentPhotoUrl;
   final Future<void> Function(String name) onSave;
+  final Future<void> Function() onChangePhoto;
+  final bool isUploadingPhoto;
 
   const _EditProfileSheet({
     required this.currentName,
+    required this.currentPhotoUrl,
     required this.onSave,
+    required this.onChangePhoto,
+    required this.isUploadingPhoto,
   });
 
   @override
@@ -707,7 +880,7 @@ class _EditProfileSheet extends StatefulWidget {
 
 class _EditProfileSheetState
     extends State<_EditProfileSheet> {
-  late TextEditingController _nameController;
+  late final TextEditingController _nameController;
 
   bool _saving = false;
 
@@ -730,6 +903,18 @@ class _EditProfileSheetState
     final name = _nameController.text.trim();
 
     if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Please enter your name.',
+          ),
+          backgroundColor: AppTheme.pikkXBlack,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+      );
       return;
     }
 
@@ -744,6 +929,8 @@ class _EditProfileSheetState
 
       Navigator.pop(context);
     } catch (e) {
+      debugPrint('Save profile error: $e');
+
       if (!mounted) return;
 
       setState(() {
@@ -753,7 +940,7 @@ class _EditProfileSheetState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text(
-            'Unable to update profile.',
+            'Unable to update profile. Please try again.',
           ),
           backgroundColor: AppTheme.pikkXBlack,
           behavior: SnackBarBehavior.floating,
@@ -765,12 +952,86 @@ class _EditProfileSheetState
     }
   }
 
+  Widget _sheetProfileImage() {
+    return GestureDetector(
+      onTap: widget.isUploadingPhoto
+          ? null
+          : widget.onChangePhoto,
+      child: Stack(
+        children: [
+          Container(
+            height: 84,
+            width: 84,
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
+              border: Border.all(
+                color: Colors.black.withOpacity(0.08),
+                width: 1,
+              ),
+            ),
+            child: ClipOval(
+              child: widget.currentPhotoUrl.isNotEmpty
+                  ? Image.network(
+                      widget.currentPhotoUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (
+                        context,
+                        error,
+                        stackTrace,
+                      ) {
+                        return Container(
+                          color: const Color(0xFFF0F0F0),
+                          child: Icon(
+                            Icons.person_rounded,
+                            color: AppTheme.pikkXBlack,
+                            size: 40,
+                          ),
+                        );
+                      },
+                    )
+                  : Container(
+                      color: const Color(0xFFF0F0F0),
+                      child: Icon(
+                        Icons.person_rounded,
+                        color: AppTheme.pikkXBlack,
+                        size: 40,
+                      ),
+                    ),
+            ),
+          ),
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: Container(
+              height: 30,
+              width: 30,
+              decoration: BoxDecoration(
+                color: AppTheme.pikkXBlack,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white,
+                  width: 2,
+                ),
+              ),
+              child: const Icon(
+                Icons.edit_rounded,
+                color: Colors.white,
+                size: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(
-        bottom:
-            MediaQuery.of(context).viewInsets.bottom,
+        bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       child: ClipRRect(
         borderRadius: const BorderRadius.vertical(
@@ -784,14 +1045,13 @@ class _EditProfileSheetState
           child: Container(
             padding: const EdgeInsets.fromLTRB(
               20,
-              15,
+              14,
               20,
-              25,
+              24,
             ),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.94),
-              borderRadius:
-                  const BorderRadius.vertical(
+              color: Colors.white.withOpacity(0.96),
+              borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(30),
               ),
               border: Border.all(
@@ -808,22 +1068,50 @@ class _EditProfileSheetState
                     height: 5,
                     width: 45,
                     decoration: BoxDecoration(
-                      color: AppTheme.pikkXNavy
-                          .withOpacity(0.20),
+                      color: Colors.black.withOpacity(0.12),
                       borderRadius:
                           BorderRadius.circular(10),
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 18),
 
-                Text(
-                  'Edit Profile',
-                  style: TextStyle(
-                    color: AppTheme.pikkXBlack,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
+                Row(
+                  children: [
+                    Text(
+                      'Edit Profile',
+                      style: TextStyle(
+                        color: AppTheme.pikkXBlack,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      Icons.edit_rounded,
+                      color: AppTheme.pikkXBlack,
+                      size: 19,
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 18),
+
+                Center(
+                  child: Column(
+                    children: [
+                      _sheetProfileImage(),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Tap the pencil to change your photo',
+                        style: TextStyle(
+                          color: AppTheme.mutedText,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 
@@ -831,8 +1119,7 @@ class _EditProfileSheetState
 
                 TextField(
                   controller: _nameController,
-                  textInputAction:
-                      TextInputAction.done,
+                  textInputAction: TextInputAction.done,
                   style: TextStyle(
                     color: AppTheme.pikkXBlack,
                     fontWeight: FontWeight.w600,
@@ -844,7 +1131,7 @@ class _EditProfileSheetState
                     ),
                     prefixIcon: Icon(
                       Icons.person_outline_rounded,
-                      color: AppTheme.pikkXNavy,
+                      color: AppTheme.pikkXBlack,
                     ),
                     filled: true,
                     fillColor: const Color(0xFFF7F7F7),
@@ -856,23 +1143,21 @@ class _EditProfileSheetState
                   ),
                 ),
 
-                const SizedBox(height: 18),
+                const SizedBox(height: 16),
 
                 SizedBox(
                   width: double.infinity,
                   height: 52,
                   child: ElevatedButton(
-                    onPressed:
-                        _saving ? null : _save,
+                    onPressed: _saving ? null : _save,
                     style: ElevatedButton.styleFrom(
                       backgroundColor:
                           AppTheme.pikkXBlack,
                       disabledBackgroundColor:
                           const Color(0xFF777777),
                       foregroundColor: Colors.white,
-                      elevation: 5,
-                      shape:
-                          RoundedRectangleBorder(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
                         borderRadius:
                             BorderRadius.circular(17),
                       ),
@@ -887,13 +1172,24 @@ class _EditProfileSheetState
                               color: Colors.white,
                             ),
                           )
-                        : const Text(
-                            'Save Changes',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight:
-                                  FontWeight.w800,
-                            ),
+                        : const Row(
+                            mainAxisAlignment:
+                                MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.check_rounded,
+                                size: 19,
+                              ),
+                              SizedBox(width: 7),
+                              Text(
+                                'Save Changes',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight:
+                                      FontWeight.w800,
+                                ),
+                              ),
+                            ],
                           ),
                   ),
                 ),
