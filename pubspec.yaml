@@ -21,16 +21,17 @@ dependencies:
   firebase_core: ^4.12.0
   firebase_auth: ^6.5.5
   cloud_firestore: ^6.7.0
+  firebase_storage: ^13.5.0
 
   # Social Authentication
   google_sign_in: ^7.2.0
   flutter_facebook_auth: ^7.1.2
   sign_in_with_apple: ^7.0.1
 
-  # Phone Country Picker
+  # Country / Phone
   country_picker: ^2.0.27
 
-  # Camera / Image Search
+  # Images
   image_picker: ^1.1.2
 
   # File / System
@@ -40,7 +41,6 @@ dependencies:
 
   # Google Maps / Dispatch Tracking
   google_maps_flutter: ^2.13.1
-  firebase_storage: ^13.5.0
 
   # Currency / User Preferences
   shared_preferences: ^2.5.3
@@ -56,3 +56,4 @@ flutter:
 
   assets:
     - assets/
+    - assets/images/pikkx_icon (1).png
