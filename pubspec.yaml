@@ -42,6 +42,9 @@ dependencies:
   google_maps_flutter: ^2.13.1
   firebase_storage: ^13.5.0
 
+  # Currency / User Preferences
+  shared_preferences: ^2.5.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
