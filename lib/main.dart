@@ -40,12 +40,7 @@ Future<void> main() async {
   );
 
   // ==========================================================
-  // PIKKX
-  // ==========================================================
-  //
-  // Authentication UI is now email/password focused.
-  // Google Sign-In initialization has been removed.
-  //
+  // START PIKKX
   // ==========================================================
 
   runApp(const PikkXApp());
@@ -72,29 +67,40 @@ class PikkXApp extends StatelessWidget {
         scaffoldBackgroundColor:
             AppTheme.lightBackground,
 
+        // PikkX uses black/white/grey.
         primaryColor:
-            AppTheme.pikkXNavy,
+            AppTheme.pikkXBlack,
 
         colorScheme:
             AppTheme.lightTheme.colorScheme.copyWith(
-          primary: AppTheme.pikkXNavy,
-          secondary: AppTheme.pikkXNavy,
+          primary:
+              AppTheme.pikkXBlack,
+          secondary:
+              AppTheme.pikkXBlack,
         ),
 
+        // Clean Mulish typography.
+        // We deliberately keep the default weight moderate
+        // so the PikkX branding does not look too bold.
         textTheme:
             GoogleFonts.mulishTextTheme(
           AppTheme.lightTheme.textTheme,
         ).apply(
-          bodyColor: AppTheme.pikkXBlack,
-          displayColor: AppTheme.pikkXBlack,
+          bodyColor:
+              AppTheme.pikkXBlack,
+          displayColor:
+              AppTheme.pikkXBlack,
         ),
 
         appBarTheme:
             const AppBarTheme(
-          backgroundColor: Colors.transparent,
+          backgroundColor:
+              Colors.transparent,
           elevation: 0,
-          iconTheme: IconThemeData(
-            color: AppTheme.pikkXBlack,
+          iconTheme:
+              IconThemeData(
+            color:
+                AppTheme.pikkXBlack,
           ),
         ),
       ),
@@ -125,8 +131,8 @@ class PikkXApp extends StatelessWidget {
         // PHONE AUTH
         // ------------------------------------------------------
         //
-        // Kept for now so existing app code does not break.
-        // It is not shown on the new Login/Sign Up UI.
+        // Kept so existing code does not break.
+        // It is not shown on the current Login/Sign Up UI.
         //
         // ------------------------------------------------------
 
@@ -206,9 +212,10 @@ class PikkXApp extends StatelessWidget {
         // ======================================================
 
         if (settings.name == '/detail') {
-          final product = settings.arguments;
+          final product =
+              settings.arguments;
 
-          if (product == null) {
+          if (product is! Map) {
             return MaterialPageRoute(
               builder: (context) =>
                   const Scaffold(
@@ -221,9 +228,39 @@ class PikkXApp extends StatelessWidget {
             );
           }
 
+          final productMap =
+              Map<String, dynamic>.from(
+            product,
+          );
+
+          final productId =
+              productMap['productId']
+                      ?.toString() ??
+                  productMap['id']
+                      ?.toString() ??
+                  '';
+
+          if (productId.isEmpty) {
+            return MaterialPageRoute(
+              builder: (context) =>
+                  const Scaffold(
+                body: Center(
+                  child: Text(
+                    'Product ID is missing.',
+                  ),
+                ),
+              ),
+            );
+          }
+
           return CustomRoute<bool>(
             builder: (BuildContext context) =>
-                ProductDetailPage(),
+                ProductDetailPage(
+              productId:
+                  productId,
+              product:
+                  productMap,
+            ),
             settings: settings,
           );
         }
@@ -232,7 +269,8 @@ class PikkXApp extends StatelessWidget {
         // ORDER DETAILS
         // ======================================================
 
-        if (settings.name == '/order-details') {
+        if (settings.name ==
+            '/order-details') {
           final orderId =
               settings.arguments?.toString();
 
@@ -253,7 +291,8 @@ class PikkXApp extends StatelessWidget {
           return CustomRoute<bool>(
             builder: (BuildContext context) =>
                 OrderDetailsPage(
-              orderId: orderId,
+              orderId:
+                  orderId,
             ),
             settings: settings,
           );
@@ -285,7 +324,8 @@ class PikkXApp extends StatelessWidget {
           return CustomRoute<bool>(
             builder: (BuildContext context) =>
                 DispatchTrackingPage(
-              orderId: orderId,
+              orderId:
+                  orderId,
             ),
             settings: settings,
           );
@@ -304,7 +344,8 @@ class PikkXApp extends StatelessWidget {
 
           if (arguments is Map) {
             chatId =
-                arguments['chatId']?.toString();
+                arguments['chatId']
+                    ?.toString();
 
             otherUserName =
                 arguments['otherUserName']
@@ -331,7 +372,8 @@ class PikkXApp extends StatelessWidget {
           return CustomRoute<bool>(
             builder: (BuildContext context) =>
                 ChatPage(
-              chatId: chatId!,
+              chatId:
+                  chatId!,
               otherUserName:
                   otherUserName,
             ),
@@ -385,9 +427,12 @@ class AuthGate extends StatelessWidget {
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
       stream:
-          FirebaseAuth.instance.authStateChanges(),
+          FirebaseAuth.instance
+              .authStateChanges(),
 
-      builder: (context, snapshot) {
+      builder:
+          (context, snapshot) {
+
         // ------------------------------------------------------
         // CHECKING AUTH STATE
         // ------------------------------------------------------
@@ -398,8 +443,10 @@ class AuthGate extends StatelessWidget {
             backgroundColor:
                 AppTheme.lightBackground,
             body: Center(
-              child: CircularProgressIndicator(
-                color: AppTheme.pikkXNavy,
+              child:
+                  CircularProgressIndicator(
+                color:
+                    AppTheme.pikkXBlack,
               ),
             ),
           );
