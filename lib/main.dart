@@ -10,6 +10,7 @@ import 'package:flutter_ecommerce_app/src/pages/phone_auth_screen.dart';
 import 'package:flutter_ecommerce_app/src/pages/forgot_password_screen.dart';
 import 'package:flutter_ecommerce_app/src/pages/product_detail.dart';
 import 'package:flutter_ecommerce_app/src/pages/shopping_cart_page.dart';
+import 'package:flutter_ecommerce_app/src/pages/favourite_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/checkout_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/delivery_address_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/orders_page.dart';
@@ -80,8 +81,6 @@ class PikkXApp extends StatelessWidget {
         ),
 
         // Clean Mulish typography.
-        // We deliberately keep the default weight moderate
-        // so the PikkX branding does not look too bold.
         textTheme:
             GoogleFonts.mulishTextTheme(
           AppTheme.lightTheme.textTheme,
@@ -171,6 +170,17 @@ class PikkXApp extends StatelessWidget {
 
         '/cart': (context) =>
             ShoppingCartPage(),
+
+        // ------------------------------------------------------
+        // FAVOURITES
+        // ------------------------------------------------------
+
+        '/favourites': (context) =>
+            const FavouritePage(),
+
+        // ------------------------------------------------------
+        // CHECKOUT
+        // ------------------------------------------------------
 
         '/checkout': (context) =>
             CheckoutPage(),
