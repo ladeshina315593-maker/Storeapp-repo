@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class OrderDetailsPage extends StatefulWidget {
   final String orderId;
@@ -20,6 +21,25 @@ class OrderDetailsPage extends StatefulWidget {
 class _OrderDetailsPageState
     extends State<OrderDetailsPage> {
   // ============================================================
+  // PIKKX COLORS
+  // ============================================================
+
+  static const Color pikkXBlack =
+      Color(0xFF050505);
+
+  static const Color pikkXWhite =
+      Color(0xFFFFFFFF);
+
+  static const Color pikkXBackground =
+      Color(0xFFF7F7F7);
+
+  static const Color pikkXGrey =
+      Color(0xFF777777);
+
+  static const Color pikkXLightGrey =
+      Color(0xFFE8E8E8);
+
+  // ============================================================
   // FIREBASE
   // ============================================================
 
@@ -33,7 +53,68 @@ class _OrderDetailsPageState
 
   Map<String, dynamic>? order;
 
-  String? get userId => _auth.currentUser?.uid;
+  String? get userId =>
+      _auth.currentUser?.uid;
+
+  // ============================================================
+  // CURRENCY
+  // ============================================================
+
+  String selectedCurrency = 'NGN';
+
+  static const Map<String, String>
+      currencySymbols = {
+    'NGN': '₦',
+    'USD': '\$',
+    'GBP': '£',
+    'EUR': '€',
+    'CAD': 'CA\$',
+    'AUD': 'A\$',
+    'ZAR': 'R',
+    'GHS': 'GH₵',
+    'KES': 'KSh',
+    'UGX': 'USh',
+    'TZS': 'TSh',
+    'INR': '₹',
+    'JPY': '¥',
+    'CNY': '¥',
+    'AED': 'د.إ',
+    'SAR': '﷼',
+    'CHF': 'CHF',
+    'BRL': 'R\$',
+    'MXN': 'MX\$',
+  };
+
+  // These are display conversion rates.
+  //
+  // IMPORTANT:
+  // The order amounts in Firestore are assumed to be stored
+  // in NGN. NGN is the base currency.
+  //
+  // The rates can later be replaced with a live exchange-rate
+  // API without changing the Order Details UI.
+  static const Map<String, double>
+      currencyRates = {
+    'NGN': 1.0,
+    'USD': 0.00063,
+    'GBP': 0.00047,
+    'EUR': 0.00054,
+    'CAD': 0.00086,
+    'AUD': 0.00096,
+    'ZAR': 0.0112,
+    'GHS': 0.0097,
+    'KES': 0.081,
+    'UGX': 2.34,
+    'TZS': 1.62,
+    'INR': 0.053,
+    'JPY': 0.093,
+    'CNY': 0.0045,
+    'AED': 0.00231,
+    'SAR': 0.00236,
+    'CHF': 0.00050,
+    'BRL': 0.00335,
+    'MXN': 0.011,
+  };
 
   // ============================================================
   // INIT
@@ -42,7 +123,76 @@ class _OrderDetailsPageState
   @override
   void initState() {
     super.initState();
-    _loadOrder();
+
+    _initializePage();
+  }
+
+  Future<void> _initializePage() async {
+    await _loadCurrency();
+    await _loadOrder();
+  }
+
+  // ============================================================
+  // LOAD SELECTED CURRENCY
+  // ============================================================
+
+  Future<void> _loadCurrency() async {
+    try {
+      final prefs =
+          await SharedPreferences.getInstance();
+
+      final savedCurrency =
+          prefs.getString('selected_currency');
+
+      if (!mounted) return;
+
+      if (savedCurrency != null &&
+          currencyRates.containsKey(
+            savedCurrency.toUpperCase(),
+          )) {
+        setState(() {
+          selectedCurrency =
+              savedCurrency.toUpperCase();
+        });
+      }
+    } catch (e) {
+      debugPrint(
+        'Currency loading error: $e',
+      );
+    }
+  }
+
+  // ============================================================
+  // CONVERT MONEY
+  // ============================================================
+
+  double _convertMoney(
+    dynamic value,
+  ) {
+    final amount = _money(value);
+
+    final rate =
+        currencyRates[selectedCurrency] ??
+            1.0;
+
+    return amount * rate;
+  }
+
+  // ============================================================
+  // FORMAT MONEY
+  // ============================================================
+
+  String _formatMoney(
+    dynamic value,
+  ) {
+    final converted =
+        _convertMoney(value);
+
+    final symbol =
+        currencySymbols[selectedCurrency] ??
+            selectedCurrency;
+
+    return '$symbol${converted.toStringAsFixed(2)}';
   }
 
   // ============================================================
@@ -90,8 +240,9 @@ class _OrderDetailsPageState
         return;
       }
 
-      // IMPORTANT:
-      // Only allow the owner of the order to see it.
+      // Only allow the owner of the order
+      // to view the order.
+
       if (data['userId']?.toString() != uid) {
         setState(() {
           isLoading = false;
@@ -138,7 +289,8 @@ class _OrderDetailsPageState
             .trim()
             .toLowerCase();
 
-    if (value == null || value.isEmpty) {
+    if (value == null ||
+        value.isEmpty) {
       return 'pending';
     }
 
@@ -164,7 +316,9 @@ class _OrderDetailsPageState
   // FORMAT STATUS
   // ============================================================
 
-  String _formatStatus(String status) {
+  String _formatStatus(
+    String status,
+  ) {
     if (status.trim().isEmpty) {
       return 'Pending';
     }
@@ -175,7 +329,9 @@ class _OrderDetailsPageState
         .split(' ')
         .map(
           (word) {
-            if (word.isEmpty) return '';
+            if (word.isEmpty) {
+              return '';
+            }
 
             return word[0].toUpperCase() +
                 word.substring(1).toLowerCase();
@@ -191,16 +347,19 @@ class _OrderDetailsPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
+      backgroundColor:
+          pikkXBackground,
 
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor:
+            Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
 
         leading: Padding(
-          padding: const EdgeInsets.only(
+          padding:
+              const EdgeInsets.only(
             left: 10,
           ),
           child: _glassIcon(
@@ -214,9 +373,10 @@ class _OrderDetailsPageState
         title: const Text(
           'Order Details',
           style: TextStyle(
-            color: Color(0xFF050505),
+            color: pikkXBlack,
             fontSize: 21,
-            fontWeight: FontWeight.w800,
+            fontWeight:
+                FontWeight.w800,
           ),
         ),
       ),
@@ -224,7 +384,7 @@ class _OrderDetailsPageState
       body: Stack(
         children: [
           // ======================================================
-          // SUBTLE BACKGROUND ACCENTS
+          // GLASS BACKGROUND ACCENTS
           // ======================================================
 
           Positioned(
@@ -233,10 +393,14 @@ class _OrderDetailsPageState
             child: Container(
               width: 230,
               height: 230,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF10233F)
-                    .withOpacity(0.035),
+              decoration:
+                  BoxDecoration(
+                shape:
+                    BoxShape.circle,
+                color: Colors.white
+                    .withOpacity(
+                  0.75,
+                ),
               ),
             ),
           ),
@@ -247,10 +411,14 @@ class _OrderDetailsPageState
             child: Container(
               width: 250,
               height: 250,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
+              decoration:
+                  BoxDecoration(
+                shape:
+                    BoxShape.circle,
                 color: Colors.black
-                    .withOpacity(0.025),
+                    .withOpacity(
+                  0.025,
+                ),
               ),
             ),
           ),
@@ -263,7 +431,7 @@ class _OrderDetailsPageState
               ? const Center(
                   child:
                       CircularProgressIndicator(
-                    color: Color(0xFF10233F),
+                    color: pikkXBlack,
                   ),
                 )
               : order == null
@@ -279,14 +447,16 @@ class _OrderDetailsPageState
   // ============================================================
 
   Widget _buildContent() {
-    final rawItems = order?['items'];
+    final rawItems =
+        order?['items'];
 
     final List<dynamic> items =
         rawItems is List
             ? rawItems
             : <dynamic>[];
 
-    final status = _status();
+    final status =
+        _status();
 
     final total =
         _money(order?['total']);
@@ -300,7 +470,8 @@ class _OrderDetailsPageState
     final rawAddress =
         order?['deliveryAddress'];
 
-    final Map<String, dynamic> address =
+    final Map<String, dynamic>
+        address =
         rawAddress is Map
             ? Map<String, dynamic>.from(
                 rawAddress,
@@ -308,8 +479,9 @@ class _OrderDetailsPageState
             : <String, dynamic>{};
 
     return RefreshIndicator(
-      color: const Color(0xFF10233F),
-      backgroundColor: Colors.white,
+      color: pikkXBlack,
+      backgroundColor:
+          pikkXWhite,
       onRefresh: _loadOrder,
       child: ListView(
         physics:
@@ -322,25 +494,36 @@ class _OrderDetailsPageState
           35,
         ),
         children: [
+          // ======================================================
           // ORDER HEADER
+          // ======================================================
+
           _orderHeader(status),
 
           const SizedBox(height: 22),
 
+          // ======================================================
           // ORDER ITEMS
-          _sectionTitle('Order Items'),
+          // ======================================================
+
+          _sectionTitle(
+            'Order Items',
+          ),
 
           _glass(
             child: items.isEmpty
                 ? _emptyItems()
                 : Column(
-                    children: List.generate(
+                    children:
+                        List.generate(
                       items.length,
-                      (index) => _item(
+                      (index) =>
+                          _item(
                         items[index],
                         isLast:
                             index ==
-                                items.length - 1,
+                                items.length -
+                                    1,
                       ),
                     ),
                   ),
@@ -348,7 +531,10 @@ class _OrderDetailsPageState
 
           const SizedBox(height: 22),
 
+          // ======================================================
           // DELIVERY ADDRESS
+          // ======================================================
+
           _sectionTitle(
             'Delivery Address',
           ),
@@ -356,7 +542,9 @@ class _OrderDetailsPageState
           _glass(
             child: Padding(
               padding:
-                  const EdgeInsets.all(15),
+                  const EdgeInsets.all(
+                15,
+              ),
               child: Row(
                 crossAxisAlignment:
                     CrossAxisAlignment.start,
@@ -367,34 +555,45 @@ class _OrderDetailsPageState
                     decoration:
                         BoxDecoration(
                       color:
-                          const Color(0xFFF1F1F1),
+                          pikkXBlack
+                              .withOpacity(
+                        0.055,
+                      ),
                       borderRadius:
                           BorderRadius.circular(
                         16,
                       ),
                     ),
-                    child: const Icon(
-                      Icons.location_on_outlined,
+                    child:
+                        const Icon(
+                      Icons
+                          .location_on_outlined,
                       color:
-                          Color(0xFF10233F),
+                          pikkXBlack,
                       size: 22,
                     ),
                   ),
 
-                  const SizedBox(width: 13),
+                  const SizedBox(
+                    width: 13,
+                  ),
 
                   Expanded(
-                    child: Column(
+                    child:
+                        Column(
                       crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                          CrossAxisAlignment
+                              .start,
                       children: [
                         Text(
-                          address['fullName']
-                                  ?.toString()
-                                  .trim()
-                                  .isNotEmpty ==
-                              true
-                              ? address['fullName']
+                          address[
+                                          'fullName']
+                                      ?.toString()
+                                      .trim()
+                                      .isNotEmpty ==
+                                  true
+                              ? address[
+                                      'fullName']
                                   .toString()
                               : 'Delivery Address',
                           style:
@@ -402,36 +601,47 @@ class _OrderDetailsPageState
                             fontWeight:
                                 FontWeight.w800,
                             color:
-                                Color(0xFF050505),
-                            fontSize: 14,
+                                pikkXBlack,
+                            fontSize:
+                                14,
                           ),
                         ),
 
-                        const SizedBox(height: 6),
+                        const SizedBox(
+                          height: 6,
+                        ),
 
                         Text(
-                          _addressText(address),
+                          _addressText(
+                            address,
+                          ),
                           style:
                               const TextStyle(
                             color:
-                                Color(0xFF666666),
-                            fontSize: 13,
-                            height: 1.45,
+                                pikkXGrey,
+                            fontSize:
+                                13,
+                            height:
+                                1.45,
                           ),
                         ),
 
-                        if (_phone(address)
-                            .isNotEmpty) ...[
+                        if (_phone(
+                          address,
+                        ).isNotEmpty) ...[
                           const SizedBox(
                             height: 7,
                           ),
                           Text(
-                            _phone(address),
+                            _phone(
+                              address,
+                            ),
                             style:
                                 const TextStyle(
                               color:
-                                  Color(0xFF777777),
-                              fontSize: 12,
+                                  pikkXGrey,
+                              fontSize:
+                                  12,
                             ),
                           ),
                         ],
@@ -445,7 +655,10 @@ class _OrderDetailsPageState
 
           const SizedBox(height: 22),
 
+          // ======================================================
           // ORDER STATUS
+          // ======================================================
+
           _sectionTitle(
             'Order Status',
           ),
@@ -453,21 +666,32 @@ class _OrderDetailsPageState
           _glass(
             child: Padding(
               padding:
-                  const EdgeInsets.all(18),
+                  const EdgeInsets.all(
+                18,
+              ),
               child:
-                  _trackingTimeline(status),
+                  _trackingTimeline(
+                status,
+              ),
             ),
           ),
 
           const SizedBox(height: 22),
 
+          // ======================================================
           // PAYMENT
-          _sectionTitle('Payment'),
+          // ======================================================
+
+          _sectionTitle(
+            'Payment',
+          ),
 
           _glass(
             child: Padding(
               padding:
-                  const EdgeInsets.all(17),
+                  const EdgeInsets.all(
+                17,
+              ),
               child: Column(
                 children: [
                   _row(
@@ -475,7 +699,9 @@ class _OrderDetailsPageState
                     _paymentMethod(),
                   ),
 
-                  const SizedBox(height: 13),
+                  const SizedBox(
+                    height: 13,
+                  ),
 
                   _row(
                     'Payment status',
@@ -488,7 +714,10 @@ class _OrderDetailsPageState
 
           const SizedBox(height: 22),
 
+          // ======================================================
           // SUMMARY
+          // ======================================================
+
           _sectionTitle(
             'Order Summary',
           ),
@@ -496,19 +725,27 @@ class _OrderDetailsPageState
           _glass(
             child: Padding(
               padding:
-                  const EdgeInsets.all(17),
+                  const EdgeInsets.all(
+                17,
+              ),
               child: Column(
                 children: [
                   _row(
                     'Subtotal',
-                    _naira(subtotal),
+                    _formatMoney(
+                      subtotal,
+                    ),
                   ),
 
-                  const SizedBox(height: 13),
+                  const SizedBox(
+                    height: 13,
+                  ),
 
                   _row(
                     'Delivery fee',
-                    _naira(deliveryFee),
+                    _formatMoney(
+                      deliveryFee,
+                    ),
                   ),
 
                   const Padding(
@@ -518,14 +755,16 @@ class _OrderDetailsPageState
                     ),
                     child: Divider(
                       color:
-                          Color(0xFFE1E1E1),
+                          pikkXLightGrey,
                       height: 1,
                     ),
                   ),
 
                   _row(
                     'Total',
-                    _naira(total),
+                    _formatMoney(
+                      total,
+                    ),
                     bold: true,
                   ),
                 ],
@@ -535,13 +774,37 @@ class _OrderDetailsPageState
 
           const SizedBox(height: 15),
 
+          // ======================================================
+          // CURRENCY INFORMATION
+          // ======================================================
+
+          Center(
+            child: Text(
+              'Prices shown in $selectedCurrency',
+              style:
+                  const TextStyle(
+                color:
+                    Color(0xFF999999),
+                fontSize: 10,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 5),
+
+          // ======================================================
           // ORDER ID
+          // ======================================================
+
           Center(
             child: Text(
               'Order ID: ${widget.orderId}',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Color(0xFF999999),
+              textAlign:
+                  TextAlign.center,
+              style:
+                  const TextStyle(
+                color:
+                    Color(0xFF999999),
                 fontSize: 10,
               ),
             ),
@@ -555,11 +818,15 @@ class _OrderDetailsPageState
   // ORDER HEADER
   // ============================================================
 
-  Widget _orderHeader(String status) {
+  Widget _orderHeader(
+    String status,
+  ) {
     return _glass(
       child: Padding(
         padding:
-            const EdgeInsets.all(18),
+            const EdgeInsets.all(
+          18,
+        ),
         child: Row(
           children: [
             Container(
@@ -568,24 +835,34 @@ class _OrderDetailsPageState
               decoration:
                   BoxDecoration(
                 color:
-                    const Color(0xFFF1F1F1),
+                    pikkXBlack
+                        .withOpacity(
+                  0.055,
+                ),
                 borderRadius:
-                    BorderRadius.circular(18),
+                    BorderRadius.circular(
+                  18,
+                ),
               ),
-              child: const Icon(
-                Icons.local_shipping_outlined,
+              child:
+                  const Icon(
+                Icons
+                    .local_shipping_outlined,
                 color:
-                    Color(0xFF10233F),
+                    pikkXBlack,
                 size: 25,
               ),
             ),
 
-            const SizedBox(width: 13),
+            const SizedBox(
+              width: 13,
+            ),
 
             Expanded(
               child: Column(
                 crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                    CrossAxisAlignment
+                        .start,
                 children: [
                   Text(
                     'Order #${_shortOrderId()}',
@@ -594,25 +871,28 @@ class _OrderDetailsPageState
                       fontWeight:
                           FontWeight.w800,
                       color:
-                          Color(0xFF050505),
+                          pikkXBlack,
                       fontSize: 15,
                     ),
                   ),
 
-                  const SizedBox(height: 6),
+                  const SizedBox(
+                    height: 6,
+                  ),
 
                   Container(
                     padding:
-                        const EdgeInsets.symmetric(
+                        const EdgeInsets
+                            .symmetric(
                       horizontal: 10,
                       vertical: 5,
                     ),
                     decoration:
                         BoxDecoration(
                       color:
-                          const Color(0xFF10233F)
+                          pikkXBlack
                               .withOpacity(
-                        0.08,
+                        0.055,
                       ),
                       borderRadius:
                           BorderRadius.circular(
@@ -620,11 +900,13 @@ class _OrderDetailsPageState
                       ),
                     ),
                     child: Text(
-                      _formatStatus(status),
+                      _formatStatus(
+                        status,
+                      ),
                       style:
                           const TextStyle(
                         color:
-                            Color(0xFF10233F),
+                            pikkXBlack,
                         fontSize: 11,
                         fontWeight:
                             FontWeight.w800,
@@ -641,7 +923,8 @@ class _OrderDetailsPageState
   }
 
   String _shortOrderId() {
-    if (widget.orderId.length <= 8) {
+    if (widget.orderId.length <=
+        8) {
       return widget.orderId;
     }
 
@@ -666,24 +949,36 @@ class _OrderDetailsPageState
       'delivered',
     ];
 
-    String normalized = status
-        .toLowerCase()
-        .replaceAll('-', '_')
-        .replaceAll(' ', '_');
+    String normalized =
+        status
+            .toLowerCase()
+            .replaceAll(
+              '-',
+              '_',
+            )
+            .replaceAll(
+              ' ',
+              '_',
+            );
 
-    if (normalized == 'completed') {
-      normalized = 'delivered';
+    if (normalized ==
+        'completed') {
+      normalized =
+          'delivered';
     }
 
     int current =
-        statuses.indexOf(normalized);
+        statuses.indexOf(
+      normalized,
+    );
 
     if (current < 0) {
       current = 0;
     }
 
     return Column(
-      children: List.generate(
+      children:
+          List.generate(
         statuses.length,
         (index) {
           final done =
@@ -694,7 +989,8 @@ class _OrderDetailsPageState
 
           return Row(
             crossAxisAlignment:
-                CrossAxisAlignment.start,
+                CrossAxisAlignment
+                    .start,
             children: [
               Column(
                 children: [
@@ -704,17 +1000,14 @@ class _OrderDetailsPageState
                     decoration:
                         BoxDecoration(
                       color: done
-                          ? const Color(
-                              0xFF10233F,
-                            )
-                          : Colors.white,
+                          ? pikkXBlack
+                          : pikkXWhite,
                       shape:
                           BoxShape.circle,
-                      border: Border.all(
+                      border:
+                          Border.all(
                         color: done
-                            ? const Color(
-                                0xFF10233F,
-                              )
+                            ? pikkXBlack
                             : const Color(
                                 0xFFD0D0D0,
                               ),
@@ -723,36 +1016,38 @@ class _OrderDetailsPageState
                     ),
                     child: done
                         ? const Icon(
-                            Icons.check_rounded,
+                            Icons
+                                .check_rounded,
                             color:
-                                Colors.white,
+                                pikkXWhite,
                             size: 15,
                           )
                         : null,
                   ),
 
                   if (index !=
-                      statuses.length - 1)
+                      statuses.length -
+                          1)
                     Container(
                       width: 2,
                       height: 37,
-                      color: index < current
-                          ? const Color(
-                              0xFF10233F,
-                            )
-                          : const Color(
-                              0xFFE1E1E1,
-                            ),
+                      color: index <
+                              current
+                          ? pikkXBlack
+                          : pikkXLightGrey,
                     ),
                 ],
               ),
 
-              const SizedBox(width: 13),
+              const SizedBox(
+                width: 13,
+              ),
 
               Expanded(
                 child: Padding(
                   padding:
-                      const EdgeInsets.only(
+                      const EdgeInsets
+                          .only(
                     top: 2,
                   ),
                   child: Row(
@@ -760,19 +1055,21 @@ class _OrderDetailsPageState
                       Expanded(
                         child: Text(
                           _formatStatus(
-                            statuses[index],
+                            statuses[
+                                index],
                           ),
-                          style: TextStyle(
+                          style:
+                              TextStyle(
                             color: done
-                                ? const Color(
-                                    0xFF050505,
-                                  )
+                                ? pikkXBlack
                                 : const Color(
                                     0xFF999999,
                                   ),
                             fontWeight: done
-                                ? FontWeight.w700
-                                : FontWeight.w500,
+                                ? FontWeight
+                                    .w700
+                                : FontWeight
+                                    .w500,
                             fontSize: 13,
                           ),
                         ),
@@ -784,10 +1081,12 @@ class _OrderDetailsPageState
                           style:
                               TextStyle(
                             color:
-                                Color(0xFF10233F),
-                            fontSize: 10,
+                                pikkXBlack,
+                            fontSize:
+                                10,
                             fontWeight:
-                                FontWeight.w800,
+                                FontWeight
+                                    .w800,
                           ),
                         ),
                     ],
@@ -817,16 +1116,20 @@ class _OrderDetailsPageState
             : <String, dynamic>{};
 
     final name =
-        item['name']?.toString() ??
+        item['name']
+                ?.toString() ??
             item['productName']
                 ?.toString() ??
             'Product';
 
     final quantity =
-        item['quantity'] ?? 1;
+        item['quantity'] ??
+            1;
 
     final price =
-        _money(item['price']);
+        _money(
+      item['price'],
+    );
 
     final imageUrl =
         item['imageUrl']
@@ -834,14 +1137,18 @@ class _OrderDetailsPageState
 
     return Container(
       padding:
-          const EdgeInsets.all(14),
-      decoration: BoxDecoration(
+          const EdgeInsets.all(
+        14,
+      ),
+      decoration:
+          BoxDecoration(
         border: isLast
             ? null
             : const Border(
-                bottom: BorderSide(
+                bottom:
+                    BorderSide(
                   color:
-                      Color(0xFFE8E8E8),
+                      pikkXLightGrey,
                 ),
               ),
       ),
@@ -854,9 +1161,14 @@ class _OrderDetailsPageState
             decoration:
                 BoxDecoration(
               color:
-                  const Color(0xFFF1F1F1),
+                  pikkXBlack
+                      .withOpacity(
+                0.045,
+              ),
               borderRadius:
-                  BorderRadius.circular(17),
+                  BorderRadius.circular(
+                17,
+              ),
             ),
             clipBehavior:
                 Clip.antiAlias,
@@ -877,36 +1189,42 @@ class _OrderDetailsPageState
                 : _productIcon(),
           ),
 
-          const SizedBox(width: 12),
+          const SizedBox(
+            width: 12,
+          ),
 
           Expanded(
             child: Column(
               crossAxisAlignment:
-                  CrossAxisAlignment.start,
+                  CrossAxisAlignment
+                      .start,
               children: [
                 Text(
                   name,
                   maxLines: 2,
                   overflow:
-                      TextOverflow.ellipsis,
+                      TextOverflow
+                          .ellipsis,
                   style:
                       const TextStyle(
                     fontWeight:
                         FontWeight.w700,
                     color:
-                        Color(0xFF050505),
+                        pikkXBlack,
                     fontSize: 13,
                   ),
                 ),
 
-                const SizedBox(height: 5),
+                const SizedBox(
+                  height: 5,
+                ),
 
                 Text(
                   'Quantity: $quantity',
                   style:
                       const TextStyle(
                     color:
-                        Color(0xFF888888),
+                        pikkXGrey,
                     fontSize: 11,
                   ),
                 ),
@@ -914,14 +1232,18 @@ class _OrderDetailsPageState
             ),
           ),
 
-          const SizedBox(width: 10),
+          const SizedBox(
+            width: 10,
+          ),
 
           Text(
-            _naira(price),
+            _formatMoney(
+              price,
+            ),
             style:
                 const TextStyle(
               color:
-                  Color(0xFF10233F),
+                  pikkXBlack,
               fontWeight:
                   FontWeight.w800,
               fontSize: 12,
@@ -935,8 +1257,10 @@ class _OrderDetailsPageState
   Widget _productIcon() {
     return const Center(
       child: Icon(
-        Icons.shopping_bag_outlined,
-        color: Color(0xFF10233F),
+        Icons
+            .shopping_bag_outlined,
+        color:
+            pikkXBlack,
         size: 25,
       ),
     );
@@ -951,7 +1275,7 @@ class _OrderDetailsPageState
           'No item information available.',
           style: TextStyle(
             color:
-                Color(0xFF777777),
+                pikkXGrey,
             fontSize: 12,
           ),
         ),
@@ -964,7 +1288,8 @@ class _OrderDetailsPageState
   // ============================================================
 
   String _addressText(
-    Map<String, dynamic> address,
+    Map<String, dynamic>
+        address,
   ) {
     final values = [
       address['addressLine'],
@@ -975,15 +1300,21 @@ class _OrderDetailsPageState
       address['country'],
     ];
 
-    final result = <String>[];
+    final result =
+        <String>[];
 
-    for (final value in values) {
+    for (final value
+        in values) {
       if (value != null &&
-          value.toString().trim().isNotEmpty) {
+          value
+              .toString()
+              .trim()
+              .isNotEmpty) {
         final text =
             value.toString().trim();
 
-        if (!result.contains(text)) {
+        if (!result
+            .contains(text)) {
           result.add(text);
         }
       }
@@ -993,15 +1324,18 @@ class _OrderDetailsPageState
       return 'No delivery address provided.';
     }
 
-    return result.join(', ');
+    return result.join(
+      ', ',
+    );
   }
 
   String _phone(
-    Map<String, dynamic> address,
+    Map<String, dynamic>
+        address,
   ) {
     final value =
         address['phone'] ??
-        address['phoneNumber'];
+            address['phoneNumber'];
 
     if (value == null) {
       return '';
@@ -1025,7 +1359,9 @@ class _OrderDetailsPageState
       return 'Not specified';
     }
 
-    return _formatStatus(value);
+    return _formatStatus(
+      value,
+    );
   }
 
   String _paymentStatus() {
@@ -1039,7 +1375,9 @@ class _OrderDetailsPageState
       return 'Pending';
     }
 
-    return _formatStatus(value);
+    return _formatStatus(
+      value,
+    );
   }
 
   // ============================================================
@@ -1053,7 +1391,8 @@ class _OrderDetailsPageState
   }) {
     return Row(
       crossAxisAlignment:
-          CrossAxisAlignment.start,
+          CrossAxisAlignment
+              .start,
       children: [
         Expanded(
           child: Text(
@@ -1061,13 +1400,15 @@ class _OrderDetailsPageState
             style:
                 const TextStyle(
               color:
-                  Color(0xFF777777),
+                  pikkXGrey,
               fontSize: 12,
             ),
           ),
         ),
 
-        const SizedBox(width: 15),
+        const SizedBox(
+          width: 15,
+        ),
 
         Flexible(
           child: Text(
@@ -1076,12 +1417,8 @@ class _OrderDetailsPageState
                 TextAlign.right,
             style: TextStyle(
               color: bold
-                  ? const Color(
-                      0xFF10233F,
-                    )
-                  : const Color(
-                      0xFF050505,
-                    ),
+                  ? pikkXBlack
+                  : pikkXBlack,
               fontSize:
                   bold ? 15 : 12,
               fontWeight: bold
@@ -1115,7 +1452,7 @@ class _OrderDetailsPageState
           fontWeight:
               FontWeight.w800,
           color:
-              Color(0xFF050505),
+              pikkXBlack,
         ),
       ),
     );
@@ -1127,30 +1464,36 @@ class _OrderDetailsPageState
 
   Widget _glassIcon(
     IconData icon, {
-    required VoidCallback onTap,
+    required VoidCallback
+        onTap,
   }) {
     return ClipRRect(
       borderRadius:
-          BorderRadius.circular(15),
+          BorderRadius.circular(
+        15,
+      ),
       child: BackdropFilter(
-        filter: ImageFilter.blur(
+        filter:
+            ImageFilter.blur(
           sigmaX: 12,
           sigmaY: 12,
         ),
         child: Material(
-          color: Colors.transparent,
+          color:
+              Colors.transparent,
           child: InkWell(
             onTap: onTap,
             borderRadius:
-                BorderRadius.circular(15),
+                BorderRadius.circular(
+              15,
+            ),
             child: Container(
               width: 43,
               height: 43,
               decoration:
                   BoxDecoration(
-                color:
-                    Colors.white
-                        .withOpacity(
+                color: Colors.white
+                    .withOpacity(
                   0.74,
                 ),
                 borderRadius:
@@ -1158,19 +1501,20 @@ class _OrderDetailsPageState
                   15,
                 ),
                 border: Border.all(
-                  color:
-                      Colors.white
-                          .withOpacity(
+                  color: Colors.white
+                      .withOpacity(
                     0.95,
                   ),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black
-                        .withOpacity(
+                    color:
+                        Colors.black
+                            .withOpacity(
                       0.045,
                     ),
-                    blurRadius: 15,
+                    blurRadius:
+                        15,
                     offset:
                         const Offset(
                       0,
@@ -1179,10 +1523,10 @@ class _OrderDetailsPageState
                   ),
                 ],
               ),
-              child: const Icon(
-                Icons.arrow_back_ios_new_rounded,
+              child: Icon(
+                icon,
                 color:
-                    Color(0xFF050505),
+                    pikkXBlack,
                 size: 18,
               ),
             ),
@@ -1193,7 +1537,7 @@ class _OrderDetailsPageState
   }
 
   // ============================================================
-  // GLASS
+  // GLASS CONTAINER
   // ============================================================
 
   Widget _glass({
@@ -1201,18 +1545,20 @@ class _OrderDetailsPageState
   }) {
     return ClipRRect(
       borderRadius:
-          BorderRadius.circular(24),
+          BorderRadius.circular(
+        24,
+      ),
       child: BackdropFilter(
-        filter: ImageFilter.blur(
+        filter:
+            ImageFilter.blur(
           sigmaX: 16,
           sigmaY: 16,
         ),
         child: Container(
           decoration:
               BoxDecoration(
-            color:
-                Colors.white
-                    .withOpacity(
+            color: Colors.white
+                .withOpacity(
               0.74,
             ),
             borderRadius:
@@ -1220,9 +1566,8 @@ class _OrderDetailsPageState
               24,
             ),
             border: Border.all(
-              color:
-                  Colors.white
-                      .withOpacity(
+              color: Colors.white
+                  .withOpacity(
                 0.92,
               ),
               width: 1,
@@ -1250,14 +1595,16 @@ class _OrderDetailsPageState
   }
 
   // ============================================================
-  // EMPTY / NOT FOUND
+  // NOT FOUND
   // ============================================================
 
   Widget _notFound() {
     return Center(
       child: Padding(
         padding:
-            const EdgeInsets.all(24),
+            const EdgeInsets.all(
+          24,
+        ),
         child: _glass(
           child: Padding(
             padding:
@@ -1270,27 +1617,32 @@ class _OrderDetailsPageState
                   MainAxisSize.min,
               children: const [
                 Icon(
-                  Icons.receipt_long_outlined,
+                  Icons
+                      .receipt_long_outlined,
                   size: 54,
                   color:
-                      Color(0xFF10233F),
+                      pikkXBlack,
                 ),
 
-                SizedBox(height: 15),
+                SizedBox(
+                  height: 15,
+                ),
 
                 Text(
                   'Order not found',
                   style:
                       TextStyle(
                     color:
-                        Color(0xFF050505),
+                        pikkXBlack,
                     fontSize: 19,
                     fontWeight:
                         FontWeight.w800,
                   ),
                 ),
 
-                SizedBox(height: 7),
+                SizedBox(
+                  height: 7,
+                ),
 
                 Text(
                   'This order may no longer exist or you may not have access to it.',
@@ -1299,7 +1651,7 @@ class _OrderDetailsPageState
                   style:
                       TextStyle(
                     color:
-                        Color(0xFF777777),
+                        pikkXGrey,
                     fontSize: 12,
                     height: 1.4,
                   ),
@@ -1321,17 +1673,20 @@ class _OrderDetailsPageState
   ) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context)
-        .hideCurrentSnackBar();
+    ScaffoldMessenger.of(
+      context,
+    ).hideCurrentSnackBar();
 
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(
       SnackBar(
         content: Text(
           message,
           style:
               const TextStyle(
-            color: Colors.white,
+            color:
+                Colors.white,
             fontWeight:
                 FontWeight.w600,
           ),
@@ -1339,23 +1694,15 @@ class _OrderDetailsPageState
         behavior:
             SnackBarBehavior.floating,
         backgroundColor:
-            const Color(0xFF050505),
+            pikkXBlack,
         shape:
             RoundedRectangleBorder(
           borderRadius:
-              BorderRadius.circular(16),
+              BorderRadius.circular(
+            16,
+          ),
         ),
       ),
     );
-  }
-
-  // ============================================================
-  // NAIRA
-  // ============================================================
-
-  String _naira(
-    double amount,
-  ) {
-    return '₦${amount.toStringAsFixed(2)}';
   }
 }
