@@ -3,7 +3,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'package:flutter_ecommerce_app/src/pages/mainPage.dart';
+import 'package:flutter_ecommerce_app/src/pages/mainPage.dart'
+    hide FavouritePage;
 import 'package:flutter_ecommerce_app/src/pages/login_screen.dart';
 import 'package:flutter_ecommerce_app/src/pages/signup_screen.dart';
 import 'package:flutter_ecommerce_app/src/pages/phone_auth_screen.dart';
@@ -128,11 +129,6 @@ class PikkXApp extends StatelessWidget {
 
         // ------------------------------------------------------
         // PHONE AUTH
-        // ------------------------------------------------------
-        //
-        // Kept so existing code does not break.
-        // It is not shown on the current Login/Sign Up UI.
-        //
         // ------------------------------------------------------
 
         '/phone-login': (context) =>
