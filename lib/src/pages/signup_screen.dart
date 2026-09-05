@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:country_picker/country_picker.dart';
 
 import 'package:flutter_ecommerce_app/src/pages/profile_setup_screen.dart';
 
@@ -20,15 +21,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   static const Color pikkXBlack = Color(0xFF050505);
   static const Color pikkXWhite = Color(0xFFFFFFFF);
-  static const Color pikkXNavy = Color(0xFF10233F);
   static const Color pikkXBackground = Color(0xFFF7F7F7);
   static const Color pikkXGrey = Color(0xFF777777);
+  static const Color pikkXLightGrey = Color(0xFFE8E8E8);
 
   // ============================================================
   // FIREBASE
   // ============================================================
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
+
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
 
@@ -45,6 +47,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _emailController =
       TextEditingController();
 
+  final TextEditingController _phoneController =
+      TextEditingController();
+
   final TextEditingController _recoveryEmailController =
       TextEditingController();
 
@@ -54,9 +59,199 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _confirmPasswordController =
       TextEditingController();
 
+  // ============================================================
+  // COUNTRY / CURRENCY
+  // ============================================================
+
+  Country _selectedCountry = Country(
+    phoneCode: '234',
+    countryCode: 'NG',
+    e164Sc: 0,
+    geographic: true,
+    level: 1,
+    name: 'Nigeria',
+    example: '8012345678',
+    displayName: 'Nigeria',
+    displayNameNoCountryCode: 'Nigeria',
+    e164Key: '234',
+  );
+
+  String _selectedCurrency = 'NGN';
+
+  // ============================================================
+  // STATE
+  // ============================================================
+
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
+
+  // ============================================================
+  // COUNTRY → CURRENCY
+  // ============================================================
+
+  String _currencyForCountry(String countryCode) {
+    const Map<String, String> currencies = {
+      // Africa
+      'NG': 'NGN',
+      'GH': 'GHS',
+      'KE': 'KES',
+      'ZA': 'ZAR',
+      'UG': 'UGX',
+      'TZ': 'TZS',
+      'RW': 'RWF',
+      'ET': 'ETB',
+      'EG': 'EGP',
+      'MA': 'MAD',
+      'DZ': 'DZD',
+      'TN': 'TND',
+      'LY': 'LYD',
+      'ZM': 'ZMW',
+      'ZW': 'ZWL',
+      'BW': 'BWP',
+      'NA': 'NAD',
+      'MU': 'MUR',
+      'SC': 'SCR',
+
+      // North America
+      'US': 'USD',
+      'CA': 'CAD',
+      'MX': 'MXN',
+
+      // Europe
+      'GB': 'GBP',
+      'IE': 'EUR',
+      'FR': 'EUR',
+      'DE': 'EUR',
+      'ES': 'EUR',
+      'IT': 'EUR',
+      'PT': 'EUR',
+      'NL': 'EUR',
+      'BE': 'EUR',
+      'AT': 'EUR',
+      'FI': 'EUR',
+      'GR': 'EUR',
+      'LU': 'EUR',
+      'CY': 'EUR',
+      'MT': 'EUR',
+      'SK': 'EUR',
+      'SI': 'EUR',
+      'EE': 'EUR',
+      'LV': 'EUR',
+      'LT': 'EUR',
+      'HR': 'EUR',
+      'CH': 'CHF',
+      'NO': 'NOK',
+      'SE': 'SEK',
+      'DK': 'DKK',
+      'PL': 'PLN',
+      'CZ': 'CZK',
+      'HU': 'HUF',
+      'RO': 'RON',
+      'BG': 'BGN',
+      'UA': 'UAH',
+      'IS': 'ISK',
+
+      // Middle East
+      'AE': 'AED',
+      'SA': 'SAR',
+      'QA': 'QAR',
+      'KW': 'KWD',
+      'BH': 'BHD',
+      'OM': 'OMR',
+      'IL': 'ILS',
+      'JO': 'JOD',
+      'TR': 'TRY',
+
+      // Asia
+      'IN': 'INR',
+      'PK': 'PKR',
+      'BD': 'BDT',
+      'LK': 'LKR',
+      'NP': 'NPR',
+      'CN': 'CNY',
+      'JP': 'JPY',
+      'KR': 'KRW',
+      'SG': 'SGD',
+      'MY': 'MYR',
+      'ID': 'IDR',
+      'TH': 'THB',
+      'PH': 'PHP',
+      'VN': 'VND',
+      'HK': 'HKD',
+      'TW': 'TWD',
+
+      // Oceania
+      'AU': 'AUD',
+      'NZ': 'NZD',
+
+      // South America
+      'BR': 'BRL',
+      'AR': 'ARS',
+      'CL': 'CLP',
+      'CO': 'COP',
+      'PE': 'PEN',
+      'UY': 'UYU',
+      'BO': 'BOB',
+      'PY': 'PYG',
+      'EC': 'USD',
+    };
+
+    return currencies[countryCode] ?? 'USD';
+  }
+
+  // ============================================================
+  // COUNTRY PICKER
+  // ============================================================
+
+  void _selectCountry() {
+    if (_isLoading) return;
+
+    showCountryPicker(
+      context: context,
+      showPhoneCode: true,
+      showWorldWide: false,
+      useSafeArea: true,
+      countryListTheme: CountryListThemeData(
+        backgroundColor: pikkXWhite,
+        textStyle: const TextStyle(
+          color: pikkXBlack,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+        searchTextStyle: const TextStyle(
+          color: pikkXBlack,
+          fontSize: 14,
+        ),
+        inputDecoration: InputDecoration(
+          hintText: 'Search country',
+          hintStyle: const TextStyle(
+            color: pikkXGrey,
+          ),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            color: pikkXBlack,
+          ),
+          filled: true,
+          fillColor: pikkXBackground,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+        ),
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(24),
+        ),
+      ),
+      onSelect: (Country country) {
+        setState(() {
+          _selectedCountry = country;
+          _selectedCurrency =
+              _currencyForCountry(country.countryCode);
+        });
+      },
+    );
+  }
 
   // ============================================================
   // DISPOSE
@@ -66,6 +261,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _recoveryEmailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -85,6 +281,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
+    final phone = _phoneController.text.trim();
     final recoveryEmail =
         _recoveryEmailController.text.trim();
     final password = _passwordController.text;
@@ -133,17 +330,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
       await user.updateDisplayName(name);
 
       // ----------------------------------------------------------
-      // SAVE USER PROFILE + RECOVERY EMAIL
+      // FULL PHONE NUMBER
       // ----------------------------------------------------------
-      //
-      // IMPORTANT:
-      // Firebase Auth's standard password-reset system
-      // still uses the main account email.
-      //
-      // This recovery email is securely stored in the
-      // user's Firestore profile so PikkX can use it for
-      // a future verified recovery system.
-      //
+
+      final String fullPhone =
+          '+${_selectedCountry.phoneCode}${phone.replaceAll(
+        RegExp(r'[^0-9]'),
+        '',
+      )}';
+
+      // ----------------------------------------------------------
+      // SAVE USER PROFILE
       // ----------------------------------------------------------
 
       await _firestore
@@ -154,8 +351,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
           'uid': user.uid,
           'name': name,
           'email': email,
+
+          // Phone information
+          'phone': fullPhone,
+          'phoneCountryCode':
+              _selectedCountry.phoneCode,
+          'countryCode':
+              _selectedCountry.countryCode,
+          'country':
+              _selectedCountry.name,
+
+          // Currency determined from country
+          'currency': _selectedCurrency,
+
+          // Recovery email
           'recoveryEmail': recoveryEmail,
           'recoveryEmailVerified': false,
+
           'createdAt':
               FieldValue.serverTimestamp(),
           'updatedAt':
@@ -334,7 +546,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             keyboardType: keyboardType,
             validator: validator,
             enabled: !_isLoading,
-            cursorColor: pikkXNavy,
+            cursorColor: pikkXBlack,
             style: const TextStyle(
               color: pikkXBlack,
               fontSize: 14,
@@ -348,12 +560,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 height: 38,
                 decoration: BoxDecoration(
                   color:
-                      pikkXNavy.withOpacity(0.08),
+                      pikkXBlack.withOpacity(0.07),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   icon,
-                  color: pikkXNavy,
+                  color: pikkXBlack,
                   size: 19,
                 ),
               ),
@@ -364,7 +576,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 fontSize: 13,
               ),
               errorStyle: const TextStyle(
-                color: pikkXNavy,
+                color: pikkXBlack,
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
@@ -374,6 +586,252 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 vertical: 18,
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // PHONE FIELD
+  // ============================================================
+
+  Widget _phoneField() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(19),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: 14,
+          sigmaY: 14,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: pikkXWhite.withOpacity(0.60),
+            borderRadius: BorderRadius.circular(19),
+            border: Border.all(
+              color: pikkXWhite.withOpacity(0.88),
+              width: 1.1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color:
+                    pikkXBlack.withOpacity(0.045),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              // ----------------------------------------------------
+              // COUNTRY BUTTON
+              // ----------------------------------------------------
+
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _isLoading
+                      ? null
+                      : _selectCountry,
+                  borderRadius:
+                      BorderRadius.circular(19),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.fromLTRB(
+                      13,
+                      9,
+                      8,
+                      9,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _selectedCountry.flagEmoji,
+                          style: const TextStyle(
+                            fontSize: 22,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          mainAxisSize:
+                              MainAxisSize.min,
+                          children: [
+                            Text(
+                              '+${_selectedCountry.phoneCode}',
+                              style:
+                                  const TextStyle(
+                                color: pikkXBlack,
+                                fontSize: 11,
+                                fontWeight:
+                                    FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(width: 2),
+                            const Icon(
+                              Icons
+                                  .keyboard_arrow_down_rounded,
+                              color: pikkXGrey,
+                              size: 15,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              Container(
+                width: 1,
+                height: 39,
+                color: pikkXLightGrey,
+              ),
+
+              // ----------------------------------------------------
+              // PHONE NUMBER
+              // ----------------------------------------------------
+
+              Expanded(
+                child: TextFormField(
+                  controller: _phoneController,
+                  enabled: !_isLoading,
+                  keyboardType:
+                      TextInputType.phone,
+                  cursorColor: pikkXBlack,
+                  style: const TextStyle(
+                    color: pikkXBlack,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  validator: (value) {
+                    if (value == null ||
+                        value.trim().isEmpty) {
+                      return 'Enter your phone number.';
+                    }
+
+                    final digits =
+                        value.replaceAll(
+                      RegExp(r'[^0-9]'),
+                      '',
+                    );
+
+                    if (digits.length < 7) {
+                      return 'Enter a valid phone number.';
+                    }
+
+                    return null;
+                  },
+                  decoration:
+                      const InputDecoration(
+                    border: InputBorder.none,
+                    hintText:
+                        'Phone number',
+                    hintStyle: TextStyle(
+                      color: pikkXGrey,
+                      fontSize: 13,
+                    ),
+                    contentPadding:
+                        EdgeInsets.symmetric(
+                      horizontal: 13,
+                      vertical: 18,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // CURRENCY PREVIEW
+  // ============================================================
+
+  Widget _currencyPreview() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(19),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: 15,
+          sigmaY: 15,
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: pikkXBlack.withOpacity(0.045),
+            borderRadius: BorderRadius.circular(19),
+            border: Border.all(
+              color: pikkXWhite.withOpacity(0.80),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color:
+                      pikkXWhite.withOpacity(0.75),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: pikkXLightGrey,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.currency_exchange_rounded,
+                  color: pikkXBlack,
+                  size: 19,
+                ),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Your default currency',
+                      style: TextStyle(
+                        color: pikkXBlack,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Based on ${_selectedCountry.name}',
+                      style: const TextStyle(
+                        color: pikkXGrey,
+                        fontSize: 10.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(
+                  horizontal: 11,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: pikkXBlack,
+                  borderRadius:
+                      BorderRadius.circular(12),
+                ),
+                child: Text(
+                  _selectedCurrency,
+                  style: const TextStyle(
+                    color: pikkXWhite,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -396,11 +854,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
           height: 55,
           width: double.infinity,
           decoration: BoxDecoration(
-            color: pikkXNavy.withOpacity(0.94),
+            color: pikkXBlack,
             borderRadius:
                 BorderRadius.circular(19),
             border: Border.all(
-              color: pikkXNavy.withOpacity(0.98),
+              color: pikkXBlack,
               width: 1.1,
             ),
             boxShadow: [
@@ -493,12 +951,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 height: 40,
                 decoration: BoxDecoration(
                   color:
-                      pikkXNavy.withOpacity(0.09),
+                      pikkXBlack.withOpacity(0.07),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.shield_outlined,
-                  color: pikkXNavy,
+                  color: pikkXBlack,
                   size: 21,
                 ),
               ),
@@ -614,7 +1072,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color:
-                      pikkXNavy.withOpacity(0.055),
+                      pikkXBlack.withOpacity(0.025),
                 ),
               ),
             ),
@@ -661,7 +1119,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     const SizedBox(height: 27),
 
                     // ------------------------------------------------
-                    // LOGO
+                    // PIKKX APP ICON / LOGO
                     // ------------------------------------------------
 
                     Center(
@@ -719,7 +1177,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                     return const Icon(
                                       Icons
                                           .storefront_rounded,
-                                      color: pikkXNavy,
+                                      color: pikkXBlack,
                                       size: 38,
                                     );
                                   },
@@ -833,6 +1291,37 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     const SizedBox(height: 13),
 
                     // ------------------------------------------------
+                    // PHONE NUMBER
+                    // ------------------------------------------------
+
+                    _phoneField(),
+
+                    const SizedBox(height: 8),
+
+                    const Padding(
+                      padding:
+                          EdgeInsets.only(left: 4),
+                      child: Text(
+                        'Your country selection sets your default PikkX currency.',
+                        style: TextStyle(
+                          color: pikkXGrey,
+                          fontSize: 10.5,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // ------------------------------------------------
+                    // CURRENCY PREVIEW
+                    // ------------------------------------------------
+
+                    _currencyPreview(),
+
+                    const SizedBox(height: 16),
+
+                    // ------------------------------------------------
                     // RECOVERY EMAIL
                     // ------------------------------------------------
 
@@ -921,7 +1410,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   .visibility_off_outlined
                               : Icons
                                   .visibility_outlined,
-                          color: pikkXNavy,
+                          color: pikkXBlack,
                           size: 20,
                         ),
                       ),
@@ -968,7 +1457,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   .visibility_off_outlined
                               : Icons
                                   .visibility_outlined,
-                          color: pikkXNavy,
+                          color: pikkXBlack,
                           size: 20,
                         ),
                       ),
@@ -996,7 +1485,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         children: [
                           Icon(
                             Icons.lock_outline_rounded,
-                            color: pikkXNavy,
+                            color: pikkXBlack,
                             size: 13,
                           ),
                           SizedBox(width: 5),
@@ -1044,7 +1533,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             child: const Text(
                               'Log In',
                               style: TextStyle(
-                                color: pikkXNavy,
+                                color: pikkXBlack,
                                 fontSize: 12,
                                 fontWeight:
                                     FontWeight.w900,
@@ -1078,7 +1567,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             child: const Text(
                               'Terms & Conditions',
                               style: TextStyle(
-                                color: pikkXNavy,
+                                color: pikkXBlack,
                                 fontSize: 9.5,
                                 fontWeight:
                                     FontWeight.w800,
@@ -1097,7 +1586,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             child: const Text(
                               'Privacy Policy',
                               style: TextStyle(
-                                color: pikkXNavy,
+                                color: pikkXBlack,
                                 fontSize: 9.5,
                                 fontWeight:
                                     FontWeight.w800,
