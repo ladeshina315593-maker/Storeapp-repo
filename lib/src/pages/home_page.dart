@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'package:flutter_ecommerce_app/src/pages/profile_screen.dart';
+
 class MyHomePage extends StatefulWidget {
   const MyHomePage({
     super.key,
@@ -468,8 +470,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 errorBuilder:
                     (_, __, ___) {
                   return const Icon(
-                    Icons
-                        .shopping_bag_outlined,
+                    Icons.shopping_bag_outlined,
                     color: pikkXBlack,
                     size: 23,
                   );
@@ -486,9 +487,8 @@ class _MyHomePageState extends State<MyHomePage> {
               style: TextStyle(
                 color: pikkXBlack,
                 fontSize: 23,
-                fontWeight:
-                    FontWeight.w900,
-                letterSpacing: -.8,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -.5,
               ),
             ),
           ),
@@ -519,8 +519,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     Clip.none,
                 children: [
                   _headerButton(
-                    Icons
-                        .notifications_none_rounded,
+                    Icons.notifications_none_rounded,
                     _openNotifications,
                   ),
                   if (unread > 0)
@@ -557,7 +556,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 pikkXWhite,
                             fontSize: 8,
                             fontWeight:
-                                FontWeight.w900,
+                                FontWeight.w600,
                           ),
                         ),
                       ),
@@ -643,16 +642,14 @@ class _MyHomePageState extends State<MyHomePage> {
                   errorBuilder:
                       (_, __, ___) {
                     return const Icon(
-                      Icons
-                          .person_outline_rounded,
+                      Icons.person_outline_rounded,
                       color: pikkXBlack,
                       size: 22,
                     );
                   },
                 )
               : const Icon(
-                  Icons
-                      .person_outline_rounded,
+                  Icons.person_outline_rounded,
                   color: pikkXBlack,
                   size: 22,
                 ),
@@ -746,8 +743,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                   ),
                   child: const Icon(
-                    Icons
-                        .camera_alt_outlined,
+                    Icons.camera_alt_outlined,
                     color: pikkXWhite,
                     size: 19,
                   ),
@@ -838,7 +834,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         : pikkXBlack,
                     fontSize: 11,
                     fontWeight:
-                        FontWeight.w700,
+                        FontWeight.w600,
                   ),
                 ),
               ),
@@ -891,8 +887,8 @@ class _MyHomePageState extends State<MyHomePage> {
                         color: pikkXWhite,
                         fontSize: 18,
                         fontWeight:
-                            FontWeight.w900,
-                        letterSpacing: -.4,
+                            FontWeight.w600,
+                        letterSpacing: -.3,
                       ),
                     ),
                     const SizedBox(
@@ -930,8 +926,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
                 child:
                     const Icon(
-                  Icons
-                      .shopping_bag_outlined,
+                  Icons.shopping_bag_outlined,
                   color: pikkXWhite,
                   size: 27,
                 ),
@@ -1123,8 +1118,8 @@ class _MyHomePageState extends State<MyHomePage> {
                 color: pikkXBlack,
                 fontSize: 17,
                 fontWeight:
-                    FontWeight.w900,
-                letterSpacing: -.3,
+                    FontWeight.w600,
+                letterSpacing: -.2,
               ),
             ),
           ),
@@ -1137,7 +1132,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 color: pikkXGrey,
                 fontSize: 11,
                 fontWeight:
-                    FontWeight.w700,
+                    FontWeight.w600,
               ),
             ),
           ),
@@ -1401,7 +1396,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 8,
                             fontWeight:
                                 FontWeight
-                                    .w900,
+                                    .w600,
                           ),
                         ),
                       ),
@@ -1434,7 +1429,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       color: pikkXBlack,
                       fontSize: 13,
                       fontWeight:
-                          FontWeight.w900,
+                          FontWeight.w600,
                     ),
                   ),
 
@@ -1459,7 +1454,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               pikkXGrey,
                           fontSize: 9,
                           fontWeight:
-                              FontWeight.w600,
+                              FontWeight.w500,
                         ),
                       ),
                     ),
@@ -1491,8 +1486,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 pikkXBlack,
                             fontSize: 9,
                             fontWeight:
-                                FontWeight
-                                    .w800,
+                                FontWeight.w600,
                           ),
                         ),
                       ],
@@ -1520,9 +1514,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           null)
                         Expanded(
                           child: Text(
-                            food
-                                ? deliveryTime
-                                : deliveryTime,
+                            deliveryTime,
                             maxLines: 1,
                             overflow:
                                 TextOverflow
@@ -1533,8 +1525,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                   pikkXGrey,
                               fontSize: 9,
                               fontWeight:
-                                  FontWeight
-                                      .w600,
+                                  FontWeight.w500,
                             ),
                           ),
                         ),
@@ -1573,8 +1564,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 fontSize:
                                     14,
                                 fontWeight:
-                                    FontWeight
-                                        .w900,
+                                    FontWeight.w600,
                               ),
                             ),
                             if (originalPrice !=
@@ -1599,8 +1589,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                       TextDecoration
                                           .lineThrough,
                                   fontWeight:
-                                      FontWeight
-                                          .600,
+                                      FontWeight.w600,
                                 ),
                               ),
                           ],
@@ -1652,8 +1641,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget _productPlaceholder() {
     return const Center(
       child: Icon(
-        Icons
-            .shopping_bag_outlined,
+        Icons.shopping_bag_outlined,
         color: pikkXBlack,
         size: 38,
       ),
@@ -1999,7 +1987,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               pikkXBlack,
                           fontSize: 21,
                           fontWeight:
-                              FontWeight.w900,
+                              FontWeight.w600,
                         ),
                       ),
 
@@ -2021,8 +2009,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               fontSize:
                                   11,
                               fontWeight:
-                                  FontWeight
-                                      .w600,
+                                  FontWeight.w500,
                             ),
                           ),
                         ),
@@ -2036,8 +2023,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           if (rating !=
                               null) ...[
                             const Icon(
-                              Icons
-                                  .star_rounded,
+                              Icons.star_rounded,
                               color:
                                   pikkXBlack,
                               size: 16,
@@ -2057,8 +2043,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 fontSize:
                                     11,
                                 fontWeight:
-                                    FontWeight
-                                        .w800,
+                                    FontWeight.w600,
                               ),
                             ),
                           ],
@@ -2068,8 +2053,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               width: 10,
                             ),
                             const Icon(
-                              Icons
-                                  .schedule_rounded,
+                              Icons.schedule_rounded,
                               color:
                                   pikkXGrey,
                               size: 15,
@@ -2086,8 +2070,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 fontSize:
                                     10,
                                 fontWeight:
-                                    FontWeight
-                                        .600,
+                                    FontWeight.w500,
                               ),
                             ),
                           ],
@@ -2110,7 +2093,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               pikkXBlack,
                           fontSize: 20,
                           fontWeight:
-                              FontWeight.w900,
+                              FontWeight.w600,
                         ),
                       ),
 
@@ -2184,8 +2167,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               ),
                               child:
                                   const Icon(
-                                Icons
-                                    .favorite_border_rounded,
+                                Icons.favorite_border_rounded,
                                 color:
                                     pikkXBlack,
                               ),
@@ -2240,8 +2222,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                     fontSize:
                                         13,
                                     fontWeight:
-                                        FontWeight
-                                            .w800,
+                                        FontWeight.w600,
                                   ),
                                 ),
                               ),
@@ -2313,265 +2294,10 @@ class _MyHomePageState extends State<MyHomePage> {
       return;
     }
 
-    showModalBottomSheet(
-      context: context,
-      backgroundColor:
-          Colors.transparent,
-      isScrollControlled:
-          true,
-      builder: (sheetContext) {
-        return _glass(
-          radius: 28,
-          color:
-              pikkXWhite.withOpacity(.94),
-          child:
-              SafeArea(
-            child:
-                Padding(
-              padding:
-                  const EdgeInsets.all(
-                18,
-              ),
-              child:
-                  StreamBuilder<
-                      DocumentSnapshot<
-                          Map<String,
-                              dynamic>>>(
-                stream:
-                    _userProfileStream(),
-                builder:
-                    (context, snapshot) {
-                  final data =
-                      snapshot.data
-                          ?.data();
-
-                  final name =
-                      data?['name']
-                              ?.toString() ??
-                          user.displayName ??
-                          'PikkX User';
-
-                  final email =
-                      data?['email']
-                              ?.toString() ??
-                          user.email ??
-                          '';
-
-                  final photoUrl =
-                      data?['photoUrl']
-                              ?.toString() ??
-                          user.photoURL ??
-                          '';
-
-                  return Column(
-                    mainAxisSize:
-                        MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 38,
-                        height: 4,
-                        decoration:
-                            BoxDecoration(
-                          color:
-                              pikkXLightGrey,
-                          borderRadius:
-                              BorderRadius
-                                  .circular(
-                            10,
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(
-                        height: 15,
-                      ),
-
-                      CircleAvatar(
-                        radius: 37,
-                        backgroundColor:
-                            pikkXBackground,
-                        backgroundImage:
-                            photoUrl.isNotEmpty
-                                ? NetworkImage(
-                                    photoUrl,
-                                  )
-                                : null,
-                        child: photoUrl
-                                .isEmpty
-                            ? const Icon(
-                                Icons
-                                    .person_outline_rounded,
-                                color:
-                                    pikkXBlack,
-                                size: 35,
-                              )
-                            : null,
-                      ),
-
-                      const SizedBox(
-                        height: 10,
-                      ),
-
-                      Text(
-                        name,
-                        style:
-                            const TextStyle(
-                          color:
-                              pikkXBlack,
-                          fontSize: 19,
-                          fontWeight:
-                              FontWeight.w900,
-                        ),
-                      ),
-
-                      if (email.isNotEmpty)
-                        Padding(
-                          padding:
-                              const EdgeInsets
-                                  .only(
-                            top: 3,
-                          ),
-                          child:
-                              Text(
-                            email,
-                            style:
-                                const TextStyle(
-                              color:
-                                  pikkXGrey,
-                              fontSize:
-                                  11,
-                            ),
-                          ),
-                        ),
-
-                      const SizedBox(
-                        height: 16,
-                      ),
-
-                      _profileAction(
-                        Icons
-                            .person_outline_rounded,
-                        'Open Profile',
-                        () {
-                          Navigator.pop(
-                            sheetContext,
-                          );
-
-                          _showMessage(
-                            'Open Profile from the profile section.',
-                          );
-                        },
-                      ),
-
-                      const SizedBox(
-                        height: 7,
-                      ),
-
-                      _profileAction(
-                        Icons
-                            .favorite_border_rounded,
-                        'My Favourites',
-                        () {
-                          Navigator.pop(
-                            sheetContext,
-                          );
-
-                          _showMessage(
-                            'Favourites are connected to Firebase.',
-                          );
-                        },
-                      ),
-
-                      const SizedBox(
-                        height: 7,
-                      ),
-
-                      _profileAction(
-                        Icons.logout_rounded,
-                        'Sign Out',
-                        () async {
-                          Navigator.pop(
-                            sheetContext,
-                          );
-
-                          await _auth
-                              .signOut();
-
-                          if (!mounted) {
-                            return;
-                          }
-
-                          _showMessage(
-                            'Signed out.',
-                          );
-                        },
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _profileAction(
-    IconData icon,
-    String title,
-    VoidCallback onTap,
-  ) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding:
-            const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 12,
-        ),
-        decoration:
-            BoxDecoration(
-          color: pikkXBackground,
-          borderRadius:
-              BorderRadius.circular(
-            16,
-          ),
-          border: Border.all(
-            color: pikkXLightGrey,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              color: pikkXBlack,
-              size: 21,
-            ),
-            const SizedBox(
-              width: 12,
-            ),
-            Expanded(
-              child: Text(
-                title,
-                style:
-                    const TextStyle(
-                  color: pikkXBlack,
-                  fontSize: 13,
-                  fontWeight:
-                      FontWeight.w800,
-                ),
-              ),
-            ),
-            const Icon(
-              Icons
-                  .arrow_forward_ios_rounded,
-              color: pikkXGrey,
-              size: 13,
-            ),
-          ],
-        ),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            const ProfilePage(),
       ),
     );
   }
@@ -2646,7 +2372,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               pikkXBlack,
                           fontSize: 19,
                           fontWeight:
-                              FontWeight.w900,
+                              FontWeight.w600,
                         ),
                       ),
                     ),
@@ -2705,8 +2431,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                       .min,
                               children: [
                                 Icon(
-                                  Icons
-                                      .notifications_none_rounded,
+                                  Icons.notifications_none_rounded,
                                   color:
                                       pikkXBlack,
                                   size: 42,
@@ -2722,7 +2447,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                         pikkXBlack,
                                     fontWeight:
                                         FontWeight
-                                            .w800,
+                                            .w600,
                                   ),
                                 ),
                               ],
@@ -2812,8 +2537,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                     ),
                                     child:
                                         const Icon(
-                                      Icons
-                                          .notifications_none_rounded,
+                                      Icons.notifications_none_rounded,
                                       color:
                                           pikkXWhite,
                                       size:
@@ -2830,8 +2554,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                       fontSize:
                                           12,
                                       fontWeight:
-                                          FontWeight
-                                              .w800,
+                                          FontWeight.w600,
                                     ),
                                   ),
                                   subtitle:
@@ -2935,7 +2658,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 color: pikkXBlack,
                 fontSize: 16,
                 fontWeight:
-                    FontWeight.w900,
+                    FontWeight.w600,
               ),
             ),
             const SizedBox(
@@ -2993,7 +2716,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 color: pikkXBlack,
                 fontSize: 15,
                 fontWeight:
-                    FontWeight.w900,
+                    FontWeight.w600,
               ),
             ),
             const SizedBox(
@@ -3035,7 +2758,7 @@ class _MyHomePageState extends State<MyHomePage> {
             color: pikkXWhite,
             fontSize: 12,
             fontWeight:
-                FontWeight.w700,
+                FontWeight.w600,
           ),
         ),
         backgroundColor:
