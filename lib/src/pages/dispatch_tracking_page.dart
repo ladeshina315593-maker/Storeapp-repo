@@ -1,3 +1,4 @@
+
 import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -21,15 +22,23 @@ class DispatchTrackingPage extends StatefulWidget {
 class _DispatchTrackingPageState
     extends State<DispatchTrackingPage> {
   // ============================================================
-  // pikkX COLORS
+  // PIKKX COLORS
   // ============================================================
 
-  static const Color pikkXBlack = Color(0xFF050505);
-  static const Color pikkXWhite = Color(0xFFFFFFFF);
-  static const Color pikkXNavy = Color(0xFF10233F);
+  static const Color pikkXBlack =
+      Color(0xFF050505);
 
-  static const Color background = Color(0xFFF7F7F7);
-  static const Color muted = Color(0xFF777777);
+  static const Color pikkXWhite =
+      Color(0xFFFFFFFF);
+
+  static const Color background =
+      Color(0xFFF7F7F7);
+
+  static const Color lightGrey =
+      Color(0xFFE8E8E8);
+
+  static const Color muted =
+      Color(0xFF777777);
 
   // ============================================================
   // FIREBASE
@@ -52,15 +61,21 @@ class _DispatchTrackingPageState
   LatLng? _lastRiderLocation;
 
   // Default location is Abuja.
-  // The map will automatically move to the rider
-  // once Firestore provides riderLatitude/riderLongitude.
-  static const LatLng _defaultLocation = LatLng(
+  // The map automatically moves to the rider
+  // when Firestore provides riderLatitude/riderLongitude.
+  static const LatLng _defaultLocation =
+      LatLng(
     9.0765,
     7.3986,
   );
 
   // ============================================================
   // FIRESTORE ORDER STREAM
+  //
+  // IMPORTANT:
+  // The orderId passed to this page is used as:
+  //
+  // orders/{orderId}
   // ============================================================
 
   Stream<DocumentSnapshot<Map<String, dynamic>>>
@@ -132,7 +147,8 @@ class _DispatchTrackingPageState
   }
 
   int _statusIndex(String status) {
-    final value = status.toLowerCase().trim();
+    final value =
+        status.toLowerCase().trim();
 
     switch (value) {
       case 'placed':
@@ -175,12 +191,15 @@ class _DispatchTrackingPageState
       child: Row(
         children: [
           _glassIconButton(
-            icon: Icons.arrow_back_ios_new_rounded,
+            icon:
+                Icons.arrow_back_ios_new_rounded,
             onTap: () {
               Navigator.pop(context);
             },
           ),
+
           const SizedBox(width: 14),
+
           Expanded(
             child: Column(
               crossAxisAlignment:
@@ -191,25 +210,32 @@ class _DispatchTrackingPageState
                   style: TextStyle(
                     color: pikkXBlack,
                     fontSize: 21,
-                    fontWeight: FontWeight.w800,
+                    fontWeight:
+                        FontWeight.w800,
                   ),
                 ),
+
                 const SizedBox(height: 3),
+
                 Text(
                   '#${widget.orderId}',
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow:
+                      TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: muted,
                     fontSize: 11,
-                    fontWeight: FontWeight.w500,
+                    fontWeight:
+                        FontWeight.w500,
                   ),
                 ),
               ],
             ),
           ),
+
           _glassIconButton(
-            icon: Icons.my_location_rounded,
+            icon:
+                Icons.my_location_rounded,
             onTap: () {
               _moveToRider();
             },
@@ -223,32 +249,49 @@ class _DispatchTrackingPageState
     required IconData icon,
     required VoidCallback onTap,
   }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(15),
-        child: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: pikkXWhite.withOpacity(0.72),
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(
-              color: pikkXWhite.withOpacity(0.95),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: pikkXBlack.withOpacity(0.05),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
+    return ClipRRect(
+      borderRadius:
+          BorderRadius.circular(15),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: 14,
+          sigmaY: 14,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius:
+                BorderRadius.circular(15),
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration:
+                  BoxDecoration(
+                color: pikkXWhite
+                    .withOpacity(0.68),
+                borderRadius:
+                    BorderRadius.circular(15),
+                border: Border.all(
+                  color: pikkXWhite
+                      .withOpacity(0.90),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: pikkXBlack
+                        .withOpacity(0.055),
+                    blurRadius: 16,
+                    offset:
+                        const Offset(0, 6),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Icon(
-            icon,
-            color: pikkXBlack,
-            size: 18,
+              child: Icon(
+                icon,
+                color: pikkXBlack,
+                size: 18,
+              ),
+            ),
           ),
         ),
       ),
@@ -269,27 +312,22 @@ class _DispatchTrackingPageState
     );
 
     return _glass(
-      padding: const EdgeInsets.all(20),
+      padding:
+          const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment:
             CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: pikkXNavy.withOpacity(0.09),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.local_shipping_rounded,
-                  color: pikkXNavy,
-                  size: 23,
-                ),
+              _blackCircleIcon(
+                Icons.local_shipping_rounded,
+                size: 48,
+                iconSize: 23,
               ),
+
               const SizedBox(width: 13),
+
               Expanded(
                 child: Column(
                   crossAxisAlignment:
@@ -300,44 +338,35 @@ class _DispatchTrackingPageState
                       style: TextStyle(
                         color: muted,
                         fontSize: 11,
-                        fontWeight: FontWeight.w500,
+                        fontWeight:
+                            FontWeight.w500,
                       ),
                     ),
+
                     const SizedBox(height: 3),
+
                     Text(
                       _formatStatus(status),
-                      style: const TextStyle(
+                      style:
+                          const TextStyle(
                         color: pikkXBlack,
                         fontSize: 18,
-                        fontWeight: FontWeight.w800,
+                        fontWeight:
+                            FontWeight.w800,
                       ),
                     ),
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: pikkXNavy.withOpacity(0.09),
-                  borderRadius:
-                      BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  'LIVE',
-                  style: TextStyle(
-                    color: pikkXNavy,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.7,
-                  ),
-                ),
+
+              _blackPill(
+                text: 'LIVE',
               ),
             ],
           ),
+
           const SizedBox(height: 20),
+
           _deliveryProgress(status),
         ],
       ),
@@ -348,8 +377,11 @@ class _DispatchTrackingPageState
   // DELIVERY PROGRESS
   // ============================================================
 
-  Widget _deliveryProgress(String status) {
-    final current = _statusIndex(status);
+  Widget _deliveryProgress(
+    String status,
+  ) {
+    final current =
+        _statusIndex(status);
 
     final steps = [
       (
@@ -374,8 +406,11 @@ class _DispatchTrackingPageState
       children: List.generate(
         steps.length,
         (index) {
-          final completed = index <= current;
-          final last = index == steps.length - 1;
+          final completed =
+              index <= current;
+
+          final last =
+              index == steps.length - 1;
 
           return Row(
             crossAxisAlignment:
@@ -385,14 +420,18 @@ class _DispatchTrackingPageState
                 children: [
                   AnimatedContainer(
                     duration:
-                        const Duration(milliseconds: 250),
+                        const Duration(
+                      milliseconds: 250,
+                    ),
                     width: 34,
                     height: 34,
-                    decoration: BoxDecoration(
+                    decoration:
+                        BoxDecoration(
                       color: completed
-                          ? pikkXNavy
-                          : const Color(0xFFEDEDED),
-                      shape: BoxShape.circle,
+                          ? pikkXBlack
+                          : lightGrey,
+                      shape:
+                          BoxShape.circle,
                     ),
                     child: Icon(
                       completed
@@ -400,24 +439,29 @@ class _DispatchTrackingPageState
                           : steps[index].$2,
                       color: completed
                           ? pikkXWhite
-                          : const Color(0xFF999999),
+                          : muted,
                       size: 17,
                     ),
                   ),
+
                   if (!last)
                     Container(
                       width: 2,
                       height: 28,
                       color: index < current
-                          ? pikkXNavy
-                          : const Color(0xFFE5E5E5),
+                          ? pikkXBlack
+                          : lightGrey,
                     ),
                 ],
               ),
+
               const SizedBox(width: 12),
+
               Padding(
                 padding:
-                    const EdgeInsets.only(top: 7),
+                    const EdgeInsets.only(
+                  top: 7,
+                ),
                 child: Text(
                   steps[index].$1,
                   style: TextStyle(
@@ -446,26 +490,40 @@ class _DispatchTrackingPageState
     Map<String, dynamic> data,
   ) {
     final latitude =
-        _doubleValue(data, 'riderLatitude');
+        _doubleValue(
+      data,
+      'riderLatitude',
+    );
 
     final longitude =
-        _doubleValue(data, 'riderLongitude');
+        _doubleValue(
+      data,
+      'riderLongitude',
+    );
 
     final hasLocation =
-        latitude != null && longitude != null;
+        latitude != null &&
+            longitude != null;
 
     if (hasLocation) {
-      final riderLocation = LatLng(
+      final riderLocation =
+          LatLng(
         latitude!,
         longitude!,
       );
 
-      _updateRiderMarker(riderLocation);
+      _updateRiderMarker(
+        riderLocation,
+      );
     }
 
-    final initialPosition = hasLocation
-        ? LatLng(latitude!, longitude!)
-        : _defaultLocation;
+    final initialPosition =
+        hasLocation
+            ? LatLng(
+                latitude!,
+                longitude!,
+              )
+            : _defaultLocation;
 
     return _glass(
       padding: EdgeInsets.zero,
@@ -484,19 +542,36 @@ class _DispatchTrackingPageState
                   GoogleMap(
                     initialCameraPosition:
                         CameraPosition(
-                      target: initialPosition,
-                      zoom: hasLocation ? 15 : 11,
+                      target:
+                          initialPosition,
+                      zoom: hasLocation
+                          ? 15
+                          : 11,
                     ),
-                    myLocationButtonEnabled: false,
-                    zoomControlsEnabled: false,
-                    mapToolbarEnabled: false,
-                    compassEnabled: false,
-                    buildingsEnabled: true,
+
+                    myLocationButtonEnabled:
+                        false,
+
+                    zoomControlsEnabled:
+                        false,
+
+                    mapToolbarEnabled:
+                        false,
+
+                    compassEnabled:
+                        false,
+
+                    buildingsEnabled:
+                        true,
+
                     markers: _markers,
+
                     onMapCreated: (
-                      GoogleMapController controller,
+                      GoogleMapController
+                          controller,
                     ) {
-                      _mapController = controller;
+                      _mapController =
+                          controller;
 
                       if (hasLocation) {
                         _moveCamera(
@@ -509,107 +584,123 @@ class _DispatchTrackingPageState
                     },
                   ),
 
+                  // ==========================================
+                  // TRACKING PILL
+                  // ==========================================
+
                   Positioned(
                     top: 14,
                     left: 14,
-                    child: Container(
-                      padding:
-                          const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 7,
+                    child: ClipRRect(
+                      borderRadius:
+                          BorderRadius.circular(
+                        12,
                       ),
-                      decoration: BoxDecoration(
-                        color: pikkXWhite
-                            .withOpacity(0.90),
-                        borderRadius:
-                            BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: pikkXBlack
-                                .withOpacity(0.08),
-                            blurRadius: 12,
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize:
-                            MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 7,
-                            height: 7,
-                            decoration:
-                                const BoxDecoration(
-                              color: pikkXNavy,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            hasLocation
-                                ? 'Tracking active'
-                                : 'Waiting for rider',
-                            style: const TextStyle(
-                              color: pikkXBlack,
-                              fontSize: 10,
-                              fontWeight:
-                                  FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  Positioned(
-                    right: 14,
-                    bottom: 14,
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: _moveToRider,
-                        borderRadius:
-                            BorderRadius.circular(14),
+                      child:
+                          BackdropFilter(
+                        filter:
+                            ImageFilter.blur(
+                          sigmaX: 10,
+                          sigmaY: 10,
+                        ),
                         child: Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
+                          padding:
+                              const EdgeInsets
+                                  .symmetric(
+                            horizontal: 10,
+                            vertical: 7,
+                          ),
+                          decoration:
+                              BoxDecoration(
                             color: pikkXWhite
-                                .withOpacity(0.92),
+                                .withOpacity(
+                              0.88,
+                            ),
                             borderRadius:
-                                BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                color: pikkXBlack
-                                    .withOpacity(0.10),
-                                blurRadius: 15,
+                                BorderRadius
+                                    .circular(
+                              12,
+                            ),
+                            border:
+                                Border.all(
+                              color: pikkXWhite
+                                  .withOpacity(
+                                0.95,
+                              ),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize:
+                                MainAxisSize
+                                    .min,
+                            children: [
+                              Container(
+                                width: 7,
+                                height: 7,
+                                decoration:
+                                    const BoxDecoration(
+                                  color:
+                                      pikkXBlack,
+                                  shape:
+                                      BoxShape
+                                          .circle,
+                                ),
+                              ),
+
+                              const SizedBox(
+                                width: 6,
+                              ),
+
+                              Text(
+                                hasLocation
+                                    ? 'Tracking active'
+                                    : 'Waiting for rider',
+                                style:
+                                    const TextStyle(
+                                  color:
+                                      pikkXBlack,
+                                  fontSize: 10,
+                                  fontWeight:
+                                      FontWeight
+                                          .w700,
+                                ),
                               ),
                             ],
-                          ),
-                          child: const Icon(
-                            Icons.my_location_rounded,
-                            color: pikkXNavy,
-                            size: 19,
                           ),
                         ),
                       ),
                     ),
+                  ),
+
+                  // ==========================================
+                  // MAP LOCATION BUTTON
+                  // ==========================================
+
+                  Positioned(
+                    right: 14,
+                    bottom: 14,
+                    child: _mapGlassButton(),
                   ),
                 ],
               ),
             ),
           ),
 
+          // ================================================
+          // LOCATION INFORMATION
+          // ================================================
+
           Padding(
-            padding: const EdgeInsets.all(17),
+            padding:
+                const EdgeInsets.all(17),
             child: Row(
               children: [
-                const Icon(
+                _smallBlackIcon(
                   Icons.location_on_outlined,
-                  color: pikkXNavy,
-                  size: 21,
                 ),
+
                 const SizedBox(width: 9),
+
                 Expanded(
                   child: Column(
                     crossAxisAlignment:
@@ -620,17 +711,21 @@ class _DispatchTrackingPageState
                         style: TextStyle(
                           color: pikkXBlack,
                           fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                          fontWeight:
+                              FontWeight.w700,
                         ),
                       ),
+
                       const SizedBox(height: 3),
+
                       Text(
                         hasLocation
                             ? '${latitude!.toStringAsFixed(5)}, '
                               '${longitude!.toStringAsFixed(5)}'
                             : 'Location will appear when '
                               'dispatch tracking starts.',
-                        style: const TextStyle(
+                        style:
+                            const TextStyle(
                           color: muted,
                           fontSize: 10,
                           height: 1.4,
@@ -648,13 +743,66 @@ class _DispatchTrackingPageState
   }
 
   // ============================================================
+  // MAP GLASS BUTTON
+  // ============================================================
+
+  Widget _mapGlassButton() {
+    return ClipRRect(
+      borderRadius:
+          BorderRadius.circular(14),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: 12,
+          sigmaY: 12,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: _moveToRider,
+            borderRadius:
+                BorderRadius.circular(14),
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration:
+                  BoxDecoration(
+                color: pikkXWhite
+                    .withOpacity(0.90),
+                borderRadius:
+                    BorderRadius.circular(14),
+                border: Border.all(
+                  color: pikkXWhite
+                      .withOpacity(0.95),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: pikkXBlack
+                        .withOpacity(0.08),
+                    blurRadius: 15,
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.my_location_rounded,
+                color: pikkXBlack,
+                size: 19,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
   // UPDATE RIDER MARKER
   // ============================================================
 
   void _updateRiderMarker(
     LatLng location,
   ) {
-    if (_lastRiderLocation == location &&
+    if (_lastRiderLocation ==
+            location &&
         _markers.isNotEmpty) {
       return;
     }
@@ -663,15 +811,21 @@ class _DispatchTrackingPageState
 
     final marker = Marker(
       markerId:
-          const MarkerId('dispatch_rider'),
+          const MarkerId(
+        'dispatch_rider',
+      ),
       position: location,
-      infoWindow: const InfoWindow(
+      infoWindow:
+          const InfoWindow(
         title: 'Dispatch rider',
-        snippet: 'Your order is on the way',
+        snippet:
+            'Your order is on the way',
       ),
-      icon: BitmapDescriptor.defaultMarkerWithHue(
-        BitmapDescriptor.hueAzure,
-      ),
+
+      // Google Maps provides the default
+      // marker appearance.
+      icon: BitmapDescriptor
+          .defaultMarker,
     );
 
     if (mounted) {
@@ -686,7 +840,8 @@ class _DispatchTrackingPageState
   // ============================================================
 
   Future<void> _moveToRider() async {
-    final location = _lastRiderLocation;
+    final location =
+        _lastRiderLocation;
 
     if (location == null) {
       return;
@@ -698,7 +853,8 @@ class _DispatchTrackingPageState
   Future<void> _moveCamera(
     LatLng location,
   ) async {
-    final controller = _mapController;
+    final controller =
+        _mapController;
 
     if (controller == null) {
       return;
@@ -721,35 +877,33 @@ class _DispatchTrackingPageState
   Widget _riderCard(
     Map<String, dynamic> data,
   ) {
-    final riderName = _stringValue(
+    final riderName =
+        _stringValue(
       data,
       'riderName',
-      fallback: 'Dispatch rider',
+      fallback:
+          'Dispatch rider',
     );
 
-    final riderPhone = _stringValue(
+    final riderPhone =
+        _stringValue(
       data,
       'riderPhone',
     );
 
     return _glass(
-      padding: const EdgeInsets.all(17),
+      padding:
+          const EdgeInsets.all(17),
       child: Row(
         children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: pikkXNavy.withOpacity(0.09),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.person_rounded,
-              color: pikkXNavy,
-              size: 26,
-            ),
+          _blackCircleIcon(
+            Icons.person_rounded,
+            size: 52,
+            iconSize: 26,
           ),
+
           const SizedBox(width: 13),
+
           Expanded(
             child: Column(
               crossAxisAlignment:
@@ -762,20 +916,28 @@ class _DispatchTrackingPageState
                     fontSize: 10,
                   ),
                 ),
+
                 const SizedBox(height: 3),
+
                 Text(
                   riderName,
-                  style: const TextStyle(
+                  style:
+                      const TextStyle(
                     color: pikkXBlack,
                     fontSize: 14,
-                    fontWeight: FontWeight.w800,
+                    fontWeight:
+                        FontWeight.w800,
                   ),
                 ),
-                if (riderPhone.isNotEmpty) ...[
+
+                if (riderPhone
+                    .isNotEmpty) ...[
                   const SizedBox(height: 3),
+
                   Text(
                     riderPhone,
-                    style: const TextStyle(
+                    style:
+                        const TextStyle(
                       color: muted,
                       fontSize: 10,
                     ),
@@ -784,12 +946,15 @@ class _DispatchTrackingPageState
               ],
             ),
           ),
+
           _circleAction(
-            icon: Icons.phone_outlined,
+            icon:
+                Icons.phone_outlined,
             onTap: riderPhone.isEmpty
                 ? null
                 : () {
-                    // Connect phone calling later.
+                    // Phone calling can be
+                    // connected later.
                   },
           ),
         ],
@@ -805,21 +970,30 @@ class _DispatchTrackingPageState
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius:
+            BorderRadius.circular(15),
         child: Container(
           width: 43,
           height: 43,
-          decoration: BoxDecoration(
+          decoration:
+              BoxDecoration(
             color: onTap == null
-                ? const Color(0xFFEDEDED)
-                : pikkXNavy.withOpacity(0.09),
+                ? lightGrey
+                : pikkXBlack
+                    .withOpacity(0.06),
             shape: BoxShape.circle,
+            border: Border.all(
+              color: pikkXBlack
+                  .withOpacity(0.06),
+            ),
           ),
           child: Icon(
             icon,
             color: onTap == null
-                ? const Color(0xFFAAAAAA)
-                : pikkXNavy,
+                ? const Color(
+                    0xFFAAAAAA,
+                  )
+                : pikkXBlack,
             size: 19,
           ),
         ),
@@ -837,69 +1011,104 @@ class _DispatchTrackingPageState
     final eta = _stringValue(
       data,
       'estimatedArrival',
-      fallback: 'Calculating...',
+      fallback:
+          'Calculating...',
     );
 
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: pikkXNavy,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: pikkXNavy.withOpacity(0.18),
-            blurRadius: 22,
-            offset: const Offset(0, 9),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: pikkXWhite.withOpacity(0.12),
-              shape: BoxShape.circle,
+    return ClipRRect(
+      borderRadius:
+          BorderRadius.circular(23),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: 15,
+          sigmaY: 15,
+        ),
+        child: Container(
+          padding:
+              const EdgeInsets.all(18),
+          decoration:
+              BoxDecoration(
+            color: pikkXBlack
+                .withOpacity(0.94),
+            borderRadius:
+                BorderRadius.circular(23),
+            border: Border.all(
+              color: pikkXWhite
+                  .withOpacity(0.10),
             ),
-            child: const Icon(
-              Icons.access_time_rounded,
-              color: pikkXWhite,
-              size: 21,
-            ),
+            boxShadow: [
+              BoxShadow(
+                color: pikkXBlack
+                    .withOpacity(0.14),
+                blurRadius: 22,
+                offset:
+                    const Offset(0, 9),
+              ),
+            ],
           ),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Estimated arrival',
-                  style: TextStyle(
-                    color: Color(0xFFB9C3D0),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                  ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration:
+                    BoxDecoration(
+                  color: pikkXWhite
+                      .withOpacity(0.10),
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  eta,
-                  style: const TextStyle(
-                    color: pikkXWhite,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                  ),
+                child: const Icon(
+                  Icons.access_time_rounded,
+                  color: pikkXWhite,
+                  size: 21,
                 ),
-              ],
-            ),
+              ),
+
+              const SizedBox(width: 13),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Estimated arrival',
+                      style: TextStyle(
+                        color: Color(
+                          0xFFBDBDBD,
+                        ),
+                        fontSize: 10,
+                        fontWeight:
+                            FontWeight.w500,
+                      ),
+                    ),
+
+                    const SizedBox(height: 3),
+
+                    Text(
+                      eta,
+                      style:
+                          const TextStyle(
+                        color: pikkXWhite,
+                        fontSize: 17,
+                        fontWeight:
+                            FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: Color(
+                  0xFFBDBDBD,
+                ),
+                size: 14,
+              ),
+            ],
           ),
-          const Icon(
-            Icons.arrow_forward_ios_rounded,
-            color: Color(0xFFB9C3D0),
-            size: 14,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -911,20 +1120,24 @@ class _DispatchTrackingPageState
   Widget _orderInfo(
     Map<String, dynamic> data,
   ) {
-    final total = _stringValue(
+    final total =
+        _stringValue(
       data,
       'total',
       fallback: '--',
     );
 
-    final address = _stringValue(
+    final address =
+        _stringValue(
       data,
       'deliveryAddress',
-      fallback: 'Delivery address',
+      fallback:
+          'Delivery address',
     );
 
     return _glass(
-      padding: const EdgeInsets.all(18),
+      padding:
+          const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment:
             CrossAxisAlignment.start,
@@ -934,22 +1147,29 @@ class _DispatchTrackingPageState
             style: TextStyle(
               color: pikkXBlack,
               fontSize: 15,
-              fontWeight: FontWeight.w800,
+              fontWeight:
+                  FontWeight.w800,
             ),
           ),
+
           const SizedBox(height: 15),
+
           _infoRow(
             Icons.receipt_long_outlined,
             'Order ID',
             widget.orderId,
           ),
+
           const SizedBox(height: 12),
+
           _infoRow(
             Icons.payments_outlined,
             'Total',
             total,
           ),
+
           const SizedBox(height: 12),
+
           _infoRow(
             Icons.location_on_outlined,
             'Delivery address',
@@ -969,12 +1189,10 @@ class _DispatchTrackingPageState
       crossAxisAlignment:
           CrossAxisAlignment.start,
       children: [
-        Icon(
-          icon,
-          color: pikkXNavy,
-          size: 19,
-        ),
+        _smallBlackIcon(icon),
+
         const SizedBox(width: 10),
+
         Expanded(
           child: Column(
             crossAxisAlignment:
@@ -982,24 +1200,115 @@ class _DispatchTrackingPageState
             children: [
               Text(
                 title,
-                style: const TextStyle(
+                style:
+                    const TextStyle(
                   color: muted,
                   fontSize: 9,
                 ),
               ),
+
               const SizedBox(height: 3),
+
               Text(
                 value,
-                style: const TextStyle(
+                style:
+                    const TextStyle(
                   color: pikkXBlack,
                   fontSize: 11,
-                  fontWeight: FontWeight.w700,
+                  fontWeight:
+                      FontWeight.w700,
                 ),
               ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  // ============================================================
+  // BLACK CIRCLE ICON
+  // ============================================================
+
+  Widget _blackCircleIcon(
+    IconData icon, {
+    double size = 48,
+    double iconSize = 23,
+  }) {
+    return Container(
+      width: size,
+      height: size,
+      decoration:
+          const BoxDecoration(
+        color: pikkXBlack,
+        shape: BoxShape.circle,
+      ),
+      child: Icon(
+        icon,
+        color: pikkXWhite,
+        size: iconSize,
+      ),
+    );
+  }
+
+  // ============================================================
+  // SMALL BLACK ICON
+  // ============================================================
+
+  Widget _smallBlackIcon(
+    IconData icon,
+  ) {
+    return Container(
+      width: 30,
+      height: 30,
+      decoration:
+          BoxDecoration(
+        color: pikkXBlack
+            .withOpacity(0.06),
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: pikkXBlack
+              .withOpacity(0.06),
+        ),
+      ),
+      child: Icon(
+        icon,
+        color: pikkXBlack,
+        size: 16,
+      ),
+    );
+  }
+
+  // ============================================================
+  // BLACK PILL
+  // ============================================================
+
+  Widget _blackPill({
+    required String text,
+  }) {
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 7,
+      ),
+      decoration:
+          BoxDecoration(
+        color: pikkXBlack,
+        borderRadius:
+            BorderRadius.circular(12),
+      ),
+      child: Text(
+        text,
+        style:
+            const TextStyle(
+          color: pikkXWhite,
+          fontSize: 9,
+          fontWeight:
+              FontWeight.w800,
+          letterSpacing: 0.7,
+        ),
+      ),
     );
   }
 
@@ -1013,27 +1322,33 @@ class _DispatchTrackingPageState
         const EdgeInsets.all(16),
   }) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
+      borderRadius:
+          BorderRadius.circular(24),
       child: BackdropFilter(
         filter: ImageFilter.blur(
-          sigmaX: 15,
-          sigmaY: 15,
+          sigmaX: 18,
+          sigmaY: 18,
         ),
         child: Container(
           padding: padding,
-          decoration: BoxDecoration(
-            color: pikkXWhite.withOpacity(0.72),
+          decoration:
+              BoxDecoration(
+            color: pikkXWhite
+                .withOpacity(0.70),
             borderRadius:
                 BorderRadius.circular(24),
             border: Border.all(
-              color: pikkXWhite.withOpacity(0.92),
+              color: pikkXWhite
+                  .withOpacity(0.90),
               width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: pikkXBlack.withOpacity(0.045),
+                color: pikkXBlack
+                    .withOpacity(0.055),
                 blurRadius: 20,
-                offset: const Offset(0, 8),
+                offset:
+                    const Offset(0, 8),
               ),
             ],
           ),
@@ -1047,47 +1362,62 @@ class _DispatchTrackingPageState
   // ERROR STATE
   // ============================================================
 
-  Widget _errorState(String message) {
+  Widget _errorState(
+    String message,
+  ) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(25),
+        padding:
+            const EdgeInsets.all(25),
         child: _glass(
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize:
+                MainAxisSize.min,
             children: [
-              const Icon(
+              _blackCircleIcon(
                 Icons.error_outline_rounded,
-                color: pikkXNavy,
-                size: 45,
+                size: 58,
+                iconSize: 30,
               ),
+
               const SizedBox(height: 13),
+
               const Text(
                 'Unable to load tracking',
                 style: TextStyle(
                   color: pikkXBlack,
                   fontSize: 16,
-                  fontWeight: FontWeight.w800,
+                  fontWeight:
+                      FontWeight.w800,
                 ),
               ),
+
               const SizedBox(height: 6),
+
               Text(
                 message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
+                textAlign:
+                    TextAlign.center,
+                style:
+                    const TextStyle(
                   color: muted,
                   fontSize: 11,
                 ),
               ),
+
               const SizedBox(height: 15),
+
               TextButton(
                 onPressed: () {
                   setState(() {});
                 },
                 child: const Text(
                   'Try again',
-                  style: TextStyle(
-                    color: pikkXNavy,
-                    fontWeight: FontWeight.w800,
+                  style:
+                      TextStyle(
+                    color: pikkXBlack,
+                    fontWeight:
+                        FontWeight.w800,
                   ),
                 ),
               ),
@@ -1105,30 +1435,39 @@ class _DispatchTrackingPageState
   Widget _notFound() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(25),
+        padding:
+            const EdgeInsets.all(25),
         child: _glass(
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize:
+                MainAxisSize.min,
             children: [
-              const Icon(
+              _blackCircleIcon(
                 Icons.inventory_2_outlined,
-                color: pikkXNavy,
-                size: 45,
+                size: 58,
+                iconSize: 30,
               ),
+
               const SizedBox(height: 13),
+
               const Text(
                 'Order not found',
                 style: TextStyle(
                   color: pikkXBlack,
                   fontSize: 17,
-                  fontWeight: FontWeight.w800,
+                  fontWeight:
+                      FontWeight.w800,
                 ),
               ),
+
               const SizedBox(height: 6),
+
               const Text(
                 'We could not find this order in your account.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
+                textAlign:
+                    TextAlign.center,
+                style:
+                    TextStyle(
                   color: muted,
                   fontSize: 11,
                 ),
@@ -1145,103 +1484,214 @@ class _DispatchTrackingPageState
   // ============================================================
 
   @override
-  Widget build(BuildContext context) {
-    final currentUser = _auth.currentUser;
+  Widget build(
+    BuildContext context,
+  ) {
+    final currentUser =
+        _auth.currentUser;
 
     return Scaffold(
-      backgroundColor: background,
+      backgroundColor:
+          background,
+
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            _appBar(),
+            // ==================================================
+            // SOFT BACKGROUND GLASS LIGHT
+            // ==================================================
 
-            Expanded(
-              child: StreamBuilder<
-                  DocumentSnapshot<
-                      Map<String, dynamic>>>(
-                stream: _orderStream,
-                builder: (
-                  context,
-                  snapshot,
-                ) {
-                  if (snapshot.connectionState ==
-                      ConnectionState.waiting) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        color: pikkXNavy,
-                      ),
-                    );
-                  }
-
-                  if (snapshot.hasError) {
-                    return _errorState(
-                      snapshot.error.toString(),
-                    );
-                  }
-
-                  if (!snapshot.hasData ||
-                      !snapshot.data!.exists) {
-                    return _notFound();
-                  }
-
-                  final data =
-                      snapshot.data!.data() ??
-                          <String, dynamic>{};
-
-                  final orderUserId =
-                      _stringValue(
-                    data,
-                    'userId',
-                  );
-
-                  if (orderUserId.isNotEmpty &&
-                      currentUser != null &&
-                      orderUserId !=
-                          currentUser.uid) {
-                    return _notFound();
-                  }
-
-                  return RefreshIndicator(
-                    color: pikkXNavy,
-                    onRefresh: () async {
-                      setState(() {});
-                    },
-                    child: ListView(
-                      physics:
-                          const BouncingScrollPhysics(),
-                      padding:
-                          const EdgeInsets.fromLTRB(
-                        20,
-                        5,
-                        20,
-                        35,
-                      ),
-                      children: [
-                        _statusCard(data),
-
-                        const SizedBox(height: 15),
-
-                        _locationCard(data),
-
-                        const SizedBox(height: 15),
-
-                        _riderCard(data),
-
-                        const SizedBox(height: 15),
-
-                        _etaCard(data),
-
-                        const SizedBox(height: 15),
-
-                        _orderInfo(data),
-                      ],
-                    ),
-                  );
-                },
+            Positioned(
+              top: -80,
+              right: -90,
+              child: _backgroundGlow(
+                size: 220,
+                opacity: 0.025,
               ),
+            ),
+
+            Positioned(
+              bottom: -100,
+              left: -100,
+              child: _backgroundGlow(
+                size: 240,
+                opacity: 0.02,
+              ),
+            ),
+
+            // ==================================================
+            // CONTENT
+            // ==================================================
+
+            Column(
+              children: [
+                _appBar(),
+
+                Expanded(
+                  child: StreamBuilder<
+                      DocumentSnapshot<
+                          Map<String,
+                              dynamic>>>(
+                    stream:
+                        _orderStream,
+
+                    builder: (
+                      context,
+                      snapshot,
+                    ) {
+                      if (snapshot
+                              .connectionState ==
+                          ConnectionState
+                              .waiting) {
+                        return const Center(
+                          child:
+                              SizedBox(
+                            width: 28,
+                            height: 28,
+                            child:
+                                CircularProgressIndicator(
+                              strokeWidth:
+                                  2.5,
+                              color:
+                                  pikkXBlack,
+                            ),
+                          ),
+                        );
+                      }
+
+                      if (snapshot
+                          .hasError) {
+                        return _errorState(
+                          snapshot.error
+                              .toString(),
+                        );
+                      }
+
+                      if (!snapshot
+                              .hasData ||
+                          !snapshot
+                              .data!
+                              .exists) {
+                        return _notFound();
+                      }
+
+                      final data =
+                          snapshot.data!
+                                  .data() ??
+                              <String,
+                                  dynamic>{};
+
+                      final orderUserId =
+                          _stringValue(
+                        data,
+                        'userId',
+                      );
+
+                      if (orderUserId
+                              .isNotEmpty &&
+                          currentUser !=
+                              null &&
+                          orderUserId !=
+                              currentUser
+                                  .uid) {
+                        return _notFound();
+                      }
+
+                      return RefreshIndicator(
+                        color:
+                            pikkXBlack,
+                        backgroundColor:
+                            pikkXWhite,
+                        onRefresh: () async {
+                          setState(() {});
+                        },
+                        child: ListView(
+                          physics:
+                              const BouncingScrollPhysics(),
+
+                          padding:
+                              const EdgeInsets
+                                  .fromLTRB(
+                            20,
+                            5,
+                            20,
+                            35,
+                          ),
+
+                          children: [
+                            _statusCard(
+                              data,
+                            ),
+
+                            const SizedBox(
+                              height: 15,
+                            ),
+
+                            _locationCard(
+                              data,
+                            ),
+
+                            const SizedBox(
+                              height: 15,
+                            ),
+
+                            _riderCard(
+                              data,
+                            ),
+
+                            const SizedBox(
+                              height: 15,
+                            ),
+
+                            _etaCard(
+                              data,
+                            ),
+
+                            const SizedBox(
+                              height: 15,
+                            ),
+
+                            _orderInfo(
+                              data,
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // BACKGROUND GLOW
+  // ============================================================
+
+  Widget _backgroundGlow({
+    required double size,
+    required double opacity,
+  }) {
+    return Container(
+      width: size,
+      height: size,
+      decoration:
+          BoxDecoration(
+        shape: BoxShape.circle,
+        color: pikkXBlack
+            .withOpacity(opacity),
+        boxShadow: [
+          BoxShadow(
+            color: pikkXBlack
+                .withOpacity(opacity),
+            blurRadius: 70,
+            spreadRadius: 20,
+          ),
+        ],
       ),
     );
   }
