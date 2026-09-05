@@ -30,13 +30,6 @@ class _MainPageState extends State<MainPage> {
   // ============================================================
   // PIKKX THEME
   // ============================================================
-  //
-  // NEW PikkX identity:
-  // Black + White + Light Grey + Glass
-  // NO BLUE
-  // NO NAVY
-  // NO PURPLE
-  //
 
   static const Color pikkXBlack = Color(0xFF050505);
   static const Color pikkXWhite = Color(0xFFFFFFFF);
@@ -225,22 +218,25 @@ class _MainPageState extends State<MainPage> {
           // BRAND
           // ------------------------------------------------------
 
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  'pikkX',
-                  style: TextStyle(
-                    color: pikkXBlack,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.8,
-                  ),
-                ),
-              ],
+          const Expanded(
+            child: Text(
+              'pikkX',
+              style: TextStyle(
+                color: pikkXBlack,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.8,
+              ),
             ),
           ),
+
+          // ------------------------------------------------------
+          // DISPATCH / TRACKING
+          // ------------------------------------------------------
+
+          _dispatchTrackingButton(),
+
+          const SizedBox(width: 9),
 
           // ------------------------------------------------------
           // NOTIFICATION
@@ -297,6 +293,109 @@ class _MainPageState extends State<MainPage> {
         ],
       ),
     );
+  }
+
+  // ============================================================
+  // DISPATCH / TRACKING BUTTON
+  // ============================================================
+
+  Widget _dispatchTrackingButton() {
+    return _glassIcon(
+      Icons.local_shipping_outlined,
+      onPressed: _openLatestOrderForTracking,
+    );
+  }
+
+  Future<void> _openLatestOrderForTracking() async {
+    final user = currentUser;
+
+    if (user == null) {
+      _showMessage('Please sign in first.');
+      return;
+    }
+
+    try {
+      final snapshot = await _firestore
+          .collection('orders')
+          .where(
+            'userId',
+            isEqualTo: user.uid,
+          )
+          .limit(10)
+          .get();
+
+      if (!mounted) return;
+
+      if (snapshot.docs.isEmpty) {
+        _showMessage(
+          'You do not have any orders yet.',
+        );
+        return;
+      }
+
+      // --------------------------------------------------------
+      // Find the newest order using createdAt when available.
+      // --------------------------------------------------------
+
+      final docs = [...snapshot.docs];
+
+      docs.sort((a, b) {
+        final aData = a.data();
+        final bData = b.data();
+
+        final aTime = _timestampToDate(
+          aData['createdAt'],
+        );
+
+        final bTime = _timestampToDate(
+          bData['createdAt'],
+        );
+
+        if (aTime == null && bTime == null) {
+          return 0;
+        }
+
+        if (aTime == null) {
+          return 1;
+        }
+
+        if (bTime == null) {
+          return -1;
+        }
+
+        return bTime.compareTo(aTime);
+      });
+
+      final latestOrderId = docs.first.id;
+
+      Navigator.pushNamed(
+        context,
+        '/order-details',
+        arguments: latestOrderId,
+      );
+    } catch (e) {
+      debugPrint(
+        'Open tracking error: $e',
+      );
+
+      if (!mounted) return;
+
+      _showMessage(
+        'Could not find your latest order.',
+      );
+    }
+  }
+
+  DateTime? _timestampToDate(dynamic value) {
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+
+    if (value is DateTime) {
+      return value;
+    }
+
+    return null;
   }
 
   // ============================================================
@@ -410,11 +509,6 @@ class _MainPageState extends State<MainPage> {
     String second;
 
     switch (_selectedIndex) {
-      case 0:
-        first = 'Our';
-        second = 'Products';
-        break;
-
       case 1:
         first = 'Shopping';
         second = 'Cart';
@@ -436,8 +530,12 @@ class _MainPageState extends State<MainPage> {
         break;
 
       default:
-        first = 'Our';
-        second = 'Products';
+        first = '';
+        second = '';
+    }
+
+    if (first.isEmpty && second.isEmpty) {
+      return const SizedBox.shrink();
     }
 
     return Padding(
@@ -451,7 +549,8 @@ class _MainPageState extends State<MainPage> {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               Text(
                 first,
@@ -552,34 +651,37 @@ class _MainPageState extends State<MainPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // HANDLE
                     Container(
                       width: 42,
                       height: 5,
                       decoration: BoxDecoration(
                         color: pikkXLightGrey,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius:
+                            BorderRadius.circular(10),
                       ),
                     ),
 
                     const SizedBox(height: 20),
 
-                    // BRAND
                     Row(
                       children: [
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(13),
+                          borderRadius:
+                              BorderRadius.circular(13),
                           child: Container(
                             width: 42,
                             height: 42,
-                            padding: const EdgeInsets.all(6),
+                            padding:
+                                const EdgeInsets.all(6),
                             color: pikkXBackground,
                             child: Image.asset(
                               'assets/images/pikkx_icon (1).png',
                               fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) {
+                              errorBuilder:
+                                  (_, __, ___) {
                                 return const Icon(
-                                  Icons.shopping_bag_rounded,
+                                  Icons
+                                      .shopping_bag_rounded,
                                   color: pikkXBlack,
                                 );
                               },
@@ -621,6 +723,15 @@ class _MainPageState extends State<MainPage> {
                         _pushPage(
                           const OrdersPage(),
                         );
+                      },
+                    ),
+
+                    _menuItem(
+                      Icons.local_shipping_outlined,
+                      'Track My Order',
+                      () {
+                        Navigator.pop(context);
+                        _openLatestOrderForTracking();
                       },
                     ),
 
@@ -714,9 +825,11 @@ class _MainPageState extends State<MainPage> {
                 height: 43,
                 decoration: BoxDecoration(
                   color: pikkXBackground,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius:
+                      BorderRadius.circular(14),
                   border: Border.all(
-                    color: pikkXBlack.withOpacity(0.05),
+                    color:
+                        pikkXBlack.withOpacity(0.05),
                   ),
                 ),
                 child: Icon(
@@ -783,7 +896,8 @@ class _MainPageState extends State<MainPage> {
         return AlertDialog(
           backgroundColor: pikkXWhite,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius:
+                BorderRadius.circular(24),
           ),
           title: const Text(
             'Clear cart?',
@@ -850,7 +964,9 @@ class _MainPageState extends State<MainPage> {
 
       _showMessage('Cart cleared.');
     } catch (e) {
-      debugPrint('Clear cart error: $e');
+      debugPrint(
+        'Clear cart error: $e',
+      );
 
       if (!mounted) return;
 
@@ -872,7 +988,8 @@ class _MainPageState extends State<MainPage> {
         return AlertDialog(
           backgroundColor: pikkXWhite,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius:
+                BorderRadius.circular(24),
           ),
           title: const Text(
             'Log out?',
@@ -930,7 +1047,9 @@ class _MainPageState extends State<MainPage> {
         (route) => false,
       );
     } catch (e) {
-      debugPrint('Logout error: $e');
+      debugPrint(
+        'Logout error: $e',
+      );
 
       if (!mounted) return;
 
@@ -959,7 +1078,8 @@ class _MainPageState extends State<MainPage> {
         backgroundColor: pikkXBlack,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius:
+              BorderRadius.circular(14),
         ),
       ),
     );
@@ -977,31 +1097,54 @@ class _MainPageState extends State<MainPage> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // ----------------------------------------------------
-            // MAIN BACKGROUND
-            // ----------------------------------------------------
-
             Container(
               color: pikkXBackground,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
                 children: [
-                  // Only show this navigation-shell header
+                  // ------------------------------------------------
+                  // HEADER
+                  // ------------------------------------------------
+                  //
+                  // HomePage already has its own header.
+                  // Therefore the MainPage header is only shown
                   // on non-home pages.
-                  if (_selectedIndex != 0) _appBar(),
+                  //
+                  if (_selectedIndex != 0)
+                    _appBar(),
 
-                  _title(),
+                  // ------------------------------------------------
+                  // PAGE TITLE
+                  // ------------------------------------------------
+                  //
+                  // IMPORTANT:
+                  // Home does NOT display "Our Products".
+                  // This removes the unwanted space above HomePage.
+                  //
+                  if (_selectedIndex != 0)
+                    _title(),
+
+                  // ------------------------------------------------
+                  // CURRENT PAGE
+                  // ------------------------------------------------
 
                   Expanded(
                     child: AnimatedSwitcher(
-                      duration: const Duration(
+                      duration:
+                          const Duration(
                         milliseconds: 260,
                       ),
-                      switchInCurve: Curves.easeOut,
-                      switchOutCurve: Curves.easeIn,
+                      switchInCurve:
+                          Curves.easeOut,
+                      switchOutCurve:
+                          Curves.easeIn,
                       child: KeyedSubtree(
-                        key: ValueKey(_selectedIndex),
-                        child: _buildCurrentPage(),
+                        key: ValueKey(
+                          _selectedIndex,
+                        ),
+                        child:
+                            _buildCurrentPage(),
                       ),
                     ),
                   ),
@@ -1009,16 +1152,18 @@ class _MainPageState extends State<MainPage> {
               ),
             ),
 
-            // ----------------------------------------------------
+            // ------------------------------------------------------
             // FLOATING GLASS NAVIGATION
-            // ----------------------------------------------------
+            // ------------------------------------------------------
 
             Positioned(
               bottom: 0,
               left: 0,
               right: 0,
-              child: CustomBottomNavigationBar(
-                selectedIndex: _selectedIndex,
+              child:
+                  CustomBottomNavigationBar(
+                selectedIndex:
+                    _selectedIndex,
                 onIconPressedCallback:
                     _onBottomIconPressed,
               ),
@@ -1035,27 +1180,38 @@ class _MainPageState extends State<MainPage> {
 // ==================================================================
 
 class FavouritePage extends StatelessWidget {
-  const FavouritePage({super.key});
+  const FavouritePage({
+    super.key,
+  });
 
-  static const Color pikkXBlack = Color(0xFF050505);
-  static const Color pikkXWhite = Color(0xFFFFFFFF);
-  static const Color pikkXBackground = Color(0xFFF7F7F7);
-  static const Color pikkXGrey = Color(0xFF777777);
+  static const Color pikkXBlack =
+      Color(0xFF050505);
+  static const Color pikkXWhite =
+      Color(0xFFFFFFFF);
+  static const Color pikkXBackground =
+      Color(0xFFF7F7F7);
+  static const Color pikkXGrey =
+      Color(0xFF777777);
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+    final user =
+        FirebaseAuth.instance.currentUser;
 
     if (user == null) {
       return const _SimpleEmptyState(
-        icon: Icons.favorite_outline_rounded,
-        title: 'Sign in to view favourites',
-        subtitle: 'Your saved products will appear here.',
+        icon:
+            Icons.favorite_outline_rounded,
+        title:
+            'Sign in to view favourites',
+        subtitle:
+            'Your saved products will appear here.',
       );
     }
 
     return StreamBuilder<
-        QuerySnapshot<Map<String, dynamic>>>(
+        QuerySnapshot<
+            Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -1065,7 +1221,8 @@ class FavouritePage extends StatelessWidget {
         if (snapshot.connectionState ==
             ConnectionState.waiting) {
           return const Center(
-            child: CircularProgressIndicator(
+            child:
+                CircularProgressIndicator(
               color: pikkXBlack,
             ),
           );
@@ -1073,46 +1230,59 @@ class FavouritePage extends StatelessWidget {
 
         if (snapshot.hasError) {
           return const _SimpleEmptyState(
-            icon: Icons.error_outline_rounded,
-            title: 'Could not load favourites',
-            subtitle: 'Please try again.',
+            icon:
+                Icons.error_outline_rounded,
+            title:
+                'Could not load favourites',
+            subtitle:
+                'Please try again.',
           );
         }
 
-        final docs = snapshot.data?.docs ?? [];
+        final docs =
+            snapshot.data?.docs ?? [];
 
         if (docs.isEmpty) {
           return const _SimpleEmptyState(
-            icon: Icons.favorite_outline_rounded,
-            title: 'No favourites yet',
+            icon:
+                Icons.favorite_outline_rounded,
+            title:
+                'No favourites yet',
             subtitle:
                 'Products you save will appear here.',
           );
         }
 
         return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(
+          padding:
+              const EdgeInsets.fromLTRB(
             16,
             5,
             16,
             90,
           ),
           itemCount: docs.length,
-          itemBuilder: (context, index) {
-            final data = docs[index].data();
+          itemBuilder:
+              (context, index) {
+            final data =
+                docs[index].data();
 
             final name =
-                data['name']?.toString() ?? 'Product';
+                data['name']?.toString() ??
+                    'Product';
 
             final price =
-                data['price']?.toString() ?? '0';
+                data['price']?.toString() ??
+                    '0';
 
             return Padding(
-              padding: const EdgeInsets.only(
+              padding:
+                  const EdgeInsets.only(
                 bottom: 12,
               ),
               child: _GlassListTile(
-                icon: Icons.favorite_rounded,
+                icon:
+                    Icons.favorite_rounded,
                 title: name,
                 subtitle: price,
               ),
@@ -1129,60 +1299,85 @@ class FavouritePage extends StatelessWidget {
 // ==================================================================
 
 class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key});
+  const ProfilePage({
+    super.key,
+  });
 
-  static const Color pikkXBlack = Color(0xFF050505);
-  static const Color pikkXWhite = Color(0xFFFFFFFF);
-  static const Color pikkXBackground = Color(0xFFF7F7F7);
-  static const Color pikkXGrey = Color(0xFF777777);
+  static const Color pikkXBlack =
+      Color(0xFF050505);
+  static const Color pikkXWhite =
+      Color(0xFFFFFFFF);
+  static const Color pikkXBackground =
+      Color(0xFFF7F7F7);
+  static const Color pikkXGrey =
+      Color(0xFF777777);
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+    final user =
+        FirebaseAuth.instance.currentUser;
 
     if (user == null) {
       return const _SimpleEmptyState(
-        icon: Icons.person_outline_rounded,
-        title: 'You are not signed in',
-        subtitle: 'Sign in to view your profile.',
+        icon:
+            Icons.person_outline_rounded,
+        title:
+            'You are not signed in',
+        subtitle:
+            'Sign in to view your profile.',
       );
     }
 
-    final name = user.displayName?.trim();
-    final email = user.email ?? '';
+    final name =
+        user.displayName?.trim();
+
+    final email =
+        user.email ?? '';
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
+      padding:
+          const EdgeInsets.fromLTRB(
         16,
         5,
         16,
         90,
       ),
       children: [
-        // --------------------------------------------------------
-        // PROFILE GLASS CARD
-        // --------------------------------------------------------
-
         ClipRRect(
-          borderRadius: BorderRadius.circular(28),
+          borderRadius:
+              BorderRadius.circular(28),
           child: BackdropFilter(
             filter: ImageFilter.blur(
               sigmaX: 16,
               sigmaY: 16,
             ),
             child: Container(
-              padding: const EdgeInsets.all(22),
+              padding:
+                  const EdgeInsets.all(22),
               decoration: BoxDecoration(
-                color: pikkXWhite.withOpacity(0.72),
-                borderRadius: BorderRadius.circular(28),
+                color:
+                    pikkXWhite.withOpacity(
+                  0.72,
+                ),
+                borderRadius:
+                    BorderRadius.circular(
+                  28,
+                ),
                 border: Border.all(
-                  color: pikkXWhite.withOpacity(0.92),
+                  color:
+                      pikkXWhite.withOpacity(
+                    0.92,
+                  ),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: pikkXBlack.withOpacity(0.04),
+                    color:
+                        pikkXBlack.withOpacity(
+                      0.04,
+                    ),
                     blurRadius: 20,
-                    offset: const Offset(0, 8),
+                    offset:
+                        const Offset(0, 8),
                   ),
                 ],
               ),
@@ -1190,42 +1385,61 @@ class ProfilePage extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 42,
-                    backgroundColor: pikkXBackground,
+                    backgroundColor:
+                        pikkXBackground,
                     backgroundImage:
-                        user.photoURL != null &&
-                                user.photoURL!.isNotEmpty
-                            ? NetworkImage(user.photoURL!)
+                        user.photoURL !=
+                                    null &&
+                                user.photoURL!
+                                    .isNotEmpty
+                            ? NetworkImage(
+                                user.photoURL!,
+                              )
                             : null,
                     child:
-                        user.photoURL == null ||
-                                user.photoURL!.isEmpty
+                        user.photoURL ==
+                                    null ||
+                                user.photoURL!
+                                    .isEmpty
                             ? const Icon(
-                                Icons.person_outline_rounded,
+                                Icons
+                                    .person_outline_rounded,
                                 size: 42,
-                                color: pikkXBlack,
+                                color:
+                                    pikkXBlack,
                               )
                             : null,
                   ),
 
-                  const SizedBox(height: 14),
+                  const SizedBox(
+                    height: 14,
+                  ),
 
                   Text(
-                    (name == null || name.isEmpty)
+                    (name == null ||
+                            name.isEmpty)
                         ? 'pikkX User'
                         : name,
-                    style: const TextStyle(
+                    style:
+                        const TextStyle(
                       fontSize: 21,
-                      fontWeight: FontWeight.w900,
-                      color: pikkXBlack,
+                      fontWeight:
+                          FontWeight.w900,
+                      color:
+                          pikkXBlack,
                     ),
                   ),
 
                   if (email.isNotEmpty) ...[
-                    const SizedBox(height: 5),
+                    const SizedBox(
+                      height: 5,
+                    ),
                     Text(
                       email,
-                      style: const TextStyle(
-                        color: pikkXGrey,
+                      style:
+                          const TextStyle(
+                        color:
+                            pikkXGrey,
                         fontSize: 13,
                       ),
                     ),
@@ -1236,28 +1450,113 @@ class ProfilePage extends StatelessWidget {
           ),
         ),
 
-        const SizedBox(height: 18),
+        const SizedBox(
+          height: 18,
+        ),
 
         _GlassListTile(
-          icon: Icons.shopping_bag_outlined,
-          title: 'My Orders',
-          subtitle: 'View your orders',
+          icon:
+              Icons.shopping_bag_outlined,
+          title:
+              'My Orders',
+          subtitle:
+              'View your orders',
           onTap: () {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => const OrdersPage(),
+                builder: (_) =>
+                    const OrdersPage(),
               ),
             );
           },
         ),
 
-        const SizedBox(height: 10),
+        const SizedBox(
+          height: 10,
+        ),
 
         _GlassListTile(
-          icon: Icons.location_on_outlined,
-          title: 'Delivery Addresses',
-          subtitle: 'Manage your addresses',
+          icon:
+              Icons.local_shipping_outlined,
+          title:
+              'Track My Order',
+          subtitle:
+              'Track your latest order',
+          onTap: () async {
+            final user =
+                FirebaseAuth.instance
+                    .currentUser;
+
+            if (user == null) {
+              return;
+            }
+
+            try {
+              final snapshot =
+                  await FirebaseFirestore
+                      .instance
+                      .collection('orders')
+                      .where(
+                        'userId',
+                        isEqualTo:
+                            user.uid,
+                      )
+                      .limit(1)
+                      .get();
+
+              if (!context.mounted) {
+                return;
+              }
+
+              if (snapshot.docs.isEmpty) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'You do not have any orders yet.',
+                    ),
+                  ),
+                );
+                return;
+              }
+
+              Navigator.pushNamed(
+                context,
+                '/order-details',
+                arguments:
+                    snapshot.docs.first.id,
+              );
+            } catch (e) {
+              if (!context.mounted) {
+                return;
+              }
+
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Could not load your order.',
+                  ),
+                ),
+              );
+            }
+          },
+        ),
+
+        const SizedBox(
+          height: 10,
+        ),
+
+        _GlassListTile(
+          icon:
+              Icons.location_on_outlined,
+          title:
+              'Delivery Addresses',
+          subtitle:
+              'Manage your addresses',
           onTap: () {
             Navigator.push(
               context,
@@ -1269,33 +1568,45 @@ class ProfilePage extends StatelessWidget {
           },
         ),
 
-        const SizedBox(height: 10),
+        const SizedBox(
+          height: 10,
+        ),
 
         _GlassListTile(
-          icon: Icons.favorite_outline_rounded,
-          title: 'My Favourites',
-          subtitle: 'View saved products',
+          icon:
+              Icons.favorite_outline_rounded,
+          title:
+              'My Favourites',
+          subtitle:
+              'View saved products',
           onTap: () {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => const FavouritePage(),
+                builder: (_) =>
+                    const FavouritePage(),
               ),
             );
           },
         ),
 
-        const SizedBox(height: 10),
+        const SizedBox(
+          height: 10,
+        ),
 
         _GlassListTile(
-          icon: Icons.settings_outlined,
-          title: 'Settings',
-          subtitle: 'Manage your account',
+          icon:
+              Icons.settings_outlined,
+          title:
+              'Settings',
+          subtitle:
+              'Manage your account',
           onTap: () {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => const SettingsPage(),
+                builder: (_) =>
+                    const SettingsPage(),
               ),
             );
           },
@@ -1309,7 +1620,8 @@ class ProfilePage extends StatelessWidget {
 // GLASS LIST TILE
 // ==================================================================
 
-class _GlassListTile extends StatelessWidget {
+class _GlassListTile
+    extends StatelessWidget {
   const _GlassListTile({
     required this.icon,
     required this.title,
@@ -1322,37 +1634,58 @@ class _GlassListTile extends StatelessWidget {
   final String? subtitle;
   final VoidCallback? onTap;
 
-  static const Color pikkXBlack = Color(0xFF050505);
-  static const Color pikkXWhite = Color(0xFFFFFFFF);
-  static const Color pikkXBackground = Color(0xFFF7F7F7);
-  static const Color pikkXGrey = Color(0xFF777777);
+  static const Color pikkXBlack =
+      Color(0xFF050505);
+  static const Color pikkXWhite =
+      Color(0xFFFFFFFF);
+  static const Color pikkXBackground =
+      Color(0xFFF7F7F7);
+  static const Color pikkXGrey =
+      Color(0xFF777777);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(22),
+      borderRadius:
+          BorderRadius.circular(22),
       child: BackdropFilter(
         filter: ImageFilter.blur(
           sigmaX: 14,
           sigmaY: 14,
         ),
         child: Material(
-          color: pikkXWhite.withOpacity(0.70),
+          color:
+              pikkXWhite.withOpacity(0.70),
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(22),
+            borderRadius:
+                BorderRadius.circular(22),
             child: Container(
-              padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(
+              padding:
+                  const EdgeInsets.all(15),
+              decoration:
+                  BoxDecoration(
                 border: Border.all(
-                  color: pikkXWhite.withOpacity(0.90),
+                  color:
+                      pikkXWhite.withOpacity(
+                    0.90,
+                  ),
                 ),
-                borderRadius: BorderRadius.circular(22),
+                borderRadius:
+                    BorderRadius.circular(
+                  22,
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: pikkXBlack.withOpacity(0.025),
+                    color:
+                        pikkXBlack.withOpacity(
+                      0.025,
+                    ),
                     blurRadius: 14,
-                    offset: const Offset(0, 5),
+                    offset:
+                        const Offset(0, 5),
                   ),
                 ],
               ),
@@ -1361,38 +1694,56 @@ class _GlassListTile extends StatelessWidget {
                   Container(
                     width: 45,
                     height: 45,
-                    decoration: BoxDecoration(
-                      color: pikkXBackground,
-                      borderRadius: BorderRadius.circular(15),
+                    decoration:
+                        BoxDecoration(
+                      color:
+                          pikkXBackground,
+                      borderRadius:
+                          BorderRadius.circular(
+                        15,
+                      ),
                     ),
                     child: Icon(
                       icon,
-                      color: pikkXBlack,
+                      color:
+                          pikkXBlack,
                     ),
                   ),
 
-                  const SizedBox(width: 13),
+                  const SizedBox(
+                    width: 13,
+                  ),
 
                   Expanded(
                     child: Column(
                       crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                          CrossAxisAlignment
+                              .start,
                       children: [
                         Text(
                           title,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            color: pikkXBlack,
+                          style:
+                              const TextStyle(
+                            fontWeight:
+                                FontWeight
+                                    .w800,
+                            color:
+                                pikkXBlack,
                           ),
                         ),
 
-                        if (subtitle != null) ...[
-                          const SizedBox(height: 3),
+                        if (subtitle !=
+                            null) ...[
+                          const SizedBox(
+                            height: 3,
+                          ),
                           Text(
                             subtitle!,
-                            style: const TextStyle(
+                            style:
+                                const TextStyle(
                               fontSize: 12,
-                              color: pikkXGrey,
+                              color:
+                                  pikkXGrey,
                             ),
                           ),
                         ],
@@ -1402,9 +1753,11 @@ class _GlassListTile extends StatelessWidget {
 
                   if (onTap != null)
                     const Icon(
-                      Icons.arrow_forward_ios_rounded,
+                      Icons
+                          .arrow_forward_ios_rounded,
                       size: 14,
-                      color: pikkXGrey,
+                      color:
+                          pikkXGrey,
                     ),
                 ],
               ),
@@ -1420,7 +1773,8 @@ class _GlassListTile extends StatelessWidget {
 // EMPTY STATE
 // ==================================================================
 
-class _SimpleEmptyState extends StatelessWidget {
+class _SimpleEmptyState
+    extends StatelessWidget {
   const _SimpleEmptyState({
     required this.icon,
     required this.title,
@@ -1431,71 +1785,107 @@ class _SimpleEmptyState extends StatelessWidget {
   final String title;
   final String subtitle;
 
-  static const Color pikkXBlack = Color(0xFF050505);
-  static const Color pikkXWhite = Color(0xFFFFFFFF);
-  static const Color pikkXBackground = Color(0xFFF7F7F7);
-  static const Color pikkXGrey = Color(0xFF777777);
+  static const Color pikkXBlack =
+      Color(0xFF050505);
+  static const Color pikkXWhite =
+      Color(0xFFFFFFFF);
+  static const Color pikkXBackground =
+      Color(0xFFF7F7F7);
+  static const Color pikkXGrey =
+      Color(0xFF777777);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(30),
+        padding:
+            const EdgeInsets.all(30),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize:
+              MainAxisSize.min,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(24),
+              borderRadius:
+                  BorderRadius.circular(24),
               child: BackdropFilter(
-                filter: ImageFilter.blur(
+                filter:
+                    ImageFilter.blur(
                   sigmaX: 14,
                   sigmaY: 14,
                 ),
                 child: Container(
                   width: 78,
                   height: 78,
-                  decoration: BoxDecoration(
-                    color: pikkXWhite.withOpacity(0.70),
-                    borderRadius: BorderRadius.circular(24),
+                  decoration:
+                      BoxDecoration(
+                    color:
+                        pikkXWhite.withOpacity(
+                      0.70,
+                    ),
+                    borderRadius:
+                        BorderRadius.circular(
+                      24,
+                    ),
                     border: Border.all(
-                      color: pikkXWhite.withOpacity(0.92),
+                      color:
+                          pikkXWhite.withOpacity(
+                        0.92,
+                      ),
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: pikkXBlack.withOpacity(0.04),
+                        color:
+                            pikkXBlack.withOpacity(
+                          0.04,
+                        ),
                         blurRadius: 18,
-                        offset: const Offset(0, 7),
+                        offset:
+                            const Offset(0, 7),
                       ),
                     ],
                   ),
                   child: Icon(
                     icon,
                     size: 40,
-                    color: pikkXBlack,
+                    color:
+                        pikkXBlack,
                   ),
                 ),
               ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(
+              height: 16,
+            ),
 
             Text(
               title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
+              textAlign:
+                  TextAlign.center,
+              style:
+                  const TextStyle(
                 fontSize: 19,
-                fontWeight: FontWeight.w800,
-                color: pikkXBlack,
+                fontWeight:
+                    FontWeight.w800,
+                color:
+                    pikkXBlack,
               ),
             ),
 
-            const SizedBox(height: 7),
+            const SizedBox(
+              height: 7,
+            ),
 
             Text(
               subtitle,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: pikkXGrey,
+              textAlign:
+                  TextAlign.center,
+              style:
+                  const TextStyle(
+                color:
+                    pikkXGrey,
                 height: 1.4,
               ),
             ),
