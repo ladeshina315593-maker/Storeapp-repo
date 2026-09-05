@@ -14,30 +14,19 @@ class OrderDetailsPage extends StatefulWidget {
   });
 
   @override
-  State<OrderDetailsPage> createState() =>
-      _OrderDetailsPageState();
+  State<OrderDetailsPage> createState() => _OrderDetailsPageState();
 }
 
-class _OrderDetailsPageState
-    extends State<OrderDetailsPage> {
+class _OrderDetailsPageState extends State<OrderDetailsPage> {
   // ============================================================
   // PIKKX COLORS
   // ============================================================
 
-  static const Color pikkXBlack =
-      Color(0xFF050505);
-
-  static const Color pikkXWhite =
-      Color(0xFFFFFFFF);
-
-  static const Color pikkXBackground =
-      Color(0xFFF7F7F7);
-
-  static const Color pikkXGrey =
-      Color(0xFF777777);
-
-  static const Color pikkXLightGrey =
-      Color(0xFFE8E8E8);
+  static const Color pikkXBlack = Color(0xFF050505);
+  static const Color pikkXWhite = Color(0xFFFFFFFF);
+  static const Color pikkXBackground = Color(0xFFF7F7F7);
+  static const Color pikkXGrey = Color(0xFF777777);
+  static const Color pikkXLightGrey = Color(0xFFE8E8E8);
 
   // ============================================================
   // FIREBASE
@@ -46,15 +35,13 @@ class _OrderDetailsPageState
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
 
-  final FirebaseAuth _auth =
-      FirebaseAuth.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   bool isLoading = true;
 
   Map<String, dynamic>? order;
 
-  String? get userId =>
-      _auth.currentUser?.uid;
+  String? get userId => _auth.currentUser?.uid;
 
   // ============================================================
   // CURRENCY
@@ -62,8 +49,7 @@ class _OrderDetailsPageState
 
   String selectedCurrency = 'NGN';
 
-  static const Map<String, String>
-      currencySymbols = {
+  static const Map<String, String> currencySymbols = {
     'NGN': '₦',
     'USD': '\$',
     'GBP': '£',
@@ -85,16 +71,9 @@ class _OrderDetailsPageState
     'MXN': 'MX\$',
   };
 
-  // These are display conversion rates.
-  //
-  // IMPORTANT:
-  // The order amounts in Firestore are assumed to be stored
-  // in NGN. NGN is the base currency.
-  //
-  // The rates can later be replaced with a live exchange-rate
-  // API without changing the Order Details UI.
-  static const Map<String, double>
-      currencyRates = {
+  // Display conversion rates.
+  // Firestore order amounts are assumed to be stored in NGN.
+  static const Map<String, double> currencyRates = {
     'NGN': 1.0,
     'USD': 0.00063,
     'GBP': 0.00047,
@@ -123,7 +102,6 @@ class _OrderDetailsPageState
   @override
   void initState() {
     super.initState();
-
     _initializePage();
   }
 
@@ -133,13 +111,12 @@ class _OrderDetailsPageState
   }
 
   // ============================================================
-  // LOAD SELECTED CURRENCY
+  // LOAD CURRENCY
   // ============================================================
 
   Future<void> _loadCurrency() async {
     try {
-      final prefs =
-          await SharedPreferences.getInstance();
+      final prefs = await SharedPreferences.getInstance();
 
       final savedCurrency =
           prefs.getString('selected_currency');
@@ -151,46 +128,42 @@ class _OrderDetailsPageState
             savedCurrency.toUpperCase(),
           )) {
         setState(() {
-          selectedCurrency =
-              savedCurrency.toUpperCase();
+          selectedCurrency = savedCurrency.toUpperCase();
         });
       }
     } catch (e) {
-      debugPrint(
-        'Currency loading error: $e',
-      );
+      debugPrint('Currency loading error: $e');
     }
   }
 
   // ============================================================
-  // CONVERT MONEY
+  // MONEY
   // ============================================================
 
-  double _convertMoney(
-    dynamic value,
-  ) {
+  double _money(dynamic value) {
+    if (value is num) {
+      return value.toDouble();
+    }
+
+    return double.tryParse(
+          value?.toString() ?? '',
+        ) ??
+        0;
+  }
+
+  double _convertMoney(dynamic value) {
     final amount = _money(value);
 
-    final rate =
-        currencyRates[selectedCurrency] ??
-            1.0;
+    final rate = currencyRates[selectedCurrency] ?? 1.0;
 
     return amount * rate;
   }
 
-  // ============================================================
-  // FORMAT MONEY
-  // ============================================================
-
-  String _formatMoney(
-    dynamic value,
-  ) {
-    final converted =
-        _convertMoney(value);
+  String _formatMoney(dynamic value) {
+    final converted = _convertMoney(value);
 
     final symbol =
-        currencySymbols[selectedCurrency] ??
-            selectedCurrency;
+        currencySymbols[selectedCurrency] ?? selectedCurrency;
 
     return '$symbol${converted.toStringAsFixed(2)}';
   }
@@ -240,9 +213,7 @@ class _OrderDetailsPageState
         return;
       }
 
-      // Only allow the owner of the order
-      // to view the order.
-
+      // Only allow the owner of the order to view it.
       if (data['userId']?.toString() != uid) {
         setState(() {
           isLoading = false;
@@ -261,9 +232,7 @@ class _OrderDetailsPageState
         isLoading = false;
       });
     } catch (e) {
-      debugPrint(
-        'Order details error: $e',
-      );
+      debugPrint('Order details error: $e');
 
       if (!mounted) return;
 
@@ -272,53 +241,28 @@ class _OrderDetailsPageState
         order = null;
       });
 
-      _showMessage(
-        'Could not load this order.',
-      );
+      _showMessage('Could not load this order.');
     }
   }
 
   // ============================================================
-  // ORDER STATUS
+  // STATUS
   // ============================================================
 
   String _status() {
-    final value =
-        order?['orderStatus']
-            ?.toString()
-            .trim()
-            .toLowerCase();
+    final value = order?['orderStatus']
+        ?.toString()
+        .trim()
+        .toLowerCase();
 
-    if (value == null ||
-        value.isEmpty) {
+    if (value == null || value.isEmpty) {
       return 'pending';
     }
 
     return value;
   }
 
-  // ============================================================
-  // MONEY
-  // ============================================================
-
-  double _money(dynamic value) {
-    if (value is num) {
-      return value.toDouble();
-    }
-
-    return double.tryParse(
-          value?.toString() ?? '',
-        ) ??
-        0;
-  }
-
-  // ============================================================
-  // FORMAT STATUS
-  // ============================================================
-
-  String _formatStatus(
-    String status,
-  ) {
+  String _formatStatus(String status) {
     if (status.trim().isEmpty) {
       return 'Pending';
     }
@@ -329,9 +273,7 @@ class _OrderDetailsPageState
         .split(' ')
         .map(
           (word) {
-            if (word.isEmpty) {
-              return '';
-            }
+            if (word.isEmpty) return '';
 
             return word[0].toUpperCase() +
                 word.substring(1).toLowerCase();
@@ -347,21 +289,16 @@ class _OrderDetailsPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          pikkXBackground,
-
+      backgroundColor: pikkXBackground,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor:
-            Colors.transparent,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
 
         leading: Padding(
-          padding:
-              const EdgeInsets.only(
-            left: 10,
-          ),
+          padding: const EdgeInsets.only(left: 10),
           child: _glassIcon(
             Icons.arrow_back_ios_new_rounded,
             onTap: () {
@@ -370,13 +307,34 @@ class _OrderDetailsPageState
           ),
         ),
 
-        title: const Text(
-          'Order Details',
-          style: TextStyle(
-            color: pikkXBlack,
-            fontSize: 21,
-            fontWeight:
-                FontWeight.w800,
+        title: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(
+              sigmaX: 12,
+              sigmaY: 12,
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 8,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.62),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.90),
+                ),
+              ),
+              child: const Text(
+                'Order Details',
+                style: TextStyle(
+                  color: pikkXBlack,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -384,42 +342,34 @@ class _OrderDetailsPageState
       body: Stack(
         children: [
           // ======================================================
-          // GLASS BACKGROUND ACCENTS
+          // SOFT GLASS BACKGROUND
           // ======================================================
 
           Positioned(
-            top: -100,
-            right: -90,
-            child: Container(
-              width: 230,
-              height: 230,
-              decoration:
-                  BoxDecoration(
-                shape:
-                    BoxShape.circle,
-                color: Colors.white
-                    .withOpacity(
-                  0.75,
-                ),
-              ),
+            top: -120,
+            right: -100,
+            child: _backgroundOrb(
+              size: 270,
+              opacity: 0.72,
             ),
           ),
 
           Positioned(
-            bottom: -120,
-            left: -100,
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration:
-                  BoxDecoration(
-                shape:
-                    BoxShape.circle,
-                color: Colors.black
-                    .withOpacity(
-                  0.025,
-                ),
-              ),
+            top: 260,
+            left: -150,
+            child: _backgroundOrb(
+              size: 260,
+              opacity: 0.38,
+              dark: true,
+            ),
+          ),
+
+          Positioned(
+            bottom: -130,
+            right: -100,
+            child: _backgroundOrb(
+              size: 250,
+              opacity: 0.50,
             ),
           ),
 
@@ -427,17 +377,42 @@ class _OrderDetailsPageState
           // CONTENT
           // ======================================================
 
-          isLoading
-              ? const Center(
-                  child:
-                      CircularProgressIndicator(
-                    color: pikkXBlack,
-                  ),
-                )
-              : order == null
-                  ? _notFound()
-                  : _buildContent(),
+          SafeArea(
+            child: isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: pikkXBlack,
+                      strokeWidth: 2.5,
+                    ),
+                  )
+                : order == null
+                    ? _notFound()
+                    : _buildContent(),
+          ),
         ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // BACKGROUND ORB
+  // ============================================================
+
+  Widget _backgroundOrb({
+    required double size,
+    required double opacity,
+    bool dark = false,
+  }) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: dark
+              ? pikkXBlack.withOpacity(opacity * 0.07)
+              : pikkXWhite.withOpacity(opacity),
+        ),
       ),
     );
   }
@@ -447,51 +422,35 @@ class _OrderDetailsPageState
   // ============================================================
 
   Widget _buildContent() {
-    final rawItems =
-        order?['items'];
+    final rawItems = order?['items'];
 
     final List<dynamic> items =
-        rawItems is List
-            ? rawItems
-            : <dynamic>[];
+        rawItems is List ? rawItems : <dynamic>[];
 
-    final status =
-        _status();
+    final status = _status();
 
-    final total =
-        _money(order?['total']);
+    final total = _money(order?['total']);
+    final subtotal = _money(order?['subtotal']);
+    final deliveryFee = _money(order?['deliveryFee']);
 
-    final subtotal =
-        _money(order?['subtotal']);
+    final rawAddress = order?['deliveryAddress'];
 
-    final deliveryFee =
-        _money(order?['deliveryFee']);
-
-    final rawAddress =
-        order?['deliveryAddress'];
-
-    final Map<String, dynamic>
-        address =
+    final Map<String, dynamic> address =
         rawAddress is Map
-            ? Map<String, dynamic>.from(
-                rawAddress,
-              )
+            ? Map<String, dynamic>.from(rawAddress)
             : <String, dynamic>{};
 
     return RefreshIndicator(
       color: pikkXBlack,
-      backgroundColor:
-          pikkXWhite,
+      backgroundColor: pikkXWhite,
       onRefresh: _loadOrder,
       child: ListView(
-        physics:
-            const AlwaysScrollableScrollPhysics(),
-        padding:
-            const EdgeInsets.fromLTRB(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(
           16,
-          8,
+          14,
           16,
-          35,
+          40,
         ),
         children: [
           // ======================================================
@@ -500,148 +459,106 @@ class _OrderDetailsPageState
 
           _orderHeader(status),
 
-          const SizedBox(height: 22),
+          const SizedBox(height: 14),
+
+          // ======================================================
+          // TRACK ORDER BUTTON
+          // ======================================================
+
+          _trackOrderButton(),
+
+          const SizedBox(height: 25),
 
           // ======================================================
           // ORDER ITEMS
           // ======================================================
 
-          _sectionTitle(
-            'Order Items',
-          ),
+          _sectionTitle('Order Items'),
 
           _glass(
             child: items.isEmpty
                 ? _emptyItems()
                 : Column(
-                    children:
-                        List.generate(
+                    children: List.generate(
                       items.length,
-                      (index) =>
-                          _item(
+                      (index) => _item(
                         items[index],
-                        isLast:
-                            index ==
-                                items.length -
-                                    1,
+                        isLast: index == items.length - 1,
                       ),
                     ),
                   ),
           ),
 
-          const SizedBox(height: 22),
+          const SizedBox(height: 24),
 
           // ======================================================
           // DELIVERY ADDRESS
           // ======================================================
 
-          _sectionTitle(
-            'Delivery Address',
-          ),
+          _sectionTitle('Delivery Address'),
 
           _glass(
             child: Padding(
-              padding:
-                  const EdgeInsets.all(
-                15,
-              ),
+              padding: const EdgeInsets.all(16),
               child: Row(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration:
-                        BoxDecoration(
-                      color:
-                          pikkXBlack
-                              .withOpacity(
-                        0.055,
-                      ),
-                      borderRadius:
-                          BorderRadius.circular(
-                        16,
-                      ),
-                    ),
-                    child:
-                        const Icon(
-                      Icons
-                          .location_on_outlined,
-                      color:
-                          pikkXBlack,
-                      size: 22,
-                    ),
+                  _iconBox(
+                    Icons.location_on_outlined,
                   ),
 
-                  const SizedBox(
-                    width: 13,
-                  ),
+                  const SizedBox(width: 13),
 
                   Expanded(
-                    child:
-                        Column(
+                    child: Column(
                       crossAxisAlignment:
-                          CrossAxisAlignment
-                              .start,
+                          CrossAxisAlignment.start,
                       children: [
                         Text(
-                          address[
-                                          'fullName']
+                          address['fullName']
                                       ?.toString()
                                       .trim()
                                       .isNotEmpty ==
                                   true
-                              ? address[
-                                      'fullName']
-                                  .toString()
+                              ? address['fullName'].toString()
                               : 'Delivery Address',
-                          style:
-                              const TextStyle(
-                            fontWeight:
-                                FontWeight.w800,
-                            color:
-                                pikkXBlack,
-                            fontSize:
-                                14,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: pikkXBlack,
+                            fontSize: 14,
                           ),
                         ),
 
-                        const SizedBox(
-                          height: 6,
-                        ),
+                        const SizedBox(height: 7),
 
                         Text(
-                          _addressText(
-                            address,
-                          ),
-                          style:
-                              const TextStyle(
-                            color:
-                                pikkXGrey,
-                            fontSize:
-                                13,
-                            height:
-                                1.45,
+                          _addressText(address),
+                          style: const TextStyle(
+                            color: pikkXGrey,
+                            fontSize: 13,
+                            height: 1.5,
                           ),
                         ),
 
-                        if (_phone(
-                          address,
-                        ).isNotEmpty) ...[
-                          const SizedBox(
-                            height: 7,
-                          ),
-                          Text(
-                            _phone(
-                              address,
+                        if (_phone(address).isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 7,
                             ),
-                            style:
-                                const TextStyle(
-                              color:
-                                  pikkXGrey,
-                              fontSize:
-                                  12,
+                            decoration: BoxDecoration(
+                              color: pikkXBlack.withOpacity(0.045),
+                              borderRadius:
+                                  BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              _phone(address),
+                              style: const TextStyle(
+                                color: pikkXBlack,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ],
@@ -653,45 +570,32 @@ class _OrderDetailsPageState
             ),
           ),
 
-          const SizedBox(height: 22),
+          const SizedBox(height: 24),
 
           // ======================================================
           // ORDER STATUS
           // ======================================================
 
-          _sectionTitle(
-            'Order Status',
-          ),
+          _sectionTitle('Order Status'),
 
           _glass(
             child: Padding(
-              padding:
-                  const EdgeInsets.all(
-                18,
-              ),
-              child:
-                  _trackingTimeline(
-                status,
-              ),
+              padding: const EdgeInsets.all(18),
+              child: _trackingTimeline(status),
             ),
           ),
 
-          const SizedBox(height: 22),
+          const SizedBox(height: 24),
 
           // ======================================================
           // PAYMENT
           // ======================================================
 
-          _sectionTitle(
-            'Payment',
-          ),
+          _sectionTitle('Payment'),
 
           _glass(
             child: Padding(
-              padding:
-                  const EdgeInsets.all(
-                17,
-              ),
+              padding: const EdgeInsets.all(17),
               child: Column(
                 children: [
                   _row(
@@ -699,9 +603,7 @@ class _OrderDetailsPageState
                     _paymentMethod(),
                   ),
 
-                  const SizedBox(
-                    height: 13,
-                  ),
+                  const SizedBox(height: 14),
 
                   _row(
                     'Payment status',
@@ -712,59 +614,44 @@ class _OrderDetailsPageState
             ),
           ),
 
-          const SizedBox(height: 22),
+          const SizedBox(height: 24),
 
           // ======================================================
-          // SUMMARY
+          // ORDER SUMMARY
           // ======================================================
 
-          _sectionTitle(
-            'Order Summary',
-          ),
+          _sectionTitle('Order Summary'),
 
           _glass(
             child: Padding(
-              padding:
-                  const EdgeInsets.all(
-                17,
-              ),
+              padding: const EdgeInsets.all(17),
               child: Column(
                 children: [
                   _row(
                     'Subtotal',
-                    _formatMoney(
-                      subtotal,
-                    ),
+                    _formatMoney(subtotal),
                   ),
 
-                  const SizedBox(
-                    height: 13,
-                  ),
+                  const SizedBox(height: 13),
 
                   _row(
                     'Delivery fee',
-                    _formatMoney(
-                      deliveryFee,
-                    ),
+                    _formatMoney(deliveryFee),
                   ),
 
                   const Padding(
-                    padding:
-                        EdgeInsets.symmetric(
-                      vertical: 14,
+                    padding: EdgeInsets.symmetric(
+                      vertical: 15,
                     ),
                     child: Divider(
-                      color:
-                          pikkXLightGrey,
+                      color: pikkXLightGrey,
                       height: 1,
                     ),
                   ),
 
                   _row(
                     'Total',
-                    _formatMoney(
-                      total,
-                    ),
+                    _formatMoney(total),
                     bold: true,
                   ),
                 ],
@@ -775,22 +662,34 @@ class _OrderDetailsPageState
           const SizedBox(height: 15),
 
           // ======================================================
-          // CURRENCY INFORMATION
+          // CURRENCY
           // ======================================================
 
           Center(
-            child: Text(
-              'Prices shown in $selectedCurrency',
-              style:
-                  const TextStyle(
-                color:
-                    Color(0xFF999999),
-                fontSize: 10,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 6,
+              ),
+              decoration: BoxDecoration(
+                color: pikkXWhite.withOpacity(0.55),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: pikkXWhite.withOpacity(0.85),
+                ),
+              ),
+              child: Text(
+                'Prices shown in $selectedCurrency',
+                style: const TextStyle(
+                  color: Color(0xFF999999),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
 
-          const SizedBox(height: 5),
+          const SizedBox(height: 9),
 
           // ======================================================
           // ORDER ID
@@ -799,13 +698,10 @@ class _OrderDetailsPageState
           Center(
             child: Text(
               'Order ID: ${widget.orderId}',
-              textAlign:
-                  TextAlign.center,
-              style:
-                  const TextStyle(
-                color:
-                    Color(0xFF999999),
-                fontSize: 10,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF999999),
+                fontSize: 9.5,
               ),
             ),
           ),
@@ -815,102 +711,201 @@ class _OrderDetailsPageState
   }
 
   // ============================================================
+  // TRACK ORDER BUTTON
+  // ============================================================
+
+  Widget _trackOrderButton() {
+    final status = _status();
+
+    final isDelivered =
+        status == 'delivered' ||
+        status == 'completed';
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: 14,
+          sigmaY: 14,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              Navigator.pushNamed(
+                context,
+                '/dispatch-tracking',
+                arguments: widget.orderId,
+              );
+            },
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 17,
+                vertical: 15,
+              ),
+              decoration: BoxDecoration(
+                color: isDelivered
+                    ? pikkXWhite.withOpacity(0.76)
+                    : pikkXBlack.withOpacity(0.94),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isDelivered
+                      ? pikkXWhite.withOpacity(0.95)
+                      : pikkXBlack,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.07),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: isDelivered
+                          ? pikkXBlack.withOpacity(0.055)
+                          : pikkXWhite.withOpacity(0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isDelivered
+                          ? Icons.check_circle_outline_rounded
+                          : Icons.location_searching_rounded,
+                      color: isDelivered
+                          ? pikkXBlack
+                          : pikkXWhite,
+                      size: 20,
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isDelivered
+                              ? 'View Delivery'
+                              : 'Track Order',
+                          style: TextStyle(
+                            color: isDelivered
+                                ? pikkXBlack
+                                : pikkXWhite,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+
+                        const SizedBox(height: 3),
+
+                        Text(
+                          isDelivered
+                              ? 'View the delivery information'
+                              : 'See your order location and progress',
+                          style: TextStyle(
+                            color: isDelivered
+                                ? pikkXGrey
+                                : pikkXWhite.withOpacity(0.68),
+                            fontSize: 10.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 15,
+                    color: isDelivered
+                        ? pikkXBlack
+                        : pikkXWhite,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
   // ORDER HEADER
   // ============================================================
 
-  Widget _orderHeader(
-    String status,
-  ) {
+  Widget _orderHeader(String status) {
     return _glass(
       child: Padding(
-        padding:
-            const EdgeInsets.all(
-          18,
-        ),
+        padding: const EdgeInsets.all(18),
         child: Row(
           children: [
-            Container(
-              width: 54,
-              height: 54,
-              decoration:
-                  BoxDecoration(
-                color:
-                    pikkXBlack
-                        .withOpacity(
-                  0.055,
-                ),
-                borderRadius:
-                    BorderRadius.circular(
-                  18,
-                ),
-              ),
-              child:
-                  const Icon(
-                Icons
-                    .local_shipping_outlined,
-                color:
-                    pikkXBlack,
-                size: 25,
-              ),
+            _largeIconBox(
+              Icons.local_shipping_outlined,
             ),
 
-            const SizedBox(
-              width: 13,
-            ),
+            const SizedBox(width: 14),
 
             Expanded(
               child: Column(
                 crossAxisAlignment:
-                    CrossAxisAlignment
-                        .start,
+                    CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Order #${_shortOrderId()}',
-                    style:
-                        const TextStyle(
-                      fontWeight:
-                          FontWeight.w800,
-                      color:
-                          pikkXBlack,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: pikkXBlack,
                       fontSize: 15,
                     ),
                   ),
 
-                  const SizedBox(
-                    height: 6,
-                  ),
+                  const SizedBox(height: 7),
 
                   Container(
-                    padding:
-                        const EdgeInsets
-                            .symmetric(
-                      horizontal: 10,
-                      vertical: 5,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 11,
+                      vertical: 6,
                     ),
-                    decoration:
-                        BoxDecoration(
-                      color:
-                          pikkXBlack
-                              .withOpacity(
-                        0.055,
-                      ),
+                    decoration: BoxDecoration(
+                      color: pikkXBlack.withOpacity(0.055),
                       borderRadius:
-                          BorderRadius.circular(
-                        20,
+                          BorderRadius.circular(20),
+                      border: Border.all(
+                        color: pikkXBlack.withOpacity(0.06),
                       ),
                     ),
-                    child: Text(
-                      _formatStatus(
-                        status,
-                      ),
-                      style:
-                          const TextStyle(
-                        color:
-                            pikkXBlack,
-                        fontSize: 11,
-                        fontWeight:
-                            FontWeight.w800,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: pikkXBlack,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+
+                        const SizedBox(width: 6),
+
+                        Text(
+                          _formatStatus(status),
+                          style: const TextStyle(
+                            color: pikkXBlack,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -923,24 +918,18 @@ class _OrderDetailsPageState
   }
 
   String _shortOrderId() {
-    if (widget.orderId.length <=
-        8) {
+    if (widget.orderId.length <= 8) {
       return widget.orderId;
     }
 
-    return widget.orderId.substring(
-      0,
-      8,
-    );
+    return widget.orderId.substring(0, 8);
   }
 
   // ============================================================
   // TRACKING TIMELINE
   // ============================================================
 
-  Widget _trackingTimeline(
-    String status,
-  ) {
+  Widget _trackingTimeline(String status) {
     const statuses = [
       'pending',
       'confirmed',
@@ -949,144 +938,139 @@ class _OrderDetailsPageState
       'delivered',
     ];
 
-    String normalized =
-        status
-            .toLowerCase()
-            .replaceAll(
-              '-',
-              '_',
-            )
-            .replaceAll(
-              ' ',
-              '_',
-            );
+    String normalized = status
+        .toLowerCase()
+        .replaceAll('-', '_')
+        .replaceAll(' ', '_');
 
-    if (normalized ==
-        'completed') {
-      normalized =
-          'delivered';
+    if (normalized == 'completed') {
+      normalized = 'delivered';
     }
 
-    int current =
-        statuses.indexOf(
-      normalized,
-    );
+    int current = statuses.indexOf(normalized);
 
     if (current < 0) {
       current = 0;
     }
 
     return Column(
-      children:
-          List.generate(
+      children: List.generate(
         statuses.length,
         (index) {
-          final done =
-              index <= current;
-
-          final isCurrent =
-              index == current;
+          final done = index <= current;
+          final isCurrent = index == current;
 
           return Row(
             crossAxisAlignment:
-                CrossAxisAlignment
-                    .start,
+                CrossAxisAlignment.start,
             children: [
               Column(
                 children: [
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration:
-                        BoxDecoration(
+                  AnimatedContainer(
+                    duration:
+                        const Duration(milliseconds: 250),
+                    width: 27,
+                    height: 27,
+                    decoration: BoxDecoration(
                       color: done
                           ? pikkXBlack
-                          : pikkXWhite,
-                      shape:
-                          BoxShape.circle,
-                      border:
-                          Border.all(
+                          : pikkXWhite.withOpacity(0.72),
+                      shape: BoxShape.circle,
+                      border: Border.all(
                         color: done
                             ? pikkXBlack
-                            : const Color(
-                                0xFFD0D0D0,
-                              ),
+                            : const Color(0xFFD0D0D0),
                         width: 1.5,
                       ),
+                      boxShadow: done
+                          ? [
+                              BoxShadow(
+                                color: pikkXBlack
+                                    .withOpacity(0.12),
+                                blurRadius: 8,
+                                offset:
+                                    const Offset(0, 3),
+                              ),
+                            ]
+                          : null,
                     ),
                     child: done
                         ? const Icon(
-                            Icons
-                                .check_rounded,
-                            color:
-                                pikkXWhite,
-                            size: 15,
+                            Icons.check_rounded,
+                            color: pikkXWhite,
+                            size: 16,
                           )
                         : null,
                   ),
 
-                  if (index !=
-                      statuses.length -
-                          1)
+                  if (index != statuses.length - 1)
                     Container(
                       width: 2,
-                      height: 37,
-                      color: index <
-                              current
-                          ? pikkXBlack
-                          : pikkXLightGrey,
+                      height: 39,
+                      margin:
+                          const EdgeInsets.symmetric(
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: index < current
+                            ? pikkXBlack
+                            : pikkXLightGrey,
+                        borderRadius:
+                            BorderRadius.circular(5),
+                      ),
                     ),
                 ],
               ),
 
-              const SizedBox(
-                width: 13,
-              ),
+              const SizedBox(width: 13),
 
               Expanded(
                 child: Padding(
                   padding:
-                      const EdgeInsets
-                          .only(
-                    top: 2,
+                      const EdgeInsets.only(
+                    top: 4,
+                    bottom: 15,
                   ),
                   child: Row(
                     children: [
                       Expanded(
                         child: Text(
                           _formatStatus(
-                            statuses[
-                                index],
+                            statuses[index],
                           ),
-                          style:
-                              TextStyle(
+                          style: TextStyle(
                             color: done
                                 ? pikkXBlack
-                                : const Color(
-                                    0xFF999999,
-                                  ),
+                                : const Color(0xFF999999),
                             fontWeight: done
-                                ? FontWeight
-                                    .w700
-                                : FontWeight
-                                    .w500,
+                                ? FontWeight.w700
+                                : FontWeight.w500,
                             fontSize: 13,
                           ),
                         ),
                       ),
 
                       if (isCurrent)
-                        const Text(
-                          'Current',
-                          style:
-                              TextStyle(
-                            color:
-                                pikkXBlack,
-                            fontSize:
-                                10,
-                            fontWeight:
-                                FontWeight
-                                    .w800,
+                        Container(
+                          padding:
+                              const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: pikkXBlack
+                                .withOpacity(0.055),
+                            borderRadius:
+                                BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            'Current',
+                            style: TextStyle(
+                              color: pikkXBlack,
+                              fontSize: 9,
+                              fontWeight:
+                                  FontWeight.w800,
+                            ),
                           ),
                         ),
                     ],
@@ -1108,144 +1092,112 @@ class _OrderDetailsPageState
     dynamic rawItem, {
     required bool isLast,
   }) {
-    final item =
-        rawItem is Map
-            ? Map<String, dynamic>.from(
-                rawItem,
-              )
-            : <String, dynamic>{};
+    final item = rawItem is Map
+        ? Map<String, dynamic>.from(rawItem)
+        : <String, dynamic>{};
 
     final name =
-        item['name']
-                ?.toString() ??
-            item['productName']
-                ?.toString() ??
-            'Product';
+        item['name']?.toString() ??
+        item['productName']?.toString() ??
+        'Product';
 
-    final quantity =
-        item['quantity'] ??
-            1;
+    final quantity = item['quantity'] ?? 1;
 
-    final price =
-        _money(
-      item['price'],
-    );
+    final price = _money(item['price']);
 
-    final imageUrl =
-        item['imageUrl']
-            ?.toString();
+    final imageUrl = item['imageUrl']?.toString();
 
     return Container(
-      padding:
-          const EdgeInsets.all(
-        14,
-      ),
-      decoration:
-          BoxDecoration(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
         border: isLast
             ? null
             : const Border(
-                bottom:
-                    BorderSide(
-                  color:
-                      pikkXLightGrey,
+                bottom: BorderSide(
+                  color: pikkXLightGrey,
                 ),
               ),
       ),
       child: Row(
         children: [
-          // PRODUCT IMAGE
+          // ======================================================
+          // IMAGE
+          // ======================================================
+
           Container(
-            width: 58,
-            height: 58,
-            decoration:
-                BoxDecoration(
-              color:
-                  pikkXBlack
-                      .withOpacity(
-                0.045,
-              ),
-              borderRadius:
-                  BorderRadius.circular(
-                17,
+            width: 62,
+            height: 62,
+            decoration: BoxDecoration(
+              color: pikkXBlack.withOpacity(0.045),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: pikkXWhite.withOpacity(0.8),
               ),
             ),
-            clipBehavior:
-                Clip.antiAlias,
+            clipBehavior: Clip.antiAlias,
             child: imageUrl != null &&
                     imageUrl.isNotEmpty
                 ? Image.network(
                     imageUrl,
                     fit: BoxFit.cover,
                     errorBuilder:
-                        (
-                      context,
-                      error,
-                      stackTrace,
-                    ) {
+                        (context, error, stackTrace) {
                       return _productIcon();
                     },
                   )
                 : _productIcon(),
           ),
 
-          const SizedBox(
-            width: 12,
-          ),
+          const SizedBox(width: 12),
 
           Expanded(
             child: Column(
               crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
+                  CrossAxisAlignment.start,
               children: [
                 Text(
                   name,
                   maxLines: 2,
-                  overflow:
-                      TextOverflow
-                          .ellipsis,
-                  style:
-                      const TextStyle(
-                    fontWeight:
-                        FontWeight.w700,
-                    color:
-                        pikkXBlack,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: pikkXBlack,
                     fontSize: 13,
                   ),
                 ),
 
-                const SizedBox(
-                  height: 5,
-                ),
+                const SizedBox(height: 6),
 
-                Text(
-                  'Quantity: $quantity',
-                  style:
-                      const TextStyle(
-                    color:
-                        pikkXGrey,
-                    fontSize: 11,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: pikkXBlack.withOpacity(0.045),
+                    borderRadius:
+                        BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    'Qty: $quantity',
+                    style: const TextStyle(
+                      color: pikkXGrey,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
 
-          const SizedBox(
-            width: 10,
-          ),
+          const SizedBox(width: 10),
 
           Text(
-            _formatMoney(
-              price,
-            ),
-            style:
-                const TextStyle(
-              color:
-                  pikkXBlack,
-              fontWeight:
-                  FontWeight.w800,
+            _formatMoney(price),
+            style: const TextStyle(
+              color: pikkXBlack,
+              fontWeight: FontWeight.w800,
               fontSize: 12,
             ),
           ),
@@ -1257,10 +1209,8 @@ class _OrderDetailsPageState
   Widget _productIcon() {
     return const Center(
       child: Icon(
-        Icons
-            .shopping_bag_outlined,
-        color:
-            pikkXBlack,
+        Icons.shopping_bag_outlined,
+        color: pikkXBlack,
         size: 25,
       ),
     );
@@ -1268,14 +1218,12 @@ class _OrderDetailsPageState
 
   Widget _emptyItems() {
     return const Padding(
-      padding:
-          EdgeInsets.all(20),
+      padding: EdgeInsets.all(22),
       child: Center(
         child: Text(
           'No item information available.',
           style: TextStyle(
-            color:
-                pikkXGrey,
+            color: pikkXGrey,
             fontSize: 12,
           ),
         ),
@@ -1288,8 +1236,7 @@ class _OrderDetailsPageState
   // ============================================================
 
   String _addressText(
-    Map<String, dynamic>
-        address,
+    Map<String, dynamic> address,
   ) {
     final values = [
       address['addressLine'],
@@ -1300,21 +1247,14 @@ class _OrderDetailsPageState
       address['country'],
     ];
 
-    final result =
-        <String>[];
+    final result = <String>[];
 
-    for (final value
-        in values) {
+    for (final value in values) {
       if (value != null &&
-          value
-              .toString()
-              .trim()
-              .isNotEmpty) {
-        final text =
-            value.toString().trim();
+          value.toString().trim().isNotEmpty) {
+        final text = value.toString().trim();
 
-        if (!result
-            .contains(text)) {
+        if (!result.contains(text)) {
           result.add(text);
         }
       }
@@ -1324,18 +1264,15 @@ class _OrderDetailsPageState
       return 'No delivery address provided.';
     }
 
-    return result.join(
-      ', ',
-    );
+    return result.join(', ');
   }
 
   String _phone(
-    Map<String, dynamic>
-        address,
+    Map<String, dynamic> address,
   ) {
     final value =
         address['phone'] ??
-            address['phoneNumber'];
+        address['phoneNumber'];
 
     if (value == null) {
       return '';
@@ -1354,14 +1291,11 @@ class _OrderDetailsPageState
             ?.toString()
             .trim();
 
-    if (value == null ||
-        value.isEmpty) {
+    if (value == null || value.isEmpty) {
       return 'Not specified';
     }
 
-    return _formatStatus(
-      value,
-    );
+    return _formatStatus(value);
   }
 
   String _paymentStatus() {
@@ -1370,14 +1304,11 @@ class _OrderDetailsPageState
             ?.toString()
             .trim();
 
-    if (value == null ||
-        value.isEmpty) {
+    if (value == null || value.isEmpty) {
       return 'Pending';
     }
 
-    return _formatStatus(
-      value,
-    );
+    return _formatStatus(value);
   }
 
   // ============================================================
@@ -1391,36 +1322,27 @@ class _OrderDetailsPageState
   }) {
     return Row(
       crossAxisAlignment:
-          CrossAxisAlignment
-              .start,
+          CrossAxisAlignment.start,
       children: [
         Expanded(
           child: Text(
             title,
-            style:
-                const TextStyle(
-              color:
-                  pikkXGrey,
+            style: const TextStyle(
+              color: pikkXGrey,
               fontSize: 12,
             ),
           ),
         ),
 
-        const SizedBox(
-          width: 15,
-        ),
+        const SizedBox(width: 15),
 
         Flexible(
           child: Text(
             value,
-            textAlign:
-                TextAlign.right,
+            textAlign: TextAlign.right,
             style: TextStyle(
-              color: bold
-                  ? pikkXBlack
-                  : pikkXBlack,
-              fontSize:
-                  bold ? 15 : 12,
+              color: pikkXBlack,
+              fontSize: bold ? 15 : 12,
               fontWeight: bold
                   ? FontWeight.w900
                   : FontWeight.w600,
@@ -1435,25 +1357,65 @@ class _OrderDetailsPageState
   // SECTION TITLE
   // ============================================================
 
-  Widget _sectionTitle(
-    String text,
-  ) {
+  Widget _sectionTitle(String text) {
     return Padding(
-      padding:
-          const EdgeInsets.only(
+      padding: const EdgeInsets.only(
         left: 4,
         bottom: 10,
       ),
       child: Text(
         text,
-        style:
-            const TextStyle(
+        style: const TextStyle(
           fontSize: 16,
-          fontWeight:
-              FontWeight.w800,
-          color:
-              pikkXBlack,
+          fontWeight: FontWeight.w800,
+          color: pikkXBlack,
         ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // SMALL ICON BOX
+  // ============================================================
+
+  Widget _iconBox(IconData icon) {
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: pikkXBlack.withOpacity(0.055),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: pikkXWhite.withOpacity(0.85),
+        ),
+      ),
+      child: Icon(
+        icon,
+        color: pikkXBlack,
+        size: 22,
+      ),
+    );
+  }
+
+  // ============================================================
+  // LARGE ICON BOX
+  // ============================================================
+
+  Widget _largeIconBox(IconData icon) {
+    return Container(
+      width: 56,
+      height: 56,
+      decoration: BoxDecoration(
+        color: pikkXBlack.withOpacity(0.055),
+        borderRadius: BorderRadius.circular(19),
+        border: Border.all(
+          color: pikkXWhite.withOpacity(0.9),
+        ),
+      ),
+      child: Icon(
+        icon,
+        color: pikkXBlack,
+        size: 26,
       ),
     );
   }
@@ -1464,69 +1426,42 @@ class _OrderDetailsPageState
 
   Widget _glassIcon(
     IconData icon, {
-    required VoidCallback
-        onTap,
+    required VoidCallback onTap,
   }) {
     return ClipRRect(
-      borderRadius:
-          BorderRadius.circular(
-        15,
-      ),
+      borderRadius: BorderRadius.circular(15),
       child: BackdropFilter(
-        filter:
-            ImageFilter.blur(
+        filter: ImageFilter.blur(
           sigmaX: 12,
           sigmaY: 12,
         ),
         child: Material(
-          color:
-              Colors.transparent,
+          color: Colors.transparent,
           child: InkWell(
             onTap: onTap,
-            borderRadius:
-                BorderRadius.circular(
-              15,
-            ),
+            borderRadius: BorderRadius.circular(15),
             child: Container(
               width: 43,
               height: 43,
-              decoration:
-                  BoxDecoration(
-                color: Colors.white
-                    .withOpacity(
-                  0.74,
-                ),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.74),
                 borderRadius:
-                    BorderRadius.circular(
-                  15,
-                ),
+                    BorderRadius.circular(15),
                 border: Border.all(
-                  color: Colors.white
-                      .withOpacity(
-                    0.95,
-                  ),
+                  color: Colors.white.withOpacity(0.95),
                 ),
                 boxShadow: [
                   BoxShadow(
                     color:
-                        Colors.black
-                            .withOpacity(
-                      0.045,
-                    ),
-                    blurRadius:
-                        15,
-                    offset:
-                        const Offset(
-                      0,
-                      6,
-                    ),
+                        Colors.black.withOpacity(0.045),
+                    blurRadius: 15,
+                    offset: const Offset(0, 6),
                   ),
                 ],
               ),
               child: Icon(
                 icon,
-                color:
-                    pikkXBlack,
+                color: pikkXBlack,
                 size: 18,
               ),
             ),
@@ -1544,47 +1479,26 @@ class _OrderDetailsPageState
     required Widget child,
   }) {
     return ClipRRect(
-      borderRadius:
-          BorderRadius.circular(
-        24,
-      ),
+      borderRadius: BorderRadius.circular(24),
       child: BackdropFilter(
-        filter:
-            ImageFilter.blur(
-          sigmaX: 16,
-          sigmaY: 16,
+        filter: ImageFilter.blur(
+          sigmaX: 18,
+          sigmaY: 18,
         ),
         child: Container(
-          decoration:
-              BoxDecoration(
-            color: Colors.white
-                .withOpacity(
-              0.74,
-            ),
-            borderRadius:
-                BorderRadius.circular(
-              24,
-            ),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.72),
+            borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: Colors.white
-                  .withOpacity(
-                0.92,
-              ),
+              color: Colors.white.withOpacity(0.94),
               width: 1,
             ),
             boxShadow: [
               BoxShadow(
                 color:
-                    Colors.black
-                        .withOpacity(
-                  0.045,
-                ),
-                blurRadius: 20,
-                offset:
-                    const Offset(
-                  0,
-                  8,
-                ),
+                    Colors.black.withOpacity(0.045),
+                blurRadius: 22,
+                offset: const Offset(0, 9),
               ),
             ],
           ),
@@ -1601,59 +1515,69 @@ class _OrderDetailsPageState
   Widget _notFound() {
     return Center(
       child: Padding(
-        padding:
-            const EdgeInsets.all(
-          24,
-        ),
+        padding: const EdgeInsets.all(24),
         child: _glass(
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(
+            padding: const EdgeInsets.symmetric(
               horizontal: 28,
-              vertical: 32,
+              vertical: 34,
             ),
             child: Column(
-              mainAxisSize:
-                  MainAxisSize.min,
-              children: const [
-                Icon(
-                  Icons
-                      .receipt_long_outlined,
-                  size: 54,
-                  color:
-                      pikkXBlack,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _largeIconBox(
+                  Icons.receipt_long_outlined,
                 ),
 
-                SizedBox(
-                  height: 15,
-                ),
+                const SizedBox(height: 17),
 
-                Text(
+                const Text(
                   'Order not found',
-                  style:
-                      TextStyle(
-                    color:
-                        pikkXBlack,
+                  style: TextStyle(
+                    color: pikkXBlack,
                     fontSize: 19,
-                    fontWeight:
-                        FontWeight.w800,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
 
-                SizedBox(
-                  height: 7,
+                const SizedBox(height: 8),
+
+                const Text(
+                  'This order may no longer exist or you may not have access to it.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: pikkXGrey,
+                    fontSize: 12,
+                    height: 1.45,
+                  ),
                 ),
 
-                Text(
-                  'This order may no longer exist or you may not have access to it.',
-                  textAlign:
-                      TextAlign.center,
-                  style:
-                      TextStyle(
-                    color:
-                        pikkXGrey,
-                    fontSize: 12,
-                    height: 1.4,
+                const SizedBox(height: 20),
+
+                Material(
+                  color: pikkXBlack,
+                  borderRadius:
+                      BorderRadius.circular(15),
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.pop(context);
+                    },
+                    borderRadius:
+                        BorderRadius.circular(15),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                      child: Text(
+                        'Go Back',
+                        style: TextStyle(
+                          color: pikkXWhite,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -1668,39 +1592,25 @@ class _OrderDetailsPageState
   // MESSAGE
   // ============================================================
 
-  void _showMessage(
-    String message,
-  ) {
+  void _showMessage(String message) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(
-      context,
-    ).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context)
+        .hideCurrentSnackBar();
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           message,
-          style:
-              const TextStyle(
-            color:
-                Colors.white,
-            fontWeight:
-                FontWeight.w600,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
           ),
         ),
-        behavior:
-            SnackBarBehavior.floating,
-        backgroundColor:
-            pikkXBlack,
-        shape:
-            RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.circular(
-            16,
-          ),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: pikkXBlack,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
         ),
       ),
     );
