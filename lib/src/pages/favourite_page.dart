@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -10,6 +12,20 @@ class FavouritePage extends StatefulWidget {
 }
 
 class _FavouritePageState extends State<FavouritePage> {
+  // ============================================================
+  // PIKKX COLORS
+  // ============================================================
+
+  static const Color pikkXBlack = Color(0xFF050505);
+  static const Color pikkXWhite = Color(0xFFFFFFFF);
+  static const Color pikkXBackground = Color(0xFFF7F7F7);
+  static const Color pikkXGrey = Color(0xFF777777);
+  static const Color pikkXLightGrey = Color(0xFFE8E8E8);
+
+  // ============================================================
+  // FIREBASE
+  // ============================================================
+
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
 
@@ -17,33 +33,12 @@ class _FavouritePageState extends State<FavouritePage> {
       FirebaseAuth.instance;
 
   // ============================================================
-  // PIKKX THEME
-  // ============================================================
-
-  static const Color pikkXBlack =
-      Color(0xFF050505);
-
-  static const Color pikkXWhite =
-      Color(0xFFFFFFFF);
-
-  static const Color pikkXNavy =
-      Color(0xFF10233F);
-
-  static const Color pikkXBackground =
-      Color(0xFFF7F7F7);
-
-  static const Color pikkXMuted =
-      Color(0xFF777777);
-
-  // ============================================================
   // USER
   // ============================================================
 
-  String? get userId =>
-      _auth.currentUser?.uid;
+  String? get userId => _auth.currentUser?.uid;
 
-  CollectionReference<Map<String, dynamic>>
-      get favouritesRef {
+  CollectionReference<Map<String, dynamic>> get favouritesRef {
     final uid = userId;
 
     if (uid == null) {
@@ -59,14 +54,52 @@ class _FavouritePageState extends State<FavouritePage> {
         .collection('favorites');
   }
 
-  CollectionReference<Map<String, dynamic>>
-      get cartRef {
+  CollectionReference<Map<String, dynamic>> get cartRef {
     final uid = userId;
 
     return _firestore
         .collection('users')
         .doc(uid ?? '_no_user_')
         .collection('cart');
+  }
+
+  // ============================================================
+  // GLASS CONTAINER
+  // ============================================================
+
+  Widget _glassContainer({
+    required Widget child,
+    EdgeInsetsGeometry padding = const EdgeInsets.all(14),
+    double radius = 22,
+  }) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: 18,
+          sigmaY: 18,
+        ),
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.72),
+            borderRadius: BorderRadius.circular(radius),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.92),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.045),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: child,
+        ),
+      ),
+    );
   }
 
   // ============================================================
@@ -85,9 +118,7 @@ class _FavouritePageState extends State<FavouritePage> {
     }
 
     try {
-      await favouritesRef
-          .doc(product.id)
-          .delete();
+      await favouritesRef.doc(product.id).delete();
 
       if (!mounted) return;
 
@@ -128,34 +159,28 @@ class _FavouritePageState extends State<FavouritePage> {
     try {
       final reference = cartRef.doc(product.id);
 
-      final existing =
-          await reference.get();
+      final existing = await reference.get();
 
       if (existing.exists) {
         final data = existing.data();
 
         int quantity = 1;
 
-        final existingQuantity =
-            data?['quantity'];
+        final existingQuantity = data?['quantity'];
 
         if (existingQuantity is num) {
-          quantity =
-              existingQuantity.toInt();
+          quantity = existingQuantity.toInt();
         } else {
           quantity =
               int.tryParse(
-                    existingQuantity
-                            ?.toString() ??
-                        '',
+                    existingQuantity?.toString() ?? '',
                   ) ??
                   1;
         }
 
         await reference.update({
           'quantity': quantity + 1,
-          'updatedAt':
-              FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
         });
       } else {
         await reference.set({
@@ -168,10 +193,8 @@ class _FavouritePageState extends State<FavouritePage> {
           'sellerId': product.sellerId,
           'category': product.category,
           'description': product.description,
-          'createdAt':
-              FieldValue.serverTimestamp(),
-          'updatedAt':
-              FieldValue.serverTimestamp(),
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
         });
       }
 
@@ -203,7 +226,7 @@ class _FavouritePageState extends State<FavouritePage> {
   ) {
     Navigator.pushNamed(
       context,
-      '/product-detail',
+      '/detail',
       arguments: product.toMap(),
     );
   }
@@ -218,20 +241,14 @@ class _FavouritePageState extends State<FavouritePage> {
   }) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         backgroundColor:
-            isError
-                ? Colors.redAccent
-                : pikkXNavy,
-        behavior:
-            SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.circular(14),
+            isError ? Colors.redAccent : pikkXBlack,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
         ),
       ),
     );
@@ -243,73 +260,61 @@ class _FavouritePageState extends State<FavouritePage> {
 
   Widget _header() {
     return Padding(
-      padding:
-          const EdgeInsets.fromLTRB(
+      padding: const EdgeInsets.fromLTRB(
         20,
         14,
         20,
-        18,
+        16,
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Your',
-                  style: TextStyle(
-                    color: pikkXMuted,
-                    fontSize: 13,
-                    fontWeight:
-                        FontWeight.w500,
+      child: _glassContainer(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 13,
+        ),
+        radius: 22,
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Your',
+                    style: TextStyle(
+                      color: pikkXGrey,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                const Text(
-                  'Favourites',
-                  style: TextStyle(
-                    color: pikkXBlack,
-                    fontSize: 27,
-                    fontWeight:
-                        FontWeight.w900,
-                    letterSpacing: -.7,
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Favourites',
+                    style: TextStyle(
+                      color: pikkXBlack,
+                      fontSize: 25,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.6,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
-
-          Container(
-            width: 48,
-            height: 48,
-            decoration:
-                BoxDecoration(
-              color: pikkXWhite,
-              borderRadius:
-                  BorderRadius.circular(16),
-              border: Border.all(
-                color:
-                    pikkXNavy.withOpacity(.08),
+                ],
               ),
-              boxShadow: [
-                BoxShadow(
-                  color:
-                      pikkXBlack.withOpacity(.04),
-                  blurRadius: 14,
-                  offset:
-                      const Offset(0, 6),
-                ),
-              ],
             ),
-            child: const Icon(
-              Icons.favorite_rounded,
-              color: pikkXNavy,
-              size: 22,
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: pikkXBlack.withOpacity(0.055),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.favorite_rounded,
+                color: pikkXBlack,
+                size: 21,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -321,59 +326,54 @@ class _FavouritePageState extends State<FavouritePage> {
   Widget _emptyState() {
     return Center(
       child: Padding(
-        padding:
-            const EdgeInsets.symmetric(
+        padding: const EdgeInsets.symmetric(
           horizontal: 35,
         ),
-        child: Column(
-          mainAxisAlignment:
-              MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 90,
-              height: 90,
-              decoration:
-                  BoxDecoration(
-                color:
-                    pikkXNavy.withOpacity(.07),
-                shape:
-                    BoxShape.circle,
+        child: _glassContainer(
+          padding: const EdgeInsets.all(28),
+          radius: 26,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 82,
+                height: 82,
+                decoration: BoxDecoration(
+                  color: pikkXBlack.withOpacity(0.055),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.favorite_border_rounded,
+                  color: pikkXBlack,
+                  size: 40,
+                ),
               ),
-              child: const Icon(
-                Icons
-                    .favorite_border_rounded,
-                color: pikkXNavy,
-                size: 43,
+
+              const SizedBox(height: 20),
+
+              const Text(
+                'No favourites yet',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: pikkXBlack,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
-            ),
 
-            const SizedBox(height: 22),
+              const SizedBox(height: 8),
 
-            const Text(
-              'No favourites yet',
-              textAlign:
-                  TextAlign.center,
-              style: TextStyle(
-                color: pikkXBlack,
-                fontSize: 20,
-                fontWeight:
-                    FontWeight.w900,
+              const Text(
+                'Products you save will appear here.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: pikkXGrey,
+                  fontSize: 12,
+                  height: 1.5,
+                ),
               ),
-            ),
-
-            const SizedBox(height: 8),
-
-            const Text(
-              'Products you save will appear here.',
-              textAlign:
-                  TextAlign.center,
-              style: TextStyle(
-                color: pikkXMuted,
-                fontSize: 13,
-                height: 1.5,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -386,43 +386,40 @@ class _FavouritePageState extends State<FavouritePage> {
   Widget _notSignedInState() {
     return Center(
       child: Padding(
-        padding:
-            const EdgeInsets.all(30),
-        child: Column(
-          mainAxisAlignment:
-              MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 82,
-              height: 82,
-              decoration:
-                  BoxDecoration(
-                color:
-                    pikkXNavy.withOpacity(.07),
-                shape:
-                    BoxShape.circle,
+        padding: const EdgeInsets.all(30),
+        child: _glassContainer(
+          padding: const EdgeInsets.all(26),
+          radius: 26,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 78,
+                height: 78,
+                decoration: BoxDecoration(
+                  color: pikkXBlack.withOpacity(0.055),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.login_rounded,
+                  color: pikkXBlack,
+                  size: 36,
+                ),
               ),
-              child: const Icon(
-                Icons.login_rounded,
-                color: pikkXNavy,
-                size: 38,
-              ),
-            ),
 
-            const SizedBox(height: 18),
+              const SizedBox(height: 18),
 
-            const Text(
-              'Sign in to view your favourites',
-              textAlign:
-                  TextAlign.center,
-              style: TextStyle(
-                color: pikkXBlack,
-                fontSize: 18,
-                fontWeight:
-                    FontWeight.w900,
+              const Text(
+                'Sign in to view your favourites',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: pikkXBlack,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -435,44 +432,43 @@ class _FavouritePageState extends State<FavouritePage> {
   Widget _errorState() {
     return Center(
       child: Padding(
-        padding:
-            const EdgeInsets.all(30),
-        child: Column(
-          mainAxisAlignment:
-              MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.cloud_off_rounded,
-              color: pikkXNavy,
-              size: 48,
-            ),
-
-            const SizedBox(height: 15),
-
-            const Text(
-              'Unable to load favourites',
-              textAlign:
-                  TextAlign.center,
-              style: TextStyle(
+        padding: const EdgeInsets.all(30),
+        child: _glassContainer(
+          padding: const EdgeInsets.all(26),
+          radius: 26,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.cloud_off_rounded,
                 color: pikkXBlack,
-                fontSize: 18,
-                fontWeight:
-                    FontWeight.w900,
+                size: 45,
               ),
-            ),
 
-            const SizedBox(height: 8),
+              const SizedBox(height: 15),
 
-            const Text(
-              'Check your connection and try again.',
-              textAlign:
-                  TextAlign.center,
-              style: TextStyle(
-                color: pikkXMuted,
-                fontSize: 13,
+              const Text(
+                'Unable to load favourites',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: pikkXBlack,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
-            ),
-          ],
+
+              const SizedBox(height: 8),
+
+              const Text(
+                'Check your connection and try again.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: pikkXGrey,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -485,46 +481,25 @@ class _FavouritePageState extends State<FavouritePage> {
   Widget _favouriteCard(
     FavouriteProduct product,
   ) {
-    return Container(
-      margin:
-          const EdgeInsets.only(
-        bottom: 14,
+    return Padding(
+      padding: const EdgeInsets.only(
+        bottom: 13,
       ),
-      decoration:
-          BoxDecoration(
-        color: pikkXWhite,
-        borderRadius:
-            BorderRadius.circular(22),
-        border: Border.all(
-          color:
-              pikkXNavy.withOpacity(.07),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color:
-                pikkXBlack.withOpacity(.045),
-            blurRadius: 18,
-            offset:
-                const Offset(0, 7),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius:
-              BorderRadius.circular(22),
-          onTap: () {
-            _openProduct(product);
-          },
-          child: Padding(
-            padding:
-                const EdgeInsets.all(12),
+      child: _glassContainer(
+        padding: const EdgeInsets.all(11),
+        radius: 22,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: () {
+              _openProduct(product);
+            },
             child: Row(
               children: [
                 _productImage(product),
 
-                const SizedBox(width: 13),
+                const SizedBox(width: 12),
 
                 Expanded(
                   child: Column(
@@ -534,19 +509,15 @@ class _FavouritePageState extends State<FavouritePage> {
                       Text(
                         product.name,
                         maxLines: 2,
-                        overflow:
-                            TextOverflow.ellipsis,
-                        style:
-                            const TextStyle(
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
                           color: pikkXBlack,
-                          fontSize: 14,
-                          fontWeight:
-                              FontWeight.w800,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
 
-                      if (product.category
-                          .isNotEmpty)
+                      if (product.category.isNotEmpty)
                         Padding(
                           padding:
                               const EdgeInsets.only(
@@ -556,12 +527,9 @@ class _FavouritePageState extends State<FavouritePage> {
                             product.category,
                             maxLines: 1,
                             overflow:
-                                TextOverflow
-                                    .ellipsis,
-                            style:
-                                const TextStyle(
-                              color:
-                                  pikkXMuted,
+                                TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: pikkXGrey,
                               fontSize: 10,
                               fontWeight:
                                   FontWeight.w500,
@@ -573,12 +541,10 @@ class _FavouritePageState extends State<FavouritePage> {
 
                       Text(
                         product.displayPrice,
-                        style:
-                            const TextStyle(
-                          color: pikkXNavy,
+                        style: const TextStyle(
+                          color: pikkXBlack,
                           fontSize: 15,
-                          fontWeight:
-                              FontWeight.w900,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
 
@@ -586,14 +552,12 @@ class _FavouritePageState extends State<FavouritePage> {
 
                       SizedBox(
                         height: 34,
-                        child:
-                            ElevatedButton(
+                        child: ElevatedButton(
                           onPressed: () {
                             _addToCart(product);
                           },
                           style:
-                              ElevatedButton
-                                  .styleFrom(
+                              ElevatedButton.styleFrom(
                             backgroundColor:
                                 pikkXBlack,
                             foregroundColor:
@@ -602,23 +566,21 @@ class _FavouritePageState extends State<FavouritePage> {
                             padding:
                                 const EdgeInsets
                                     .symmetric(
-                              horizontal: 14,
+                              horizontal: 13,
                             ),
                             shape:
                                 RoundedRectangleBorder(
                               borderRadius:
-                                  BorderRadius
-                                      .circular(10),
+                                  BorderRadius.circular(
+                                10,
+                              ),
                             ),
                           ),
-                          child:
-                              const Text(
+                          child: const Text(
                             'Add to Cart',
-                            style:
-                                TextStyle(
+                            style: TextStyle(
                               fontSize: 10,
-                              fontWeight:
-                                  FontWeight.w800,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                         ),
@@ -627,41 +589,31 @@ class _FavouritePageState extends State<FavouritePage> {
                   ),
                 ),
 
-                const SizedBox(width: 5),
+                const SizedBox(width: 3),
 
                 Column(
                   children: [
                     IconButton(
-                      tooltip:
-                          'Remove favourite',
+                      tooltip: 'Remove favourite',
                       onPressed: () {
-                        _removeFavourite(
-                          product,
-                        );
+                        _removeFavourite(product);
                       },
-                      icon:
-                          const Icon(
-                        Icons
-                            .favorite_rounded,
-                        color: pikkXNavy,
-                        size: 22,
+                      icon: const Icon(
+                        Icons.favorite_rounded,
+                        color: pikkXBlack,
+                        size: 21,
                       ),
                     ),
 
                     IconButton(
-                      tooltip:
-                          'View product',
+                      tooltip: 'View product',
                       onPressed: () {
-                        _openProduct(
-                          product,
-                        );
+                        _openProduct(product);
                       },
-                      icon:
-                          const Icon(
-                        Icons
-                            .arrow_forward_ios_rounded,
-                        color: pikkXMuted,
-                        size: 15,
+                      icon: const Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        color: pikkXGrey,
+                        size: 14,
                       ),
                     ),
                   ],
@@ -684,56 +636,50 @@ class _FavouritePageState extends State<FavouritePage> {
     final image = product.image;
 
     return Container(
-      width: 92,
-      height: 108,
-      decoration:
-          BoxDecoration(
+      width: 88,
+      height: 104,
+      decoration: BoxDecoration(
         color: pikkXBackground,
-        borderRadius:
-            BorderRadius.circular(17),
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.9),
+        ),
       ),
       child: image.isEmpty
           ? const Icon(
-              Icons
-                  .shopping_bag_outlined,
-              color: pikkXNavy,
-              size: 35,
+              Icons.shopping_bag_outlined,
+              color: pikkXBlack,
+              size: 34,
             )
           : ClipRRect(
-              borderRadius:
-                  BorderRadius.circular(17),
+              borderRadius: BorderRadius.circular(17),
               child: Image.network(
                 image,
                 fit: BoxFit.cover,
-                loadingBuilder:
-                    (
+                loadingBuilder: (
                   context,
                   child,
                   loadingProgress,
                 ) {
-                  if (loadingProgress ==
-                      null) {
+                  if (loadingProgress == null) {
                     return child;
                   }
 
                   return const Center(
-                    child:
-                        CircularProgressIndicator(
+                    child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: pikkXNavy,
+                      color: pikkXBlack,
                     ),
                   );
                 },
-                errorBuilder:
-                    (
+                errorBuilder: (
                   context,
                   error,
                   stackTrace,
                 ) {
                   return const Icon(
-                    Icons
-                        .image_not_supported_outlined,
-                    color: pikkXNavy,
+                    Icons.image_not_supported_outlined,
+                    color: pikkXBlack,
                     size: 30,
                   );
                 },
@@ -765,8 +711,7 @@ class _FavouritePageState extends State<FavouritePage> {
       ) {
         if (snapshot.hasError) {
           debugPrint(
-            'Favourite stream error: '
-            '${snapshot.error}',
+            'Favourite stream error: ${snapshot.error}',
           );
 
           return _errorState();
@@ -775,9 +720,8 @@ class _FavouritePageState extends State<FavouritePage> {
         if (snapshot.connectionState ==
             ConnectionState.waiting) {
           return const Center(
-            child:
-                CircularProgressIndicator(
-              color: pikkXNavy,
+            child: CircularProgressIndicator(
+              color: pikkXBlack,
             ),
           );
         }
@@ -791,8 +735,7 @@ class _FavouritePageState extends State<FavouritePage> {
 
         final favourites = documents
             .map(
-              (doc) =>
-                  FavouriteProduct.fromMap(
+              (doc) => FavouriteProduct.fromMap(
                 doc.id,
                 doc.data(),
               ),
@@ -802,18 +745,15 @@ class _FavouritePageState extends State<FavouritePage> {
         return ListView.builder(
           physics:
               const AlwaysScrollableScrollPhysics(
-            parent:
-                BouncingScrollPhysics(),
+            parent: BouncingScrollPhysics(),
           ),
-          padding:
-              const EdgeInsets.fromLTRB(
+          padding: const EdgeInsets.fromLTRB(
             20,
             0,
             20,
             110,
           ),
-          itemCount:
-              favourites.length,
+          itemCount: favourites.length,
           itemBuilder: (
             context,
             index,
@@ -832,11 +772,18 @@ class _FavouritePageState extends State<FavouritePage> {
   // ============================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Container(
-      color: pikkXBackground,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Color(0xFFF7F7F7),
+            Color(0xFFFFFFFF),
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
       child: SafeArea(
         bottom: false,
         child: Column(
@@ -844,9 +791,8 @@ class _FavouritePageState extends State<FavouritePage> {
             _header(),
 
             Expanded(
-              child:
-                  RefreshIndicator(
-                color: pikkXNavy,
+              child: RefreshIndicator(
+                color: pikkXBlack,
                 onRefresh: () async {
                   await Future<void>.delayed(
                     const Duration(
@@ -864,9 +810,9 @@ class _FavouritePageState extends State<FavouritePage> {
   }
 }
 
-// ============================================================
+// ================================================================
 // FAVOURITE PRODUCT MODEL
-// ============================================================
+// ================================================================
 
 class FavouriteProduct {
   final String id;
