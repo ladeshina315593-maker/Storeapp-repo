@@ -19,207 +19,97 @@ class OrderDetailsPage extends StatefulWidget {
 
 class _OrderDetailsPageState extends State<OrderDetailsPage> {
   // ============================================================
-  // PIKKX COLORS
+  // PikkX Colors
   // ============================================================
 
   static const Color pikkXBlack = Color(0xFF050505);
   static const Color pikkXWhite = Color(0xFFFFFFFF);
   static const Color pikkXBackground = Color(0xFFF7F7F7);
   static const Color pikkXGrey = Color(0xFF777777);
-  static const Color pikkXLightGrey = Color(0xFFE8E8E8);
+  static const Color lightGrey = Color(0xFFE8E8E8);
 
   // ============================================================
-  // FIREBASE
+  // Firebase
   // ============================================================
-
-  final FirebaseFirestore _firestore =
-      FirebaseFirestore.instance;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
-
-  bool isLoading = true;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   Map<String, dynamic>? order;
-
-  String? get userId => _auth.currentUser?.uid;
+  bool isLoading = true;
+  String? errorMessage;
 
   // ============================================================
-  // CURRENCY
+  // Currency
   // ============================================================
 
   String selectedCurrency = 'NGN';
 
-  static const Map<String, String> currencySymbols = {
-    'NGN': '₦',
-    'USD': '\$',
-    'GBP': '£',
-    'EUR': '€',
-    'CAD': 'CA\$',
-    'AUD': 'A\$',
-    'ZAR': 'R',
-    'GHS': 'GH₵',
-    'KES': 'KSh',
-    'UGX': 'USh',
-    'TZS': 'TSh',
-    'INR': '₹',
-    'JPY': '¥',
-    'CNY': '¥',
-    'AED': 'د.إ',
-    'SAR': '﷼',
-    'CHF': 'CHF',
-    'BRL': 'R\$',
-    'MXN': 'MX\$',
-  };
-
-  // Display conversion rates.
-  // Firestore order amounts are assumed to be stored in NGN.
-  static const Map<String, double> currencyRates = {
+  final Map<String, double> currencyRates = {
     'NGN': 1.0,
-    'USD': 0.00063,
-    'GBP': 0.00047,
-    'EUR': 0.00054,
-    'CAD': 0.00086,
-    'AUD': 0.00096,
-    'ZAR': 0.0112,
-    'GHS': 0.0097,
-    'KES': 0.081,
-    'UGX': 2.34,
-    'TZS': 1.62,
-    'INR': 0.053,
-    'JPY': 0.093,
-    'CNY': 0.0045,
-    'AED': 0.00231,
-    'SAR': 0.00236,
-    'CHF': 0.00050,
-    'BRL': 0.00335,
-    'MXN': 0.011,
+    'USD': 0.00062,
+    'GBP': 0.00046,
+    'EUR': 0.00053,
   };
-
-  // ============================================================
-  // INIT
-  // ============================================================
 
   @override
   void initState() {
     super.initState();
-    _initializePage();
+    _loadCurrency();
+    _loadOrder();
   }
-
-  Future<void> _initializePage() async {
-    await _loadCurrency();
-    await _loadOrder();
-  }
-
-  // ============================================================
-  // LOAD CURRENCY
-  // ============================================================
 
   Future<void> _loadCurrency() async {
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      final savedCurrency =
-          prefs.getString('selected_currency');
-
-      if (!mounted) return;
-
-      if (savedCurrency != null &&
-          currencyRates.containsKey(
-            savedCurrency.toUpperCase(),
-          )) {
-        setState(() {
-          selectedCurrency = savedCurrency.toUpperCase();
-        });
-      }
-    } catch (e) {
-      debugPrint('Currency loading error: $e');
-    }
-  }
-
-  // ============================================================
-  // MONEY
-  // ============================================================
-
-  double _money(dynamic value) {
-    if (value is num) {
-      return value.toDouble();
-    }
-
-    return double.tryParse(
-          value?.toString() ?? '',
-        ) ??
-        0;
-  }
-
-  double _convertMoney(dynamic value) {
-    final amount = _money(value);
-
-    final rate = currencyRates[selectedCurrency] ?? 1.0;
-
-    return amount * rate;
-  }
-
-  String _formatMoney(dynamic value) {
-    final converted = _convertMoney(value);
-
-    final symbol =
-        currencySymbols[selectedCurrency] ?? selectedCurrency;
-
-    return '$symbol${converted.toStringAsFixed(2)}';
-  }
-
-  // ============================================================
-  // LOAD ORDER
-  // ============================================================
-
-  Future<void> _loadOrder() async {
-    final uid = userId;
-
-    if (uid == null) {
       if (!mounted) return;
 
       setState(() {
-        isLoading = false;
+        selectedCurrency =
+            prefs.getString('selected_currency') ?? 'NGN';
       });
-
-      return;
+    } catch (_) {
+      // Keep NGN if currency cannot be loaded.
     }
+  }
 
+  // ============================================================
+  // Load Order
+  // ============================================================
+
+  Future<void> _loadOrder() async {
     try {
+      final user = _auth.currentUser;
+
+      if (user == null) {
+        setState(() {
+          isLoading = false;
+          errorMessage = 'Please sign in to view this order.';
+        });
+        return;
+      }
+
       final doc = await _firestore
           .collection('orders')
           .doc(widget.orderId)
           .get();
 
-      if (!mounted) return;
-
       if (!doc.exists) {
         setState(() {
           isLoading = false;
-          order = null;
+          errorMessage = 'Order not found.';
         });
-
         return;
       }
 
       final data = doc.data();
 
-      if (data == null) {
+      if (data == null || data['userId'] != user.uid) {
         setState(() {
           isLoading = false;
-          order = null;
+          errorMessage = 'You do not have access to this order.';
         });
-
-        return;
-      }
-
-      // Only allow the owner of the order to view it.
-      if (data['userId']?.toString() != uid) {
-        setState(() {
-          isLoading = false;
-          order = null;
-        });
-
         return;
       }
 
@@ -228,1277 +118,176 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
           'id': doc.id,
           ...data,
         };
-
         isLoading = false;
       });
     } catch (e) {
-      debugPrint('Order details error: $e');
-
-      if (!mounted) return;
-
       setState(() {
         isLoading = false;
-        order = null;
+        errorMessage = 'Could not load order details.';
       });
-
-      _showMessage('Could not load this order.');
     }
   }
 
   // ============================================================
-  // STATUS
+  // Helpers
   // ============================================================
 
-  String _status() {
-    final value = order?['orderStatus']
-        ?.toString()
-        .trim()
-        .toLowerCase();
+  double _number(dynamic value) {
+    if (value is num) return value.toDouble();
 
-    if (value == null || value.isEmpty) {
-      return 'pending';
+    return double.tryParse(value?.toString() ?? '0') ?? 0;
+  }
+
+  String _formatPrice(dynamic value) {
+    final amount = _number(value);
+    final rate = currencyRates[selectedCurrency] ?? 1.0;
+    final converted = amount * rate;
+
+    switch (selectedCurrency) {
+      case 'USD':
+        return '\$${converted.toStringAsFixed(2)}';
+
+      case 'GBP':
+        return '£${converted.toStringAsFixed(2)}';
+
+      case 'EUR':
+        return '€${converted.toStringAsFixed(2)}';
+
+      default:
+        return '₦${converted.toStringAsFixed(0)}';
     }
+  }
+
+  String _status() {
+    final value =
+        (order?['orderStatus'] ?? 'pending').toString().toLowerCase();
 
     return value;
   }
 
-  String _formatStatus(String status) {
-    if (status.trim().isEmpty) {
-      return 'Pending';
+  String _prettyStatus(String status) {
+    switch (status) {
+      case 'pending':
+        return 'Pending';
+
+      case 'confirmed':
+        return 'Confirmed';
+
+      case 'preparing':
+        return 'Preparing';
+
+      case 'out_for_delivery':
+        return 'Out for delivery';
+
+      case 'delivered':
+        return 'Delivered';
+
+      case 'completed':
+        return 'Completed';
+
+      case 'cancelled':
+        return 'Cancelled';
+
+      default:
+        return status
+            .replaceAll('_', ' ')
+            .split(' ')
+            .map(
+              (word) => word.isEmpty
+                  ? word
+                  : '${word[0].toUpperCase()}${word.substring(1)}',
+            )
+            .join(' ');
     }
-
-    return status
-        .replaceAll('-', ' ')
-        .replaceAll('_', ' ')
-        .split(' ')
-        .map(
-          (word) {
-            if (word.isEmpty) return '';
-
-            return word[0].toUpperCase() +
-                word.substring(1).toLowerCase();
-          },
-        )
-        .join(' ');
   }
 
   // ============================================================
-  // BUILD
+  // FIX:
+  // Supports both local assets and Firebase/network images.
   // ============================================================
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: pikkXBackground,
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        centerTitle: true,
-
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 10),
-          child: _glassIcon(
-            Icons.arrow_back_ios_new_rounded,
-            onTap: () {
-              Navigator.pop(context);
-            },
-          ),
-        ),
-
-        title: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: 12,
-              sigmaY: 12,
-            ),
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 8,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.62),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.90),
-                ),
-              ),
-              child: const Text(
-                'Order Details',
-                style: TextStyle(
-                  color: pikkXBlack,
-                  fontSize: 19,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-
-      body: Stack(
-        children: [
-          // ======================================================
-          // SOFT GLASS BACKGROUND
-          // ======================================================
-
-          Positioned(
-            top: -120,
-            right: -100,
-            child: _backgroundOrb(
-              size: 270,
-              opacity: 0.72,
-            ),
-          ),
-
-          Positioned(
-            top: 260,
-            left: -150,
-            child: _backgroundOrb(
-              size: 260,
-              opacity: 0.38,
-              dark: true,
-            ),
-          ),
-
-          Positioned(
-            bottom: -130,
-            right: -100,
-            child: _backgroundOrb(
-              size: 250,
-              opacity: 0.50,
-            ),
-          ),
-
-          // ======================================================
-          // CONTENT
-          // ======================================================
-
-          SafeArea(
-            child: isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      color: pikkXBlack,
-                      strokeWidth: 2.5,
-                    ),
-                  )
-                : order == null
-                    ? _notFound()
-                    : _buildContent(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // BACKGROUND ORB
-  // ============================================================
-
-  Widget _backgroundOrb({
-    required double size,
-    required double opacity,
-    bool dark = false,
+  Widget _buildProductImage(
+    String imageUrl, {
+    BoxFit fit = BoxFit.cover,
   }) {
-    return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: dark
-              ? pikkXBlack.withOpacity(opacity * 0.07)
-              : pikkXWhite.withOpacity(opacity),
+    if (imageUrl.isEmpty) {
+      return Container(
+        color: lightGrey,
+        alignment: Alignment.center,
+        child: const Icon(
+          Icons.image_outlined,
+          color: pikkXGrey,
+          size: 28,
         ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // CONTENT
-  // ============================================================
-
-  Widget _buildContent() {
-    final rawItems = order?['items'];
-
-    final List<dynamic> items =
-        rawItems is List ? rawItems : <dynamic>[];
-
-    final status = _status();
-
-    final total = _money(order?['total']);
-    final subtotal = _money(order?['subtotal']);
-    final deliveryFee = _money(order?['deliveryFee']);
-
-    final rawAddress = order?['deliveryAddress'];
-
-    final Map<String, dynamic> address =
-        rawAddress is Map
-            ? Map<String, dynamic>.from(rawAddress)
-            : <String, dynamic>{};
-
-    return RefreshIndicator(
-      color: pikkXBlack,
-      backgroundColor: pikkXWhite,
-      onRefresh: _loadOrder,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(
-          16,
-          14,
-          16,
-          40,
-        ),
-        children: [
-          // ======================================================
-          // ORDER HEADER
-          // ======================================================
-
-          _orderHeader(status),
-
-          const SizedBox(height: 14),
-
-          // ======================================================
-          // TRACK ORDER BUTTON
-          // ======================================================
-
-          _trackOrderButton(),
-
-          const SizedBox(height: 25),
-
-          // ======================================================
-          // ORDER ITEMS
-          // ======================================================
-
-          _sectionTitle('Order Items'),
-
-          _glass(
-            child: items.isEmpty
-                ? _emptyItems()
-                : Column(
-                    children: List.generate(
-                      items.length,
-                      (index) => _item(
-                        items[index],
-                        isLast: index == items.length - 1,
-                      ),
-                    ),
-                  ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // ======================================================
-          // DELIVERY ADDRESS
-          // ======================================================
-
-          _sectionTitle('Delivery Address'),
-
-          _glass(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _iconBox(
-                    Icons.location_on_outlined,
-                  ),
-
-                  const SizedBox(width: 13),
-
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          address['fullName']
-                                      ?.toString()
-                                      .trim()
-                                      .isNotEmpty ==
-                                  true
-                              ? address['fullName'].toString()
-                              : 'Delivery Address',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            color: pikkXBlack,
-                            fontSize: 14,
-                          ),
-                        ),
-
-                        const SizedBox(height: 7),
-
-                        Text(
-                          _addressText(address),
-                          style: const TextStyle(
-                            color: pikkXGrey,
-                            fontSize: 13,
-                            height: 1.5,
-                          ),
-                        ),
-
-                        if (_phone(address).isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 7,
-                            ),
-                            decoration: BoxDecoration(
-                              color: pikkXBlack.withOpacity(0.045),
-                              borderRadius:
-                                  BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              _phone(address),
-                              style: const TextStyle(
-                                color: pikkXBlack,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // ======================================================
-          // ORDER STATUS
-          // ======================================================
-
-          _sectionTitle('Order Status'),
-
-          _glass(
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: _trackingTimeline(status),
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // ======================================================
-          // PAYMENT
-          // ======================================================
-
-          _sectionTitle('Payment'),
-
-          _glass(
-            child: Padding(
-              padding: const EdgeInsets.all(17),
-              child: Column(
-                children: [
-                  _row(
-                    'Payment method',
-                    _paymentMethod(),
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  _row(
-                    'Payment status',
-                    _paymentStatus(),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // ======================================================
-          // ORDER SUMMARY
-          // ======================================================
-
-          _sectionTitle('Order Summary'),
-
-          _glass(
-            child: Padding(
-              padding: const EdgeInsets.all(17),
-              child: Column(
-                children: [
-                  _row(
-                    'Subtotal',
-                    _formatMoney(subtotal),
-                  ),
-
-                  const SizedBox(height: 13),
-
-                  _row(
-                    'Delivery fee',
-                    _formatMoney(deliveryFee),
-                  ),
-
-                  const Padding(
-                    padding: EdgeInsets.symmetric(
-                      vertical: 15,
-                    ),
-                    child: Divider(
-                      color: pikkXLightGrey,
-                      height: 1,
-                    ),
-                  ),
-
-                  _row(
-                    'Total',
-                    _formatMoney(total),
-                    bold: true,
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 15),
-
-          // ======================================================
-          // CURRENCY
-          // ======================================================
-
-          Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 6,
-              ),
-              decoration: BoxDecoration(
-                color: pikkXWhite.withOpacity(0.55),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: pikkXWhite.withOpacity(0.85),
-                ),
-              ),
-              child: Text(
-                'Prices shown in $selectedCurrency',
-                style: const TextStyle(
-                  color: Color(0xFF999999),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 9),
-
-          // ======================================================
-          // ORDER ID
-          // ======================================================
-
-          Center(
-            child: Text(
-              'Order ID: ${widget.orderId}',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Color(0xFF999999),
-                fontSize: 9.5,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // TRACK ORDER BUTTON
-  // ============================================================
-
-  Widget _trackOrderButton() {
-    final status = _status();
-
-    final isDelivered =
-        status == 'delivered' ||
-        status == 'completed';
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 14,
-          sigmaY: 14,
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () {
-              Navigator.pushNamed(
-                context,
-                '/dispatch-tracking',
-                arguments: widget.orderId,
-              );
-            },
-            borderRadius: BorderRadius.circular(20),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 17,
-                vertical: 15,
-              ),
-              decoration: BoxDecoration(
-                color: isDelivered
-                    ? pikkXWhite.withOpacity(0.76)
-                    : pikkXBlack.withOpacity(0.94),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: isDelivered
-                      ? pikkXWhite.withOpacity(0.95)
-                      : pikkXBlack,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.07),
-                    blurRadius: 18,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: isDelivered
-                          ? pikkXBlack.withOpacity(0.055)
-                          : pikkXWhite.withOpacity(0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      isDelivered
-                          ? Icons.check_circle_outline_rounded
-                          : Icons.location_searching_rounded,
-                      color: isDelivered
-                          ? pikkXBlack
-                          : pikkXWhite,
-                      size: 20,
-                    ),
-                  ),
-
-                  const SizedBox(width: 12),
-
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          isDelivered
-                              ? 'View Delivery'
-                              : 'Track Order',
-                          style: TextStyle(
-                            color: isDelivered
-                                ? pikkXBlack
-                                : pikkXWhite,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-
-                        const SizedBox(height: 3),
-
-                        Text(
-                          isDelivered
-                              ? 'View the delivery information'
-                              : 'See your order location and progress',
-                          style: TextStyle(
-                            color: isDelivered
-                                ? pikkXGrey
-                                : pikkXWhite.withOpacity(0.68),
-                            fontSize: 10.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    size: 15,
-                    color: isDelivered
-                        ? pikkXBlack
-                        : pikkXWhite,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // ORDER HEADER
-  // ============================================================
-
-  Widget _orderHeader(String status) {
-    return _glass(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          children: [
-            _largeIconBox(
-              Icons.local_shipping_outlined,
-            ),
-
-            const SizedBox(width: 14),
-
-            Expanded(
-              child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Order #${_shortOrderId()}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      color: pikkXBlack,
-                      fontSize: 15,
-                    ),
-                  ),
-
-                  const SizedBox(height: 7),
-
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 11,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: pikkXBlack.withOpacity(0.055),
-                      borderRadius:
-                          BorderRadius.circular(20),
-                      border: Border.all(
-                        color: pikkXBlack.withOpacity(0.06),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            color: pikkXBlack,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-
-                        const SizedBox(width: 6),
-
-                        Text(
-                          _formatStatus(status),
-                          style: const TextStyle(
-                            color: pikkXBlack,
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _shortOrderId() {
-    if (widget.orderId.length <= 8) {
-      return widget.orderId;
+      );
     }
 
-    return widget.orderId.substring(0, 8);
-  }
-
-  // ============================================================
-  // TRACKING TIMELINE
-  // ============================================================
-
-  Widget _trackingTimeline(String status) {
-    const statuses = [
-      'pending',
-      'confirmed',
-      'preparing',
-      'out_for_delivery',
-      'delivered',
-    ];
-
-    String normalized = status
-        .toLowerCase()
-        .replaceAll('-', '_')
-        .replaceAll(' ', '_');
-
-    if (normalized == 'completed') {
-      normalized = 'delivered';
-    }
-
-    int current = statuses.indexOf(normalized);
-
-    if (current < 0) {
-      current = 0;
-    }
-
-    return Column(
-      children: List.generate(
-        statuses.length,
-        (index) {
-          final done = index <= current;
-          final isCurrent = index == current;
-
-          return Row(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              Column(
-                children: [
-                  AnimatedContainer(
-                    duration:
-                        const Duration(milliseconds: 250),
-                    width: 27,
-                    height: 27,
-                    decoration: BoxDecoration(
-                      color: done
-                          ? pikkXBlack
-                          : pikkXWhite.withOpacity(0.72),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: done
-                            ? pikkXBlack
-                            : const Color(0xFFD0D0D0),
-                        width: 1.5,
-                      ),
-                      boxShadow: done
-                          ? [
-                              BoxShadow(
-                                color: pikkXBlack
-                                    .withOpacity(0.12),
-                                blurRadius: 8,
-                                offset:
-                                    const Offset(0, 3),
-                              ),
-                            ]
-                          : null,
-                    ),
-                    child: done
-                        ? const Icon(
-                            Icons.check_rounded,
-                            color: pikkXWhite,
-                            size: 16,
-                          )
-                        : null,
-                  ),
-
-                  if (index != statuses.length - 1)
-                    Container(
-                      width: 2,
-                      height: 39,
-                      margin:
-                          const EdgeInsets.symmetric(
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: index < current
-                            ? pikkXBlack
-                            : pikkXLightGrey,
-                        borderRadius:
-                            BorderRadius.circular(5),
-                      ),
-                    ),
-                ],
-              ),
-
-              const SizedBox(width: 13),
-
-              Expanded(
-                child: Padding(
-                  padding:
-                      const EdgeInsets.only(
-                    top: 4,
-                    bottom: 15,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _formatStatus(
-                            statuses[index],
-                          ),
-                          style: TextStyle(
-                            color: done
-                                ? pikkXBlack
-                                : const Color(0xFF999999),
-                            fontWeight: done
-                                ? FontWeight.w700
-                                : FontWeight.w500,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-
-                      if (isCurrent)
-                        Container(
-                          padding:
-                              const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: pikkXBlack
-                                .withOpacity(0.055),
-                            borderRadius:
-                                BorderRadius.circular(12),
-                          ),
-                          child: const Text(
-                            'Current',
-                            style: TextStyle(
-                              color: pikkXBlack,
-                              fontSize: 9,
-                              fontWeight:
-                                  FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+    if (imageUrl.startsWith('assets/')) {
+      return Image.asset(
+        imageUrl,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: lightGrey,
+            alignment: Alignment.center,
+            child: const Icon(
+              Icons.image_outlined,
+              color: pikkXGrey,
+              size: 28,
+            ),
           );
         },
-      ),
-    );
-  }
+      );
+    }
 
-  // ============================================================
-  // ITEM
-  // ============================================================
-
-  Widget _item(
-    dynamic rawItem, {
-    required bool isLast,
-  }) {
-    final item = rawItem is Map
-        ? Map<String, dynamic>.from(rawItem)
-        : <String, dynamic>{};
-
-    final name =
-        item['name']?.toString() ??
-        item['productName']?.toString() ??
-        'Product';
-
-    final quantity = item['quantity'] ?? 1;
-
-    final price = _money(item['price']);
-
-    final imageUrl = item['imageUrl']?.toString();
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        border: isLast
-            ? null
-            : const Border(
-                bottom: BorderSide(
-                  color: pikkXLightGrey,
-                ),
-              ),
-      ),
-      child: Row(
-        children: [
-          // ======================================================
-          // IMAGE
-          // ======================================================
-
-          Container(
-            width: 62,
-            height: 62,
-            decoration: BoxDecoration(
-              color: pikkXBlack.withOpacity(0.045),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: pikkXWhite.withOpacity(0.8),
-              ),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: imageUrl != null &&
-                    imageUrl.isNotEmpty
-                ? Image.network(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder:
-                        (context, error, stackTrace) {
-                      return _productIcon();
-                    },
-                  )
-                : _productIcon(),
-          ),
-
-          const SizedBox(width: 12),
-
-          Expanded(
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: pikkXBlack,
-                    fontSize: 13,
-                  ),
-                ),
-
-                const SizedBox(height: 6),
-
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: pikkXBlack.withOpacity(0.045),
-                    borderRadius:
-                        BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    'Qty: $quantity',
-                    style: const TextStyle(
-                      color: pikkXGrey,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(width: 10),
-
-          Text(
-            _formatMoney(price),
-            style: const TextStyle(
-              color: pikkXBlack,
-              fontWeight: FontWeight.w800,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _productIcon() {
-    return const Center(
-      child: Icon(
-        Icons.shopping_bag_outlined,
-        color: pikkXBlack,
-        size: 25,
-      ),
-    );
-  }
-
-  Widget _emptyItems() {
-    return const Padding(
-      padding: EdgeInsets.all(22),
-      child: Center(
-        child: Text(
-          'No item information available.',
-          style: TextStyle(
+    return Image.network(
+      imageUrl,
+      fit: fit,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: lightGrey,
+          alignment: Alignment.center,
+          child: const Icon(
+            Icons.image_outlined,
             color: pikkXGrey,
-            fontSize: 12,
+            size: 28,
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   // ============================================================
-  // ADDRESS
+  // Glassmorphism
   // ============================================================
 
-  String _addressText(
-    Map<String, dynamic> address,
-  ) {
-    final values = [
-      address['addressLine'],
-      address['address'],
-      address['street'],
-      address['city'],
-      address['state'],
-      address['country'],
-    ];
-
-    final result = <String>[];
-
-    for (final value in values) {
-      if (value != null &&
-          value.toString().trim().isNotEmpty) {
-        final text = value.toString().trim();
-
-        if (!result.contains(text)) {
-          result.add(text);
-        }
-      }
-    }
-
-    if (result.isEmpty) {
-      return 'No delivery address provided.';
-    }
-
-    return result.join(', ');
-  }
-
-  String _phone(
-    Map<String, dynamic> address,
-  ) {
-    final value =
-        address['phone'] ??
-        address['phoneNumber'];
-
-    if (value == null) {
-      return '';
-    }
-
-    return value.toString().trim();
-  }
-
-  // ============================================================
-  // PAYMENT
-  // ============================================================
-
-  String _paymentMethod() {
-    final value =
-        order?['paymentMethod']
-            ?.toString()
-            .trim();
-
-    if (value == null || value.isEmpty) {
-      return 'Not specified';
-    }
-
-    return _formatStatus(value);
-  }
-
-  String _paymentStatus() {
-    final value =
-        order?['paymentStatus']
-            ?.toString()
-            .trim();
-
-    if (value == null || value.isEmpty) {
-      return 'Pending';
-    }
-
-    return _formatStatus(value);
-  }
-
-  // ============================================================
-  // ROW
-  // ============================================================
-
-  Widget _row(
-    String title,
-    String value, {
-    bool bold = false,
-  }) {
-    return Row(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(
-              color: pikkXGrey,
-              fontSize: 12,
-            ),
-          ),
-        ),
-
-        const SizedBox(width: 15),
-
-        Flexible(
-          child: Text(
-            value,
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              color: pikkXBlack,
-              fontSize: bold ? 15 : 12,
-              fontWeight: bold
-                  ? FontWeight.w900
-                  : FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ============================================================
-  // SECTION TITLE
-  // ============================================================
-
-  Widget _sectionTitle(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(
-        left: 4,
-        bottom: 10,
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w800,
-          color: pikkXBlack,
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // SMALL ICON BOX
-  // ============================================================
-
-  Widget _iconBox(IconData icon) {
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        color: pikkXBlack.withOpacity(0.055),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: pikkXWhite.withOpacity(0.85),
-        ),
-      ),
-      child: Icon(
-        icon,
-        color: pikkXBlack,
-        size: 22,
-      ),
-    );
-  }
-
-  // ============================================================
-  // LARGE ICON BOX
-  // ============================================================
-
-  Widget _largeIconBox(IconData icon) {
-    return Container(
-      width: 56,
-      height: 56,
-      decoration: BoxDecoration(
-        color: pikkXBlack.withOpacity(0.055),
-        borderRadius: BorderRadius.circular(19),
-        border: Border.all(
-          color: pikkXWhite.withOpacity(0.9),
-        ),
-      ),
-      child: Icon(
-        icon,
-        color: pikkXBlack,
-        size: 26,
-      ),
-    );
-  }
-
-  // ============================================================
-  // GLASS ICON
-  // ============================================================
-
-  Widget _glassIcon(
-    IconData icon, {
-    required VoidCallback onTap,
-  }) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(15),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 12,
-          sigmaY: 12,
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(15),
-            child: Container(
-              width: 43,
-              height: 43,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.74),
-                borderRadius:
-                    BorderRadius.circular(15),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.95),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color:
-                        Colors.black.withOpacity(0.045),
-                    blurRadius: 15,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Icon(
-                icon,
-                color: pikkXBlack,
-                size: 18,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // GLASS CONTAINER
-  // ============================================================
-
-  Widget _glass({
+  Widget _glassContainer({
     required Widget child,
+    EdgeInsetsGeometry padding =
+        const EdgeInsets.all(16),
+    double radius = 24,
   }) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(radius),
       child: BackdropFilter(
         filter: ImageFilter.blur(
           sigmaX: 18,
           sigmaY: 18,
         ),
         child: Container(
+          padding: padding,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.72),
-            borderRadius: BorderRadius.circular(24),
+            color: pikkXWhite.withOpacity(0.72),
+            borderRadius: BorderRadius.circular(radius),
             border: Border.all(
-              color: Colors.white.withOpacity(0.94),
+              color: pikkXWhite.withOpacity(0.85),
               width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color:
-                    Colors.black.withOpacity(0.045),
-                blurRadius: 22,
-                offset: const Offset(0, 9),
+                color: pikkXBlack.withOpacity(0.06),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
               ),
             ],
           ),
@@ -1509,78 +298,35 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
   }
 
   // ============================================================
-  // NOT FOUND
+  // Status Badge
   // ============================================================
 
-  Widget _notFound() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: _glass(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 28,
-              vertical: 34,
+  Widget _statusBadge(String status) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(50),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: 12,
+          sigmaY: 12,
+        ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 7,
+          ),
+          decoration: BoxDecoration(
+            color: pikkXBlack.withOpacity(0.06),
+            borderRadius: BorderRadius.circular(50),
+            border: Border.all(
+              color: pikkXBlack.withOpacity(0.08),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _largeIconBox(
-                  Icons.receipt_long_outlined,
-                ),
-
-                const SizedBox(height: 17),
-
-                const Text(
-                  'Order not found',
-                  style: TextStyle(
-                    color: pikkXBlack,
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                const Text(
-                  'This order may no longer exist or you may not have access to it.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: pikkXGrey,
-                    fontSize: 12,
-                    height: 1.45,
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                Material(
-                  color: pikkXBlack,
-                  borderRadius:
-                      BorderRadius.circular(15),
-                  child: InkWell(
-                    onTap: () {
-                      Navigator.pop(context);
-                    },
-                    borderRadius:
-                        BorderRadius.circular(15),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                      child: Text(
-                        'Go Back',
-                        style: TextStyle(
-                          color: pikkXWhite,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+          ),
+          child: Text(
+            _prettyStatus(status),
+            style: const TextStyle(
+              color: pikkXBlack,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),
@@ -1589,29 +335,972 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
   }
 
   // ============================================================
-  // MESSAGE
+  // Order Header
   // ============================================================
 
-  void _showMessage(String message) {
-    if (!mounted) return;
+  Widget _buildOrderHeader() {
+    final status = _status();
 
-    ScaffoldMessenger.of(context)
-        .hideCurrentSnackBar();
+    return _glassContainer(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: pikkXBlack.withOpacity(0.06),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.receipt_long_outlined,
+              color: pikkXBlack,
+              size: 25,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Order',
+                  style: TextStyle(
+                    color: pikkXGrey,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '#${widget.orderId}',
+                  style: const TextStyle(
+                    color: pikkXBlack,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _statusBadge(status),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
+  // ============================================================
+  // Order Items
+  // ============================================================
+
+  Widget _buildOrderItems() {
+    final rawItems = order?['items'];
+
+    if (rawItems is! List || rawItems.isEmpty) {
+      return _glassContainer(
+        child: const Text(
+          'No items found for this order.',
+          style: TextStyle(
+            color: pikkXGrey,
+            fontSize: 14,
           ),
         ),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: pikkXBlack,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+      );
+    }
+
+    return _glassContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Order Items',
+            style: TextStyle(
+              color: pikkXBlack,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...List.generate(
+            rawItems.length,
+            (index) {
+              final item =
+                  Map<String, dynamic>.from(
+                rawItems[index] as Map,
+              );
+
+              return _item(item);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _item(Map<String, dynamic> item) {
+    final imageUrl = (
+      item['imageUrl'] ??
+      item['image'] ??
+      ''
+    ).toString();
+
+    final name =
+        (item['name'] ?? 'Product').toString();
+
+    final quantity =
+        _number(item['quantity']).toInt();
+
+    final price = _number(item['price']);
+
+    final size =
+        (item['size'] ?? '').toString();
+
+    final selectedColor =
+        (item['selectedColor'] ?? '').toString();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius:
+                BorderRadius.circular(18),
+            child: Container(
+              width: 76,
+              height: 76,
+              color: lightGrey,
+              child: _buildProductImage(
+                imageUrl,
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: pikkXBlack,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                if (size.isNotEmpty)
+                  Text(
+                    'Size: $size',
+                    style: const TextStyle(
+                      color: pikkXGrey,
+                      fontSize: 12,
+                    ),
+                  ),
+                if (selectedColor.isNotEmpty)
+                  Text(
+                    'Colour: $selectedColor',
+                    style: const TextStyle(
+                      color: pikkXGrey,
+                      fontSize: 12,
+                    ),
+                  ),
+                const SizedBox(height: 5),
+                Text(
+                  'Qty: $quantity',
+                  style: const TextStyle(
+                    color: pikkXGrey,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            _formatPrice(price * quantity),
+            style: const TextStyle(
+              color: pikkXBlack,
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // Delivery Address
+  // ============================================================
+
+  Widget _buildDeliveryAddress() {
+    final address =
+        order?['deliveryAddress'];
+
+    if (address is! Map) {
+      return _glassContainer(
+        child: const Row(
+          children: [
+            Icon(
+              Icons.location_on_outlined,
+              color: pikkXBlack,
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'No delivery address available.',
+                style: TextStyle(
+                  color: pikkXGrey,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
         ),
+      );
+    }
+
+    final addressMap =
+        Map<String, dynamic>.from(address);
+
+    final name =
+        (addressMap['name'] ??
+                addressMap['fullName'] ??
+                '')
+            .toString();
+
+    final phone =
+        (addressMap['phone'] ?? '').toString();
+
+    final street =
+        (addressMap['address'] ??
+                addressMap['street'] ??
+                '')
+            .toString();
+
+    final city =
+        (addressMap['city'] ?? '').toString();
+
+    final state =
+        (addressMap['state'] ?? '').toString();
+
+    final country =
+        (addressMap['country'] ?? '').toString();
+
+    final location = [
+      street,
+      city,
+      state,
+      country,
+    ].where((e) => e.isNotEmpty).join(', ');
+
+    return _glassContainer(
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Delivery Address',
+            style: TextStyle(
+              color: pikkXBlack,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: pikkXBlack.withOpacity(0.06),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.location_on_outlined,
+                  color: pikkXBlack,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    if (name.isNotEmpty)
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          color: pikkXBlack,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    if (phone.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        phone,
+                        style: const TextStyle(
+                          color: pikkXGrey,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                    if (location.isNotEmpty) ...[
+                      const SizedBox(height: 5),
+                      Text(
+                        location,
+                        style: const TextStyle(
+                          color: pikkXGrey,
+                          fontSize: 13,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // Status Timeline
+  // ============================================================
+
+  Widget _buildStatusTimeline() {
+    final currentStatus = _status();
+
+    final statuses = [
+      'pending',
+      'confirmed',
+      'preparing',
+      'out_for_delivery',
+      'delivered',
+    ];
+
+    final effectiveStatus =
+        currentStatus == 'completed'
+            ? 'delivered'
+            : currentStatus;
+
+    int currentIndex =
+        statuses.indexOf(effectiveStatus);
+
+    if (currentIndex < 0) {
+      currentIndex = 0;
+    }
+
+    return _glassContainer(
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Order Status',
+            style: TextStyle(
+              color: pikkXBlack,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 18),
+          ...List.generate(
+            statuses.length,
+            (index) {
+              final status = statuses[index];
+              final isCompleted =
+                  index <= currentIndex;
+              final isLast =
+                  index == statuses.length - 1;
+
+              return Row(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                children: [
+                  Column(
+                    children: [
+                      Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: isCompleted
+                              ? pikkXBlack
+                              : lightGrey,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          isCompleted
+                              ? Icons.check
+                              : Icons.circle,
+                          color: isCompleted
+                              ? pikkXWhite
+                              : pikkXGrey,
+                          size: isCompleted
+                              ? 16
+                              : 8,
+                        ),
+                      ),
+                      if (!isLast)
+                        Container(
+                          width: 1.5,
+                          height: 42,
+                          color: index < currentIndex
+                              ? pikkXBlack
+                              : lightGrey,
+                        ),
+                    ],
+                  ),
+                  const SizedBox(width: 14),
+                  Padding(
+                    padding:
+                        const EdgeInsets.only(top: 4),
+                    child: Text(
+                      _prettyStatus(status),
+                      style: TextStyle(
+                        color: isCompleted
+                            ? pikkXBlack
+                            : pikkXGrey,
+                        fontSize: 14,
+                        fontWeight: isCompleted
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // Payment
+  // ============================================================
+
+  Widget _buildPaymentSection() {
+    final paymentMethod =
+        (order?['paymentMethod'] ??
+                'cash_on_delivery')
+            .toString();
+
+    final paymentStatus =
+        (order?['paymentStatus'] ??
+                'pending')
+            .toString();
+
+    String readablePayment =
+        paymentMethod.replaceAll('_', ' ');
+
+    readablePayment = readablePayment
+        .split(' ')
+        .map(
+          (word) => word.isEmpty
+              ? word
+              : '${word[0].toUpperCase()}${word.substring(1)}',
+        )
+        .join(' ');
+
+    return _glassContainer(
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Payment',
+            style: TextStyle(
+              color: pikkXBlack,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: pikkXBlack.withOpacity(0.06),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.payments_outlined,
+                  color: pikkXBlack,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      readablePayment,
+                      style: const TextStyle(
+                        color: pikkXBlack,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Status: ${_prettyStatus(paymentStatus)}',
+                      style: const TextStyle(
+                        color: pikkXGrey,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // Order Summary
+  // ============================================================
+
+  Widget _buildSummary() {
+    final subtotal =
+        _number(order?['subtotal']);
+
+    final deliveryFee =
+        _number(order?['deliveryFee']);
+
+    final total =
+        _number(order?['total']);
+
+    return _glassContainer(
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Order Summary',
+            style: TextStyle(
+              color: pikkXBlack,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _summaryRow(
+            'Subtotal',
+            _formatPrice(subtotal),
+          ),
+          const SizedBox(height: 10),
+          _summaryRow(
+            'Delivery fee',
+            _formatPrice(deliveryFee),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(
+              vertical: 14,
+            ),
+            child: Divider(
+              color: lightGrey,
+              height: 1,
+            ),
+          ),
+          _summaryRow(
+            'Total',
+            _formatPrice(total),
+            isTotal: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryRow(
+    String title,
+    String value, {
+    bool isTotal = false,
+  }) {
+    return Row(
+      mainAxisAlignment:
+          MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            color:
+                isTotal ? pikkXBlack : pikkXGrey,
+            fontSize: isTotal ? 15 : 13,
+            fontWeight: isTotal
+                ? FontWeight.w800
+                : FontWeight.w500,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            color: pikkXBlack,
+            fontSize: isTotal ? 17 : 13,
+            fontWeight: isTotal
+                ? FontWeight.w900
+                : FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // Track Order Button
+  // ============================================================
+
+  Widget _buildTrackButton() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(22),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: 15,
+          sigmaY: 15,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: pikkXBlack.withOpacity(0.92),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: pikkXWhite.withOpacity(0.18),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: pikkXBlack.withOpacity(0.16),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(22),
+              onTap: () {
+                Navigator.pushNamed(
+                  context,
+                  '/dispatch-tracking',
+                  arguments: widget.orderId,
+                );
+              },
+              child: const Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
+                child: Row(
+                  mainAxisAlignment:
+                      MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.local_shipping_outlined,
+                      color: pikkXWhite,
+                      size: 21,
+                    ),
+                    SizedBox(width: 10),
+                    Text(
+                      'Track Order',
+                      style: TextStyle(
+                        color: pikkXWhite,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // Error State
+  // ============================================================
+
+  Widget _buildError() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: _glassContainer(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: pikkXBlack.withOpacity(0.06),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.receipt_long_outlined,
+                  color: pikkXBlack,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                errorMessage ?? 'Something went wrong.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: pikkXBlack,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: _loadOrder,
+                child: const Text(
+                  'Try Again',
+                  style: TextStyle(
+                    color: pikkXBlack,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // Build
+  // ============================================================
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: pikkXBackground,
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        leading: Padding(
+          padding: const EdgeInsets.only(
+            left: 12,
+          ),
+          child: ClipRRect(
+            borderRadius:
+                BorderRadius.circular(16),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(
+                sigmaX: 12,
+                sigmaY: 12,
+              ),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: pikkXWhite.withOpacity(0.72),
+                  borderRadius:
+                      BorderRadius.circular(16),
+                  border: Border.all(
+                    color:
+                        pikkXWhite.withOpacity(0.85),
+                  ),
+                ),
+                child: IconButton(
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new,
+                    color: pikkXBlack,
+                    size: 18,
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+        title: ClipRRect(
+          borderRadius:
+              BorderRadius.circular(50),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(
+              sigmaX: 12,
+              sigmaY: 12,
+            ),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(
+                horizontal: 18,
+                vertical: 9,
+              ),
+              decoration: BoxDecoration(
+                color:
+                    pikkXWhite.withOpacity(0.72),
+                borderRadius:
+                    BorderRadius.circular(50),
+                border: Border.all(
+                  color:
+                      pikkXWhite.withOpacity(0.85),
+                ),
+              ),
+              child: const Text(
+                'Order Details',
+                style: TextStyle(
+                  color: pikkXBlack,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+      body: Stack(
+        children: [
+          // Background glow/orbs
+          Positioned(
+            top: -100,
+            right: -80,
+            child: Container(
+              width: 220,
+              height: 220,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: pikkXBlack.withOpacity(0.035),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 260,
+            left: -120,
+            child: Container(
+              width: 240,
+              height: 240,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: pikkXBlack.withOpacity(0.025),
+              ),
+            ),
+          ),
+
+          SafeArea(
+            child: isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: pikkXBlack,
+                    ),
+                  )
+                : errorMessage != null
+                    ? _buildError()
+                    : order == null
+                        ? _buildError()
+                        : RefreshIndicator(
+                            color: pikkXBlack,
+                            onRefresh: _loadOrder,
+                            child: SingleChildScrollView(
+                              physics:
+                                  const AlwaysScrollableScrollPhysics(),
+                              padding:
+                                  const EdgeInsets.fromLTRB(
+                                16,
+                                90,
+                                16,
+                                30,
+                              ),
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.stretch,
+                                children: [
+                                  _buildTrackButton(),
+                                  const SizedBox(height: 16),
+                                  _buildOrderHeader(),
+                                  const SizedBox(height: 16),
+                                  _buildOrderItems(),
+                                  const SizedBox(height: 16),
+                                  _buildDeliveryAddress(),
+                                  const SizedBox(height: 16),
+                                  _buildStatusTimeline(),
+                                  const SizedBox(height: 16),
+                                  _buildPaymentSection(),
+                                  const SizedBox(height: 16),
+                                  _buildSummary(),
+                                  const SizedBox(height: 18),
+
+                                  // Order ID
+                                  _glassContainer(
+                                    padding:
+                                        const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 14,
+                                    ),
+                                    radius: 18,
+                                    child: Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.tag_outlined,
+                                          color: pikkXGrey,
+                                          size: 18,
+                                        ),
+                                        const SizedBox(width: 9),
+                                        const Text(
+                                          'Order ID',
+                                          style: TextStyle(
+                                            color: pikkXGrey,
+                                            fontSize: 12,
+                                            fontWeight:
+                                                FontWeight.w500,
+                                          ),
+                                        ),
+                                        const Spacer(),
+                                        Flexible(
+                                          child: Text(
+                                            widget.orderId,
+                                            textAlign:
+                                                TextAlign.right,
+                                            overflow:
+                                                TextOverflow.ellipsis,
+                                            style:
+                                                const TextStyle(
+                                              color: pikkXBlack,
+                                              fontSize: 12,
+                                              fontWeight:
+                                                  FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+          ),
+        ],
       ),
     );
   }
