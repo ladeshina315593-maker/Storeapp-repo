@@ -63,7 +63,7 @@ class _FavouritePageState extends State<FavouritePage> {
 
   Widget _glassContainer({
     required Widget child,
-    EdgeInsetsGeometry padding = const EdgeInsets.all(12),
+    EdgeInsetsGeometry padding = const EdgeInsets.all(10),
     double radius = 20,
   }) {
     return ClipRRect(
@@ -85,8 +85,8 @@ class _FavouritePageState extends State<FavouritePage> {
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.045),
-                blurRadius: 18,
-                offset: const Offset(0, 7),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
@@ -103,9 +103,9 @@ class _FavouritePageState extends State<FavouritePage> {
   Future<void> _removeFavourite(
     FavouriteProduct product,
   ) async {
-    if (userId == null) {
-      return;
-    }
+    final uid = userId;
+
+    if (uid == null) return;
 
     try {
       await favouritesRef.doc(product.id).delete();
@@ -115,9 +115,12 @@ class _FavouritePageState extends State<FavouritePage> {
       _showMessage(
         '${product.name} removed from favourites.',
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint(
-        'Remove favourite error: $e',
+        'REMOVE FAVOURITE ERROR: $e',
+      );
+      debugPrint(
+        'STACK TRACE: $stackTrace',
       );
 
       if (!mounted) return;
@@ -147,24 +150,16 @@ class _FavouritePageState extends State<FavouritePage> {
     }
 
     try {
-      debugPrint(
-        'Favourites → Cart',
-      );
-      debugPrint(
-        'productId: ${product.id}',
-      );
-      debugPrint(
-        'name: ${product.name}',
-      );
-      debugPrint(
-        'price: ${product.numericPrice}',
-      );
-      debugPrint(
-        'image: ${product.image}',
-      );
-      debugPrint(
-        'sellerId: ${product.sellerId}',
-      );
+      debugPrint('================================');
+      debugPrint('FAVOURITES → CART');
+      debugPrint('productId: ${product.id}');
+      debugPrint('name: ${product.name}');
+      debugPrint('price: ${product.numericPrice}');
+      debugPrint('image: ${product.image}');
+      debugPrint('sellerId: ${product.sellerId}');
+      debugPrint('size: ${product.size}');
+      debugPrint('color: ${product.color}');
+      debugPrint('================================');
 
       final reference = _firestore
           .collection('users')
@@ -183,8 +178,7 @@ class _FavouritePageState extends State<FavouritePage> {
             data?['quantity'];
 
         if (existingQuantity is num) {
-          quantity =
-              existingQuantity.toInt();
+          quantity = existingQuantity.toInt();
         } else {
           quantity = int.tryParse(
                 existingQuantity?.toString() ?? '',
@@ -201,9 +195,13 @@ class _FavouritePageState extends State<FavouritePage> {
         await reference.set({
           'productId': product.id,
           'name': product.name,
+          'title': product.name,
           'price': product.numericPrice,
           'imageUrl': product.image,
           'image': product.image,
+          'images': product.image.isNotEmpty
+              ? [product.image]
+              : <String>[],
           'quantity': 1,
           'sellerId': product.sellerId,
           'category': product.category,
@@ -223,33 +221,15 @@ class _FavouritePageState extends State<FavouritePage> {
         '${product.name} added to cart.',
       );
     } catch (e, stackTrace) {
-      debugPrint(
-        '================================',
-      );
-      debugPrint(
-        'FAVOURITES CART ERROR',
-      );
-      debugPrint(
-        'productId: ${product.id}',
-      );
-      debugPrint(
-        'name: ${product.name}',
-      );
-      debugPrint(
-        'image: ${product.image}',
-      );
-      debugPrint(
-        'sellerId: ${product.sellerId}',
-      );
-      debugPrint(
-        'error: $e',
-      );
-      debugPrint(
-        'stackTrace: $stackTrace',
-      );
-      debugPrint(
-        '================================',
-      );
+      debugPrint('================================');
+      debugPrint('FAVOURITES CART ERROR');
+      debugPrint('productId: ${product.id}');
+      debugPrint('name: ${product.name}');
+      debugPrint('image: ${product.image}');
+      debugPrint('sellerId: ${product.sellerId}');
+      debugPrint('error: $e');
+      debugPrint('stackTrace: $stackTrace');
+      debugPrint('================================');
 
       if (!mounted) return;
 
@@ -297,7 +277,7 @@ class _FavouritePageState extends State<FavouritePage> {
             children: [
               Container(
                 width: 4,
-                height: 25,
+                height: 24,
                 decoration: BoxDecoration(
                   color: isError
                       ? Colors.grey.shade500
@@ -340,57 +320,6 @@ class _FavouritePageState extends State<FavouritePage> {
   }
 
   // ============================================================
-  // HEADER
-  // ============================================================
-
-  Widget _header() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        16,
-        8,
-        16,
-        10,
-      ),
-      child: _glassContainer(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 10,
-        ),
-        radius: 19,
-        child: Row(
-          children: [
-            const Expanded(
-              child: Text(
-                'Favourites',
-                style: TextStyle(
-                  color: pikkXBlack,
-                  fontSize: 23,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.5,
-                ),
-              ),
-            ),
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color:
-                    pikkXBlack.withOpacity(0.055),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.favorite_rounded,
-                color: pikkXBlack,
-                size: 20,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
   // EMPTY STATE
   // ============================================================
 
@@ -398,17 +327,17 @@ class _FavouritePageState extends State<FavouritePage> {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: 24,
+          horizontal: 20,
         ),
         child: _glassContainer(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(22),
           radius: 24,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 72,
-                height: 72,
+                width: 68,
+                height: 68,
                 decoration: BoxDecoration(
                   color:
                       pikkXBlack.withOpacity(0.055),
@@ -417,10 +346,10 @@ class _FavouritePageState extends State<FavouritePage> {
                 child: const Icon(
                   Icons.favorite_border_rounded,
                   color: pikkXBlack,
-                  size: 35,
+                  size: 33,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 13),
               const Text(
                 'No favourites yet',
                 textAlign: TextAlign.center,
@@ -430,14 +359,14 @@ class _FavouritePageState extends State<FavouritePage> {
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 5),
               const Text(
                 'Products you save will appear here.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: pikkXGrey,
                   fontSize: 12,
-                  height: 1.4,
+                  height: 1.35,
                 ),
               ),
             ],
@@ -454,16 +383,16 @@ class _FavouritePageState extends State<FavouritePage> {
   Widget _notSignedInState() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(20),
         child: _glassContainer(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(22),
           radius: 24,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 70,
-                height: 70,
+                width: 66,
+                height: 66,
                 decoration: BoxDecoration(
                   color:
                       pikkXBlack.withOpacity(0.055),
@@ -472,10 +401,10 @@ class _FavouritePageState extends State<FavouritePage> {
                 child: const Icon(
                   Icons.login_rounded,
                   color: pikkXBlack,
-                  size: 34,
+                  size: 32,
                 ),
               ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 13),
               const Text(
                 'Sign in to view your favourites',
                 textAlign: TextAlign.center,
@@ -499,9 +428,9 @@ class _FavouritePageState extends State<FavouritePage> {
   Widget _errorState() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(20),
         child: _glassContainer(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(22),
           radius: 24,
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -509,9 +438,9 @@ class _FavouritePageState extends State<FavouritePage> {
               const Icon(
                 Icons.cloud_off_rounded,
                 color: pikkXBlack,
-                size: 42,
+                size: 40,
               ),
-              const SizedBox(height: 13),
+              const SizedBox(height: 11),
               const Text(
                 'Unable to load favourites',
                 textAlign: TextAlign.center,
@@ -521,7 +450,7 @@ class _FavouritePageState extends State<FavouritePage> {
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 5),
               const Text(
                 'Check your connection and try again.',
                 textAlign: TextAlign.center,
@@ -546,10 +475,10 @@ class _FavouritePageState extends State<FavouritePage> {
   ) {
     return Padding(
       padding: const EdgeInsets.only(
-        bottom: 10,
+        bottom: 9,
       ),
       child: _glassContainer(
-        padding: const EdgeInsets.all(9),
+        padding: const EdgeInsets.all(8),
         radius: 20,
         child: Material(
           color: Colors.transparent,
@@ -563,10 +492,12 @@ class _FavouritePageState extends State<FavouritePage> {
               crossAxisAlignment:
                   CrossAxisAlignment.center,
               children: [
+                // PRODUCT IMAGE
                 _productImage(product),
 
                 const SizedBox(width: 10),
 
+                // PRODUCT INFORMATION
                 Expanded(
                   child: Column(
                     crossAxisAlignment:
@@ -589,7 +520,7 @@ class _FavouritePageState extends State<FavouritePage> {
                         Padding(
                           padding:
                               const EdgeInsets.only(
-                            top: 4,
+                            top: 3,
                           ),
                           child: Text(
                             product.category,
@@ -605,7 +536,28 @@ class _FavouritePageState extends State<FavouritePage> {
                           ),
                         ),
 
-                      const SizedBox(height: 5),
+                      if (product.size.isNotEmpty ||
+                          product.color.isNotEmpty)
+                        Padding(
+                          padding:
+                              const EdgeInsets.only(
+                            top: 3,
+                          ),
+                          child: Text(
+                            _selectionText(product),
+                            maxLines: 1,
+                            overflow:
+                                TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: pikkXGrey,
+                              fontSize: 9,
+                              fontWeight:
+                                  FontWeight.w600,
+                            ),
+                          ),
+                        ),
+
+                      const SizedBox(height: 4),
 
                       Text(
                         product.displayPrice,
@@ -616,10 +568,10 @@ class _FavouritePageState extends State<FavouritePage> {
                         ),
                       ),
 
-                      const SizedBox(height: 7),
+                      const SizedBox(height: 6),
 
                       SizedBox(
-                        height: 32,
+                        height: 31,
                         child: ElevatedButton(
                           onPressed: () {
                             _addToCart(product);
@@ -634,7 +586,7 @@ class _FavouritePageState extends State<FavouritePage> {
                             padding:
                                 const EdgeInsets
                                     .symmetric(
-                              horizontal: 12,
+                              horizontal: 11,
                             ),
                             shape:
                                 RoundedRectangleBorder(
@@ -659,6 +611,7 @@ class _FavouritePageState extends State<FavouritePage> {
 
                 const SizedBox(width: 1),
 
+                // ACTIONS
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -712,6 +665,26 @@ class _FavouritePageState extends State<FavouritePage> {
   }
 
   // ============================================================
+  // SIZE + COLOR DISPLAY
+  // ============================================================
+
+  String _selectionText(
+    FavouriteProduct product,
+  ) {
+    final parts = <String>[];
+
+    if (product.size.isNotEmpty) {
+      parts.add(product.size);
+    }
+
+    if (product.color.isNotEmpty) {
+      parts.add(product.color);
+    }
+
+    return parts.join(' • ');
+  }
+
+  // ============================================================
   // PRODUCT IMAGE
   // ============================================================
 
@@ -746,7 +719,9 @@ class _FavouritePageState extends State<FavouritePage> {
   // IMAGE LOADER
   // ============================================================
 
-  Widget _buildImage(String image) {
+  Widget _buildImage(
+    String image,
+  ) {
     if (image.startsWith('assets/')) {
       return Image.asset(
         image,
@@ -813,8 +788,8 @@ class _FavouritePageState extends State<FavouritePage> {
       color: pikkXBlack.withOpacity(0.035),
       alignment: Alignment.center,
       child: Container(
-        width: 48,
-        height: 48,
+        width: 46,
+        height: 46,
         decoration: BoxDecoration(
           color: pikkXWhite,
           shape: BoxShape.circle,
@@ -825,7 +800,7 @@ class _FavouritePageState extends State<FavouritePage> {
         child: const Icon(
           Icons.shopping_bag_outlined,
           color: pikkXBlack,
-          size: 25,
+          size: 24,
         ),
       ),
     );
@@ -895,7 +870,7 @@ class _FavouritePageState extends State<FavouritePage> {
           padding:
               const EdgeInsets.fromLTRB(
             16,
-            0,
+            4,
             16,
             90,
           ),
@@ -932,23 +907,16 @@ class _FavouritePageState extends State<FavouritePage> {
       ),
       child: SafeArea(
         bottom: false,
-        child: Column(
-          children: [
-            _header(),
-            Expanded(
-              child: RefreshIndicator(
-                color: pikkXBlack,
-                onRefresh: () async {
-                  await Future<void>.delayed(
-                    const Duration(
-                      milliseconds: 250,
-                    ),
-                  );
-                },
-                child: _content(),
+        child: RefreshIndicator(
+          color: pikkXBlack,
+          onRefresh: () async {
+            await Future<void>.delayed(
+              const Duration(
+                milliseconds: 250,
               ),
-            ),
-          ],
+            );
+          },
+          child: _content(),
         ),
       ),
     );
@@ -982,9 +950,9 @@ class FavouriteProduct {
     this.color = '',
   });
 
-  // ==========================================================
+  // ============================================================
   // FROM FIRESTORE
-  // ==========================================================
+  // ============================================================
 
   factory FavouriteProduct.fromMap(
     String documentId,
@@ -1011,9 +979,9 @@ class FavouriteProduct {
     );
   }
 
-  // ==========================================================
-  // IMAGE
-  // ==========================================================
+  // ============================================================
+  // IMAGE RESOLVER
+  // ============================================================
 
   static String _getImage(
     Map<String, dynamic> data,
@@ -1050,9 +1018,9 @@ class FavouriteProduct {
     return '';
   }
 
-  // ==========================================================
+  // ============================================================
   // PRICE
-  // ==========================================================
+  // ============================================================
 
   double get numericPrice {
     if (price is num) {
@@ -1069,9 +1037,9 @@ class FavouriteProduct {
     return '₦${numericPrice.toStringAsFixed(2)}';
   }
 
-  // ==========================================================
+  // ============================================================
   // PRODUCT DETAIL MAP
-  // ==========================================================
+  // ============================================================
 
   Map<String, dynamic> toMap() {
     return {
