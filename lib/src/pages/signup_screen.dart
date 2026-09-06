@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:country_picker/country_picker.dart';
 
-import 'package:flutter_ecommerce_app/src/pages/profile_setup_screen.dart';
+import 'package:pikkx/src/pages/profile_setup_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});

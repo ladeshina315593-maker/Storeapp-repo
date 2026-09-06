@@ -4,9 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import 'package:flutter_ecommerce_app/src/model/data.dart';
-import 'package:flutter_ecommerce_app/src/model/product.dart';
-import 'package:flutter_ecommerce_app/src/themes/theme.dart';
+import 'package:pikkx/src/model/data.dart';
+import 'package:pikkx/src/model/product.dart';
+import 'package:pikkx/src/themes/theme.dart';
 
 class ShoppingCartPage extends StatefulWidget {
   const ShoppingCartPage({super.key});

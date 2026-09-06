@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 
-import 'package:flutter_ecommerce_app/src/pages/mainPage.dart';
-import 'package:flutter_ecommerce_app/src/pages/shopping_cart_page.dart';
-import 'package:flutter_ecommerce_app/src/pages/checkout_page.dart';
-import 'package:flutter_ecommerce_app/src/pages/delivery_address_page.dart';
-import 'package:flutter_ecommerce_app/src/pages/orders_page.dart';
-import 'package:flutter_ecommerce_app/src/pages/order_details_page.dart';
-import 'package:flutter_ecommerce_app/src/pages/notifications_page.dart';
-import 'package:flutter_ecommerce_app/src/pages/chat_page.dart';
-import 'package:flutter_ecommerce_app/src/pages/settings_page.dart';
+import 'package:pikkx/src/pages/mainPage.dart';
+import 'package:pikkx/src/pages/shopping_cart_page.dart';
+import 'package:pikkx/src/pages/checkout_page.dart';
+import 'package:pikkx/src/pages/delivery_address_page.dart';
+import 'package:pikkx/src/pages/orders_page.dart';
+import 'package:pikkx/src/pages/order_details_page.dart';
+import 'package:pikkx/src/pages/notifications_page.dart';
+import 'package:pikkx/src/pages/chat_page.dart';
+import 'package:pikkx/src/pages/settings_page.dart';
 
 // Add this when your Favorites page exists:
-// import 'package:flutter_ecommerce_app/src/pages/favorites_page.dart';
+// import 'package:pikkx/src/pages/favorites_page.dart';
 
 class Routes {
   static Map<String, WidgetBuilder> getRoute() {

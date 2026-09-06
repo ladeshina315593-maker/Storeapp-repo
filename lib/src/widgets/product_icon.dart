@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import 'package:flutter_ecommerce_app/src/model/category.dart';
-import 'package:flutter_ecommerce_app/src/themes/light_color.dart';
-import 'package:flutter_ecommerce_app/src/themes/theme.dart';
-import 'package:flutter_ecommerce_app/src/widgets/title_text.dart';
-import 'package:flutter_ecommerce_app/src/widgets/extentions.dart';
+import 'package:pikkx/src/model/category.dart';
+import 'package:pikkx/src/themes/light_color.dart';
+import 'package:pikkx/src/themes/theme.dart';
+import 'package:pikkx/src/widgets/title_text.dart';
+import 'package:pikkx/src/widgets/extentions.dart';
 
 class ProductIcon extends StatelessWidget {
   final ValueChanged<Category> onSelected;

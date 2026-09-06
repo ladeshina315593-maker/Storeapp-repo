@@ -3,7 +3,7 @@ import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_ecommerce_app/src/themes/theme.dart';
+import 'package:pikkx/src/themes/theme.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});

@@ -5,8 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import 'package:flutter_ecommerce_app/src/pages/product_detail.dart';
-import 'package:flutter_ecommerce_app/src/pages/profile_page.dart';
+import 'package:pikkx/src/pages/product_detail.dart';
+import 'package:pikkx/src/pages/profile_page.dart';
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({

@@ -4,17 +4,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import 'package:flutter_ecommerce_app/src/pages/home_page.dart';
-import 'package:flutter_ecommerce_app/src/pages/cart_page.dart';
-import 'package:flutter_ecommerce_app/src/pages/chat_page.dart';
-import 'package:flutter_ecommerce_app/src/pages/orders_page.dart';
-import 'package:flutter_ecommerce_app/src/pages/delivery_address_page.dart';
-import 'package:flutter_ecommerce_app/src/pages/notifications_page.dart';
-import 'package:flutter_ecommerce_app/src/pages/settings_page.dart';
-import 'package:flutter_ecommerce_app/src/pages/favourite_page.dart';
-import 'package:flutter_ecommerce_app/src/pages/profile_page.dart';
+import 'package:pikkx/src/pages/home_page.dart';
+import 'package:pikkx/src/pages/cart_page.dart';
+import 'package:pikkx/src/pages/chat_page.dart';
+import 'package:pikkx/src/pages/orders_page.dart';
+import 'package:pikkx/src/pages/delivery_address_page.dart';
+import 'package:pikkx/src/pages/notifications_page.dart';
+import 'package:pikkx/src/pages/settings_page.dart';
+import 'package:pikkx/src/pages/favourite_page.dart';
+import 'package:pikkx/src/pages/profile_page.dart';
 
-import 'package:flutter_ecommerce_app/src/widgets/BottomNavigationBar/bottom_navigation_bar.dart';
+import 'package:pikkx/src/widgets/BottomNavigationBar/bottom_navigation_bar.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({

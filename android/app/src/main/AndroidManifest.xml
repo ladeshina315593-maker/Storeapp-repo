@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.thealphamerc.flutter_ecommerce_app">
+    package="com.thealphamerc.pikkx">
    <application
-        android:label="flutter_ecommerce_app"
+        android:label="pikkx"
         android:icon="@mipmap/ic_launcher">
         <activity android:exported="true"
             android:name=".MainActivity"

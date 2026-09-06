@@ -3,30 +3,30 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'package:flutter_ecommerce_app/src/pages/mainPage.dart'
+import 'package:pikkx/src/pages/mainPage.dart'
     hide FavouritePage;
-import 'package:flutter_ecommerce_app/src/pages/login_screen.dart';
-import 'package:flutter_ecommerce_app/src/pages/signup_screen.dart';
-import 'package:flutter_ecommerce_app/src/pages/phone_auth_screen.dart';
-import 'package:flutter_ecommerce_app/src/pages/forgot_password_screen.dart';
-import 'package:flutter_ecommerce_app/src/pages/product_detail.dart';
-import 'package:flutter_ecommerce_app/src/pages/shopping_cart_page.dart';
-import 'package:flutter_ecommerce_app/src/pages/favourite_page.dart';
-import 'package:flutter_ecommerce_app/src/pages/checkout_page.dart';
-import 'package:flutter_ecommerce_app/src/pages/delivery_address_page.dart';
-import 'package:flutter_ecommerce_app/src/pages/orders_page.dart';
-import 'package:flutter_ecommerce_app/src/pages/order_details_page.dart';
-import 'package:flutter_ecommerce_app/src/pages/notifications_page.dart';
-import 'package:flutter_ecommerce_app/src/pages/chat_page.dart';
-import 'package:flutter_ecommerce_app/src/pages/settings_page.dart';
-import 'package:flutter_ecommerce_app/src/pages/dispatch_tracking_page.dart';
+import 'package:pikkx/src/pages/login_screen.dart';
+import 'package:pikkx/src/pages/signup_screen.dart';
+import 'package:pikkx/src/pages/phone_auth_screen.dart';
+import 'package:pikkx/src/pages/forgot_password_screen.dart';
+import 'package:pikkx/src/pages/product_detail.dart';
+import 'package:pikkx/src/pages/shopping_cart_page.dart';
+import 'package:pikkx/src/pages/favourite_page.dart';
+import 'package:pikkx/src/pages/checkout_page.dart';
+import 'package:pikkx/src/pages/delivery_address_page.dart';
+import 'package:pikkx/src/pages/orders_page.dart';
+import 'package:pikkx/src/pages/order_details_page.dart';
+import 'package:pikkx/src/pages/notifications_page.dart';
+import 'package:pikkx/src/pages/chat_page.dart';
+import 'package:pikkx/src/pages/settings_page.dart';
+import 'package:pikkx/src/pages/dispatch_tracking_page.dart';
 
 // Legal pages
-import 'package:flutter_ecommerce_app/src/pages/terms_conditions_page.dart';
-import 'package:flutter_ecommerce_app/src/pages/privacy_policy_page.dart';
+import 'package:pikkx/src/pages/terms_conditions_page.dart';
+import 'package:pikkx/src/pages/privacy_policy_page.dart';
 
-import 'package:flutter_ecommerce_app/src/widgets/customRoute.dart';
-import 'package:flutter_ecommerce_app/src/themes/theme.dart';
+import 'package:pikkx/src/widgets/customRoute.dart';
+import 'package:pikkx/src/themes/theme.dart';
 
 import 'firebase_options.dart';
 
