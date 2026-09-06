@@ -39,7 +39,10 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     'US 9',
   ];
 
-  // Real Nike images from assets/images/
+  // ============================================================
+  // REAL NIKE PRODUCT IMAGES
+  // ============================================================
+
   final List<String> nikeImages = const [
     'assets/images/blue_nike.jpg',
     'assets/images/grey_nike.jpg',
@@ -51,6 +54,10 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     'Grey',
     'Purple',
   ];
+
+  // ============================================================
+  // PIKKX COLORS
+  // ============================================================
 
   static const Color pikkXBlack = Color(0xFF050505);
   static const Color pikkXWhite = Color(0xFFFFFFFF);
@@ -78,6 +85,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     );
 
     controller.forward();
+
     _loadFavouriteStatus();
   }
 
@@ -108,15 +116,26 @@ class _ProductDetailPageState extends State<ProductDetailPage>
       return value;
     }
 
-    return 'Nike footwear available on the PikkX marketplace.';
+    return 'Nike sneakers available in Blue, Grey and Purple. '
+        'Choose your preferred colour and size.';
   }
 
   String get productCategory {
-    return widget.product['category']?.toString() ?? 'Fashion';
+    final value = widget.product['category']?.toString().trim();
+
+    if (value != null && value.isNotEmpty) {
+      return value;
+    }
+
+    return 'Fashion';
   }
 
   String get sellerName {
     return widget.product['sellerName']?.toString() ?? '';
+  }
+
+  String get sellerId {
+    return widget.product['sellerId']?.toString() ?? '';
   }
 
   double _toDouble(dynamic value) {
@@ -137,6 +156,10 @@ class _ProductDetailPageState extends State<ProductDetailPage>
 
   String get selectedImage {
     return nikeImages[selectedColor];
+  }
+
+  String get selectedColorName {
+    return colorNames[selectedColor];
   }
 
   User? get currentUser => _auth.currentUser;
@@ -202,11 +225,13 @@ class _ProductDetailPageState extends State<ProductDetailPage>
           'imageUrl': selectedImage,
           'image': selectedImage,
           'category': productCategory,
-          'sellerId': widget.product['sellerId']?.toString() ?? '',
+          'sellerId': sellerId,
           'sellerName': sellerName,
           'description': productDescription,
-          'selectedColor': colorNames[selectedColor],
+          'selectedColor': selectedColorName,
           'colorIndex': selectedColor,
+          'size': sizes[selectedSize],
+          'updatedAt': FieldValue.serverTimestamp(),
           'createdAt': FieldValue.serverTimestamp(),
         });
 
@@ -266,13 +291,21 @@ class _ProductDetailPageState extends State<ProductDetailPage>
               1;
         }
 
+        // Update the existing Nike cart item with the
+        // currently selected colour, image and size.
         await cartReference.update({
           'quantity': quantity + 1,
+          'name': productName,
+          'price': productPrice,
           'imageUrl': selectedImage,
           'image': selectedImage,
-          'selectedColor': colorNames[selectedColor],
+          'selectedColor': selectedColorName,
           'colorIndex': selectedColor,
           'size': sizes[selectedSize],
+          'sellerId': sellerId,
+          'sellerName': sellerName,
+          'category': productCategory,
+          'description': productDescription,
           'updatedAt': FieldValue.serverTimestamp(),
         });
       } else {
@@ -281,21 +314,20 @@ class _ProductDetailPageState extends State<ProductDetailPage>
           'name': productName,
           'price': productPrice,
 
-          // IMPORTANT:
-          // Save the currently selected Nike image.
+          // Selected Nike image.
           'imageUrl': selectedImage,
           'image': selectedImage,
 
           'quantity': 1,
 
-          'sellerId': widget.product['sellerId']?.toString() ?? '',
+          'sellerId': sellerId,
           'sellerName': sellerName,
           'category': productCategory,
           'description': productDescription,
 
           'size': sizes[selectedSize],
           'colorIndex': selectedColor,
-          'selectedColor': colorNames[selectedColor],
+          'selectedColor': selectedColorName,
 
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
@@ -305,7 +337,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
       if (!mounted) return;
 
       _showMessage(
-        '${colorNames[selectedColor]} Nike added to cart.',
+        '$selectedColorName Nike added to cart.',
       );
     } catch (e) {
       debugPrint('Add to cart error: $e');
@@ -397,7 +429,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
             icon: isLiked
                 ? Icons.favorite_rounded
                 : Icons.favorite_border_rounded,
-            iconColor: isLiked ? pikkXBlack : pikkXBlack,
+            iconColor: pikkXBlack,
             onPressed: _toggleFavourite,
           ),
         ],
@@ -468,21 +500,25 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                     ),
                   ),
 
-                  // Swipeable product image.
+                  // ==================================================
+                  // SWIPE LEFT / RIGHT
+                  // ==================================================
+
                   GestureDetector(
+                    behavior: HitTestBehavior.opaque,
                     onHorizontalDragEnd: (details) {
                       final velocity =
                           details.primaryVelocity ?? 0;
 
                       if (velocity < 0) {
-                        // Swipe left → next color.
+                        // LEFT → next colour
                         setState(() {
                           selectedColor =
                               (selectedColor + 1) %
                                   nikeImages.length;
                         });
                       } else if (velocity > 0) {
-                        // Swipe right → previous color.
+                        // RIGHT → previous colour
                         setState(() {
                           selectedColor =
                               (selectedColor -
@@ -493,57 +529,67 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                       }
                     },
                     child: Center(
-                      child: AnimatedSwitcher(
-                        duration: const Duration(
-                          milliseconds: 280,
-                        ),
-                        transitionBuilder:
-                            (child, animation) {
-                          return FadeTransition(
-                            opacity: animation,
-                            child: ScaleTransition(
-                              scale: Tween<double>(
-                                begin: 0.94,
-                                end: 1,
-                              ).animate(animation),
-                              child: child,
-                            ),
-                          );
-                        },
-                        child: Image.asset(
-                          selectedImage,
-                          key: ValueKey(selectedImage),
-                          fit: BoxFit.contain,
-                          errorBuilder:
-                              (_, __, ___) {
-                            return const Icon(
-                              Icons
-                                  .image_not_supported_outlined,
-                              size: 65,
-                              color: pikkXMuted,
+                      child: Padding(
+                        padding: const EdgeInsets.all(25),
+                        child: AnimatedSwitcher(
+                          duration: const Duration(
+                            milliseconds: 280,
+                          ),
+                          transitionBuilder:
+                              (child, animation) {
+                            return FadeTransition(
+                              opacity: animation,
+                              child: ScaleTransition(
+                                scale: Tween<double>(
+                                  begin: 0.94,
+                                  end: 1,
+                                ).animate(animation),
+                                child: child,
+                              ),
                             );
                           },
+                          child: Image.asset(
+                            selectedImage,
+                            key: ValueKey(selectedImage),
+                            fit: BoxFit.contain,
+                            errorBuilder:
+                                (_, __, ___) {
+                              return const Icon(
+                                Icons
+                                    .image_not_supported_outlined,
+                                size: 65,
+                                color: pikkXMuted,
+                              );
+                            },
+                          ),
                         ),
                       ),
                     ),
                   ),
 
-                  // Swipe hint.
+                  // ==================================================
+                  // SWIPE HINT
+                  // ==================================================
+
                   Positioned(
                     bottom: 18,
                     left: 0,
                     right: 0,
                     child: Center(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
+                        padding:
+                            const EdgeInsets.symmetric(
                           horizontal: 12,
                           vertical: 7,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.72),
-                          borderRadius: BorderRadius.circular(20),
+                          color:
+                              Colors.white.withOpacity(0.72),
+                          borderRadius:
+                              BorderRadius.circular(20),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.9),
+                            color:
+                                Colors.white.withOpacity(0.9),
                           ),
                         ),
                         child: const Row(
@@ -601,7 +647,9 @@ class _ProductDetailPageState extends State<ProductDetailPage>
 
             return AnimatedContainer(
               duration: const Duration(milliseconds: 180),
-              margin: const EdgeInsets.symmetric(horizontal: 4),
+              margin: const EdgeInsets.symmetric(
+                horizontal: 4,
+              ),
               height: selected ? 8 : 6,
               width: selected ? 22 : 6,
               decoration: BoxDecoration(
@@ -627,7 +675,8 @@ class _ProductDetailPageState extends State<ProductDetailPage>
       children: [
         Expanded(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               Text(
                 productName,
@@ -641,7 +690,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
               ),
               const SizedBox(height: 5),
               Text(
-                '$productCategory • ${colorNames[selectedColor]}',
+                '$productCategory • $selectedColorName',
                 style: const TextStyle(
                   color: pikkXMuted,
                   fontSize: 12,
@@ -669,8 +718,8 @@ class _ProductDetailPageState extends State<ProductDetailPage>
   // ============================================================
 
   Widget _rating() {
-    final rating = widget.product['rating'] ?? 4.8;
-    final reviews = widget.product['reviews'] ?? 120;
+    final rating = widget.product['rating'] ?? 4.9;
+    final reviews = widget.product['reviews'] ?? 128;
 
     return Row(
       children: [
@@ -751,14 +800,16 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                 controller: scrollController,
                 physics: const BouncingScrollPhysics(),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
                   children: [
                     Center(
                       child: Container(
                         height: 5,
                         width: 45,
                         decoration: BoxDecoration(
-                          color: pikkXBlack.withOpacity(0.18),
+                          color:
+                              pikkXBlack.withOpacity(0.18),
                           borderRadius:
                               BorderRadius.circular(10),
                         ),
@@ -798,7 +849,8 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                             child: Padding(
                               padding: EdgeInsets.only(
                                 right:
-                                    index == sizes.length - 1
+                                    index ==
+                                            sizes.length - 1
                                         ? 0
                                         : 8,
                               ),
@@ -945,18 +997,21 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                 });
               },
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
+                duration:
+                    const Duration(milliseconds: 200),
                 margin: EdgeInsets.only(
-                  right: index == nikeImages.length - 1
-                      ? 0
-                      : 10,
+                  right:
+                      index == nikeImages.length - 1
+                          ? 0
+                          : 10,
                 ),
                 padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
                   color: selected
                       ? Colors.black.withOpacity(0.07)
                       : Colors.white.withOpacity(0.55),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius:
+                      BorderRadius.circular(16),
                   border: Border.all(
                     color: selected
                         ? pikkXBlack
@@ -971,6 +1026,14 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                       child: Image.asset(
                         nikeImages[index],
                         fit: BoxFit.contain,
+                        errorBuilder:
+                            (_, __, ___) {
+                          return const Icon(
+                            Icons
+                                .image_not_supported_outlined,
+                            color: pikkXMuted,
+                          );
+                        },
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -993,7 +1056,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
   }
 
   // ============================================================
-  // INFO
+  // INFO ROW
   // ============================================================
 
   Widget _infoRow(
@@ -1028,7 +1091,8 @@ class _ProductDetailPageState extends State<ProductDetailPage>
           const SizedBox(width: 12),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
@@ -1063,9 +1127,8 @@ class _ProductDetailPageState extends State<ProductDetailPage>
       width: double.infinity,
       height: 54,
       child: ElevatedButton(
-        onPressed: isAddingToCart
-            ? null
-            : _addToCart,
+        onPressed:
+            isAddingToCart ? null : _addToCart,
         style: ElevatedButton.styleFrom(
           backgroundColor: pikkXBlack,
           disabledBackgroundColor:
@@ -1086,7 +1149,8 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                 ),
               )
             : const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment:
+                    MainAxisAlignment.center,
                 children: [
                   Icon(
                     Icons.shopping_bag_outlined,
