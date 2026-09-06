@@ -97,7 +97,8 @@ class _MyHomePageState extends State<MyHomePage> {
   // FIREBASE STREAMS
   // ============================================================
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> _notificationsStream() {
+  Stream<QuerySnapshot<Map<String, dynamic>>>
+      _notificationsStream() {
     if (_userId.isEmpty) {
       return const Stream.empty();
     }
@@ -109,7 +110,8 @@ class _MyHomePageState extends State<MyHomePage> {
         .snapshots();
   }
 
-  Stream<DocumentSnapshot<Map<String, dynamic>>> _userProfileStream() {
+  Stream<DocumentSnapshot<Map<String, dynamic>>>
+      _userProfileStream() {
     if (_userId.isEmpty) {
       return const Stream.empty();
     }
@@ -120,7 +122,8 @@ class _MyHomePageState extends State<MyHomePage> {
         .snapshots();
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> _favouritesStream() {
+  Stream<QuerySnapshot<Map<String, dynamic>>>
+      _favouritesStream() {
     if (_userId.isEmpty) {
       return const Stream.empty();
     }
@@ -133,18 +136,25 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   // ============================================================
-  // THE TWO HOME PRODUCTS
+  // TWO REAL ASSET TEST PRODUCTS
   //
-  // These are LOCAL ASSET products.
-  // They are sent directly to the EXISTING ProductDetailPage.
-  // ProductDetailPage already supports assets/ images.
+  // These use the actual assets already in the project.
+  //
+  // Jacket:
+  // assets/jacket.png
+  //
+  // Shoe:
+  // assets/shoe_thumb_1.png
+  //
+  // They are passed directly to the EXISTING
+  // ProductDetailPage.
   // ============================================================
 
   List<Map<String, dynamic>> _homeProducts() {
     return [
       {
         'id': 'pikkx-jacket',
-        'name': 'Premium Jacket',
+        'name': 'Jacket',
         'category': 'Fashion',
         'price': 45000.0,
         'originalPrice': 55000.0,
@@ -156,12 +166,12 @@ class _MyHomePageState extends State<MyHomePage> {
         'sellerId': 'pikkx_demo_seller',
         'sellerName': 'PikkX Fashion',
         'description':
-            'A stylish premium jacket selected for the PikkX marketplace.',
+            'Jacket available on the PikkX marketplace.',
         'isFeatured': true,
       },
       {
         'id': 'pikkx-shoe',
-        'name': 'Classic Sneakers',
+        'name': 'Shoe',
         'category': 'Fashion',
         'price': 38000.0,
         'originalPrice': 45000.0,
@@ -173,7 +183,7 @@ class _MyHomePageState extends State<MyHomePage> {
         'sellerId': 'pikkx_demo_seller',
         'sellerName': 'PikkX Footwear',
         'description':
-            'A clean everyday sneaker from the PikkX footwear collection.',
+            'Shoe available on the PikkX marketplace.',
         'isFeatured': true,
       },
     ];
@@ -280,7 +290,8 @@ class _MyHomePageState extends State<MyHomePage> {
       return null;
     }
 
-    final text = value.toString().trim();
+    final text =
+        value.toString().trim();
 
     if (text.isEmpty) {
       return null;
@@ -479,7 +490,10 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
           ),
 
+          // ======================================================
           // NOTIFICATIONS
+          // ======================================================
+
           StreamBuilder<
               QuerySnapshot<
                   Map<String, dynamic>>>(
@@ -554,7 +568,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
           const SizedBox(width: 7),
 
+          // ======================================================
           // DISPATCH TRACKING
+          // ======================================================
+
           _headerButton(
             Icons.delivery_dining_rounded,
             _openDispatchTracking,
@@ -562,7 +579,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
           const SizedBox(width: 7),
 
+          // ======================================================
           // PROFILE
+          // ======================================================
+
           StreamBuilder<
               DocumentSnapshot<
                   Map<String, dynamic>>>(
@@ -841,7 +861,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   // ============================================================
-  // PROMO
+  // PROMO BANNER
   // ============================================================
 
   Widget _promoBanner() {
@@ -994,7 +1014,7 @@ class _MyHomePageState extends State<MyHomePage> {
             18,
             8,
             0,
-            25,
+            20,
           ),
           child: Column(
             crossAxisAlignment:
@@ -1005,24 +1025,18 @@ class _MyHomePageState extends State<MyHomePage> {
                     EdgeInsets.only(
                   right: 18,
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Products · Trending Now',
-                        style:
-                            TextStyle(
-                          color:
-                              pikkXBlack,
-                          fontSize: 18,
-                          fontWeight:
-                              FontWeight.w700,
-                          letterSpacing:
-                              -.3,
-                        ),
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  'Products · Trending Now',
+                  style:
+                      TextStyle(
+                    color:
+                        pikkXBlack,
+                    fontSize: 18,
+                    fontWeight:
+                        FontWeight.w700,
+                    letterSpacing:
+                        -.3,
+                  ),
                 ),
               ),
 
@@ -1067,7 +1081,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   // ============================================================
-  // RATING STARS
+  // FIVE STAR RATING
   // ============================================================
 
   Widget _ratingStars(
@@ -1084,17 +1098,21 @@ class _MyHomePageState extends State<MyHomePage> {
                 : rating >= i - .5
                     ? Icons.star_half_rounded
                     : Icons.star_border_rounded,
-            color: pikkXBlack,
+            color:
+                pikkXBlack,
             size: 14,
           ),
 
-        const SizedBox(width: 5),
+        const SizedBox(
+          width: 5,
+        ),
 
         Text(
           rating.toStringAsFixed(1),
           style:
               const TextStyle(
-            color: pikkXBlack,
+            color:
+                pikkXBlack,
             fontSize: 10,
             fontWeight:
                 FontWeight.w700,
@@ -1156,7 +1174,10 @@ class _MyHomePageState extends State<MyHomePage> {
           crossAxisAlignment:
               CrossAxisAlignment.start,
           children: [
-            // IMAGE
+            // ====================================================
+            // PRODUCT IMAGE
+            // ====================================================
+
             SizedBox(
               height: 145,
               child: Stack(
@@ -1191,8 +1212,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                           double.infinity,
                                       height:
                                           double.infinity,
-                                      fit: BoxFit
-                                          .contain,
+                                      fit:
+                                          BoxFit.contain,
                                       errorBuilder:
                                           (_, __, ___) =>
                                               _productPlaceholder(),
@@ -1203,8 +1224,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                           double.infinity,
                                       height:
                                           double.infinity,
-                                      fit: BoxFit
-                                          .cover,
+                                      fit:
+                                          BoxFit.cover,
                                       errorBuilder:
                                           (_, __, ___) =>
                                               _productPlaceholder(),
@@ -1214,7 +1235,10 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                   ),
 
-                  // FAVOURITE
+                  // =================================================
+                  // FAVOURITE BUTTON
+                  // =================================================
+
                   Positioned(
                     right: 9,
                     top: 9,
@@ -1256,7 +1280,10 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             ),
 
-            // INFORMATION
+            // ====================================================
+            // PRODUCT INFORMATION
+            // ====================================================
+
             Padding(
               padding:
                   const EdgeInsets.fromLTRB(
@@ -1306,6 +1333,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     height: 5,
                   ),
 
+                  // ⭐ 5 STAR RATING + NUMBER
                   _ratingStars(
                     rating,
                   ),
@@ -1404,6 +1432,10 @@ class _MyHomePageState extends State<MyHomePage> {
                         ),
                       ),
 
+                      // =================================================
+                      // OPEN PRODUCT DETAIL
+                      // =================================================
+
                       GestureDetector(
                         onTap: () =>
                             _openProduct(
@@ -1442,21 +1474,22 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   // ============================================================
-  // PRODUCT IMAGE PLACEHOLDER
+  // PRODUCT PLACEHOLDER
   // ============================================================
 
   Widget _productPlaceholder() {
     return const Center(
       child: Icon(
         Icons.image_outlined,
-        color: pikkXGrey,
+        color:
+            pikkXGrey,
         size: 40,
       ),
     );
   }
 
   // ============================================================
-  // OPEN EXISTING PRODUCT DETAIL PAGE
+  // OPEN EXISTING PRODUCT DETAIL
   // ============================================================
 
   void _openProduct(
@@ -1467,8 +1500,10 @@ class _MyHomePageState extends State<MyHomePage> {
       MaterialPageRoute(
         builder: (_) =>
             ProductDetailPage(
-          productId: productId,
-          product: product,
+          productId:
+              productId,
+          product:
+              product,
         ),
       ),
     );
@@ -1509,7 +1544,8 @@ class _MyHomePageState extends State<MyHomePage> {
         );
       } else {
         await reference.set({
-          'productId': productId,
+          'productId':
+              productId,
           'name':
               _productName(product),
           'price':
@@ -1559,7 +1595,8 @@ class _MyHomePageState extends State<MyHomePage> {
   // DISPATCH TRACKING
   // ============================================================
 
-  Future<void> _openDispatchTracking() async {
+  Future<void>
+      _openDispatchTracking() async {
     final user =
         _currentUser;
 
@@ -1576,25 +1613,31 @@ class _MyHomePageState extends State<MyHomePage> {
               .collection('orders')
               .where(
                 'userId',
-                isEqualTo: user.uid,
+                isEqualTo:
+                    user.uid,
               )
               .get();
 
       final activeOrders =
-          snapshot.docs.where((doc) {
-        final data =
-            doc.data();
+          snapshot.docs.where(
+        (doc) {
+          final data =
+              doc.data();
 
-        final status =
-            data['status']
-                ?.toString()
-                .toLowerCase()
-                .trim();
+          final status =
+              data['status']
+                  ?.toString()
+                  .toLowerCase()
+                  .trim();
 
-        return status != 'delivered' &&
-            status != 'completed' &&
-            status != 'cancelled';
-      }).toList();
+          return status !=
+                  'delivered' &&
+              status !=
+                  'completed' &&
+              status !=
+                  'cancelled';
+        },
+      ).toList();
 
       if (activeOrders.isEmpty) {
         _showMessage(
@@ -1629,9 +1672,12 @@ class _MyHomePageState extends State<MyHomePage> {
         return;
       }
 
+      // IMPORTANT:
+      // Opens the EXISTING dispatch tracking screen.
       Navigator.of(context).pushNamed(
         '/dispatch-tracking',
-        arguments: orderId,
+        arguments:
+            orderId,
       );
     } catch (e) {
       debugPrint(
@@ -1666,8 +1712,10 @@ class _MyHomePageState extends State<MyHomePage> {
       context: context,
       backgroundColor:
           Colors.transparent,
-      isScrollControlled: true,
-      builder: (sheetContext) {
+      isScrollControlled:
+          true,
+      builder:
+          (sheetContext) {
         return Container(
           height:
               MediaQuery.of(
@@ -1676,10 +1724,14 @@ class _MyHomePageState extends State<MyHomePage> {
                   .70,
           decoration:
               const BoxDecoration(
-            color: pikkXBackground,
+            color:
+                pikkXBackground,
             borderRadius:
                 BorderRadius.vertical(
-              top: Radius.circular(28),
+              top:
+                  Radius.circular(
+                28,
+              ),
             ),
           ),
           child: Column(
@@ -1752,7 +1804,8 @@ class _MyHomePageState extends State<MyHomePage> {
                             CircularProgressIndicator(
                           color:
                               pikkXBlack,
-                          strokeWidth: 2,
+                          strokeWidth:
+                              2,
                         ),
                       );
                     }
@@ -1772,24 +1825,29 @@ class _MyHomePageState extends State<MyHomePage> {
                     }
 
                     final docs =
-                        snapshot.data?.docs ??
+                        snapshot
+                                .data
+                                ?.docs ??
                             [];
 
                     if (docs.isEmpty) {
                       return const Center(
                         child: Column(
                           mainAxisSize:
-                              MainAxisSize.min,
+                              MainAxisSize
+                                  .min,
                           children: [
                             Icon(
                               Icons
                                   .notifications_none_rounded,
                               color:
                                   pikkXGrey,
-                              size: 45,
+                              size:
+                                  45,
                             ),
                             SizedBox(
-                              height: 10,
+                              height:
+                                  10,
                             ),
                             Text(
                               'No notifications yet.',
@@ -1839,10 +1897,13 @@ class _MyHomePageState extends State<MyHomePage> {
                           padding:
                               const EdgeInsets
                                   .only(
-                            bottom: 10,
+                            bottom:
+                                10,
                           ),
-                          child: _glass(
-                            radius: 18,
+                          child:
+                              _glass(
+                            radius:
+                                18,
                             padding:
                                 const EdgeInsets
                                     .all(
@@ -1853,14 +1914,17 @@ class _MyHomePageState extends State<MyHomePage> {
                                     .withOpacity(
                               .82,
                             ),
-                            child: Row(
+                            child:
+                                Row(
                               crossAxisAlignment:
                                   CrossAxisAlignment
                                       .start,
                               children: [
                                 Container(
-                                  width: 42,
-                                  height: 42,
+                                  width:
+                                      42,
+                                  height:
+                                      42,
                                   decoration:
                                       const BoxDecoration(
                                     color:
@@ -1875,12 +1939,14 @@ class _MyHomePageState extends State<MyHomePage> {
                                         .notifications_none_rounded,
                                     color:
                                         pikkXWhite,
-                                    size: 20,
+                                    size:
+                                        20,
                                   ),
                                 ),
 
                                 const SizedBox(
-                                  width: 12,
+                                  width:
+                                      12,
                                 ),
 
                                 Expanded(
@@ -1906,7 +1972,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                       if (message
                                           .isNotEmpty) ...[
                                         const SizedBox(
-                                          height: 4,
+                                          height:
+                                              4,
                                         ),
                                         Text(
                                           message,
@@ -1948,7 +2015,8 @@ class _MyHomePageState extends State<MyHomePage> {
           await _imagePicker.pickImage(
         source:
             ImageSource.camera,
-        imageQuality: 80,
+        imageQuality:
+            80,
       );
 
       if (!mounted) {
@@ -1957,7 +2025,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
       if (image != null) {
         setState(() {
-          _cameraImage = image;
+          _cameraImage =
+              image;
         });
 
         _showMessage(
@@ -1982,18 +2051,23 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget _emptySearchState() {
     return Padding(
       padding:
-          const EdgeInsets.all(30),
+          const EdgeInsets.all(
+        30,
+      ),
       child: Center(
         child: Column(
           children: [
             const Icon(
               Icons.search_off_rounded,
-              color: pikkXGrey,
+              color:
+                  pikkXGrey,
               size: 42,
             ),
+
             const SizedBox(
               height: 10,
             ),
+
             const Text(
               'No products found',
               style:
@@ -2005,13 +2079,15 @@ class _MyHomePageState extends State<MyHomePage> {
                     FontWeight.w700,
               ),
             ),
+
             const SizedBox(
               height: 5,
             ),
-            Text(
+
+            const Text(
               'Try another search or category.',
               style:
-                  const TextStyle(
+                  TextStyle(
                 color:
                     pikkXGrey,
                 fontSize: 11,
@@ -2042,7 +2118,8 @@ class _MyHomePageState extends State<MyHomePage> {
             message,
             style:
                 const TextStyle(
-              color: pikkXWhite,
+              color:
+                  pikkXWhite,
               fontWeight:
                   FontWeight.w600,
             ),
@@ -2064,6 +2141,18 @@ class _MyHomePageState extends State<MyHomePage> {
 
   // ============================================================
   // BUILD
+  //
+  // IMPORTANT:
+  // There is NO "Our Products" title here.
+  // There is NO extra AppBar.
+  // There is NO extra Home shell spacing.
+  //
+  // Layout:
+  // PikkX Header
+  // Search
+  // Categories
+  // Promo Banner
+  // Products
   // ============================================================
 
   @override
@@ -2074,12 +2163,15 @@ class _MyHomePageState extends State<MyHomePage> {
       backgroundColor:
           pikkXBackground,
       body: SafeArea(
-        child: RefreshIndicator(
-          color: pikkXBlack,
+        child:
+            RefreshIndicator(
+          color:
+              pikkXBlack,
           onRefresh: () async {
             setState(() {});
           },
-          child: ListView(
+          child:
+              ListView(
             physics:
                 const BouncingScrollPhysics(
               parent:
@@ -2111,20 +2203,25 @@ class _MyHomePageState extends State<MyHomePage> {
 // TAP EXTENSION
 // ============================================================
 
-extension _HomeTapExtension on Widget {
+extension _HomeTapExtension
+    on Widget {
   Widget _tap(
     VoidCallback onTap, {
     double radius = 20,
   }) {
     return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
+      color:
+          Colors.transparent,
+      child:
+          InkWell(
+        onTap:
+            onTap,
         borderRadius:
             BorderRadius.circular(
           radius,
         ),
-        child: this,
+        child:
+            this,
       ),
     );
   }
