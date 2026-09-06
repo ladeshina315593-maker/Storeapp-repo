@@ -15,17 +15,13 @@ class ProductDetailPage extends StatefulWidget {
   final Map<String, dynamic> product;
 
   @override
-  State<ProductDetailPage> createState() =>
-      _ProductDetailPageState();
+  State<ProductDetailPage> createState() => _ProductDetailPageState();
 }
 
 class _ProductDetailPageState extends State<ProductDetailPage>
     with TickerProviderStateMixin {
-  final FirebaseFirestore _firestore =
-      FirebaseFirestore.instance;
-
-  final FirebaseAuth _auth =
-      FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   late AnimationController controller;
   late Animation<double> animation;
@@ -36,38 +32,31 @@ class _ProductDetailPageState extends State<ProductDetailPage>
   int selectedSize = 1;
   int selectedColor = 0;
 
-  final List<String> sizes = [
+  final List<String> sizes = const [
     'US 6',
     'US 7',
     'US 8',
     'US 9',
   ];
 
-  final List<Color> colors = const [
-    Color(0xFF050505),
-    Color(0xFFFFFFFF),
-    Color(0xFF10233F),
-    Color(0xFF5A6472),
-    Color(0xFFD9DDE3),
+  // Real Nike images from assets/images/
+  final List<String> nikeImages = const [
+    'assets/images/blue_nike.jpg',
+    'assets/images/grey_nike.jpg',
+    'assets/images/purple_nike.jpg',
   ];
 
-  static const Color pikkXBlack =
-      Color(0xFF050505);
+  final List<String> colorNames = const [
+    'Blue',
+    'Grey',
+    'Purple',
+  ];
 
-  static const Color pikkXWhite =
-      Color(0xFFFFFFFF);
-
-  static const Color pikkXBackground =
-      Color(0xFFF7F7F7);
-
-  static const Color pikkXNavy =
-      Color(0xFF10233F);
-
-  static const Color pikkXMuted =
-      Color(0xFF747F8F);
-
-  static const Color pikkXBorder =
-      Color(0xFFE1E2E4);
+  static const Color pikkXBlack = Color(0xFF050505);
+  static const Color pikkXWhite = Color(0xFFFFFFFF);
+  static const Color pikkXBackground = Color(0xFFF7F7F7);
+  static const Color pikkXMuted = Color(0xFF777777);
+  static const Color pikkXBorder = Color(0xFFE8E8E8);
 
   @override
   void initState() {
@@ -75,9 +64,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
 
     controller = AnimationController(
       vsync: this,
-      duration: const Duration(
-        milliseconds: 500,
-      ),
+      duration: const Duration(milliseconds: 450),
     );
 
     animation = Tween<double>(
@@ -91,7 +78,6 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     );
 
     controller.forward();
-
     _loadFavouriteStatus();
   }
 
@@ -106,47 +92,31 @@ class _ProductDetailPageState extends State<ProductDetailPage>
   // ============================================================
 
   String get productName {
-    return widget.product['name']
-            ?.toString()
-            .trim()
-            .isNotEmpty ==
-        true
-        ? widget.product['name'].toString()
-        : 'Product';
+    final value = widget.product['name']?.toString().trim();
+
+    if (value != null && value.isNotEmpty) {
+      return value;
+    }
+
+    return 'Nike';
   }
 
   String get productDescription {
-    return widget.product['description']
-            ?.toString()
-            .trim()
-            .isNotEmpty ==
-        true
-        ? widget.product['description'].toString()
-        : 'Quality product from a trusted seller.';
+    final value = widget.product['description']?.toString().trim();
+
+    if (value != null && value.isNotEmpty) {
+      return value;
+    }
+
+    return 'Nike footwear available on the PikkX marketplace.';
   }
 
   String get productCategory {
-    return widget.product['category']
-            ?.toString() ??
-        '';
+    return widget.product['category']?.toString() ?? 'Fashion';
   }
 
   String get sellerName {
-    return widget.product['sellerName']
-            ?.toString() ??
-        '';
-  }
-
-  String get imageUrl {
-    return widget.product['imageUrl']
-            ?.toString()
-            .trim()
-            .isNotEmpty ==
-        true
-        ? widget.product['imageUrl'].toString()
-        : widget.product['image']
-                ?.toString() ??
-            '';
+    return widget.product['sellerName']?.toString() ?? '';
   }
 
   double _toDouble(dynamic value) {
@@ -154,33 +124,31 @@ class _ProductDetailPageState extends State<ProductDetailPage>
       return value.toDouble();
     }
 
-    return double.tryParse(
-          value?.toString() ?? '',
-        ) ??
-        0.0;
+    return double.tryParse(value?.toString() ?? '') ?? 0.0;
+  }
+
+  double get productPrice {
+    return _toDouble(widget.product['price']);
   }
 
   String get formattedPrice {
-    return '₦${_toDouble(widget.product['price']).toStringAsFixed(2)}';
+    return '₦${productPrice.toStringAsFixed(2)}';
   }
 
-  // ============================================================
-  // FIREBASE USER
-  // ============================================================
+  String get selectedImage {
+    return nikeImages[selectedColor];
+  }
 
-  User? get currentUser =>
-      _auth.currentUser;
+  User? get currentUser => _auth.currentUser;
 
   // ============================================================
-  // FAVOURITE STATUS
+  // FAVOURITE
   // ============================================================
 
   Future<void> _loadFavouriteStatus() async {
     final user = currentUser;
 
-    if (user == null) {
-      return;
-    }
+    if (user == null) return;
 
     try {
       final reference = _firestore
@@ -189,34 +157,23 @@ class _ProductDetailPageState extends State<ProductDetailPage>
           .collection('favorites')
           .doc(widget.productId);
 
-      final snapshot =
-          await reference.get();
+      final snapshot = await reference.get();
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       setState(() {
         isLiked = snapshot.exists;
       });
     } catch (e) {
-      debugPrint(
-        'Load favourite error: $e',
-      );
+      debugPrint('Load favourite error: $e');
     }
   }
-
-  // ============================================================
-  // TOGGLE FAVOURITE
-  // ============================================================
 
   Future<void> _toggleFavourite() async {
     final user = currentUser;
 
     if (user == null) {
-      _showMessage(
-        'Please sign in to save favourites.',
-      );
+      _showMessage('Please sign in to save favourites.');
       return;
     }
 
@@ -230,85 +187,56 @@ class _ProductDetailPageState extends State<ProductDetailPage>
       if (isLiked) {
         await reference.delete();
 
-        if (!mounted) {
-          return;
-        }
+        if (!mounted) return;
 
         setState(() {
           isLiked = false;
         });
 
-        _showMessage(
-          'Removed from favourites.',
-        );
+        _showMessage('Removed from favourites.');
       } else {
         await reference.set({
-          'productId':
-              widget.productId,
-          'name':
-              productName,
-          'price':
-              _toDouble(
-                widget.product['price'],
-              ),
-          'imageUrl':
-              imageUrl,
-          'image':
-              imageUrl,
-          'category':
-              productCategory,
-          'sellerId':
-              widget.product['sellerId']
-                      ?.toString() ??
-                  '',
-          'sellerName':
-              sellerName,
-          'description':
-              productDescription,
-          'createdAt':
-              FieldValue.serverTimestamp(),
+          'productId': widget.productId,
+          'name': productName,
+          'price': productPrice,
+          'imageUrl': selectedImage,
+          'image': selectedImage,
+          'category': productCategory,
+          'sellerId': widget.product['sellerId']?.toString() ?? '',
+          'sellerName': sellerName,
+          'description': productDescription,
+          'selectedColor': colorNames[selectedColor],
+          'colorIndex': selectedColor,
+          'createdAt': FieldValue.serverTimestamp(),
         });
 
-        if (!mounted) {
-          return;
-        }
+        if (!mounted) return;
 
         setState(() {
           isLiked = true;
         });
 
-        _showMessage(
-          'Added to favourites.',
-        );
+        _showMessage('Added to favourites.');
       }
     } catch (e) {
-      debugPrint(
-        'Favourite error: $e',
-      );
-
-      _showMessage(
-        'Could not update favourite.',
-      );
+      debugPrint('Favourite error: $e');
+      _showMessage('Could not update favourite.');
     }
   }
 
   // ============================================================
-  // ADD TO CART - FIREBASE
+  // ADD TO EXISTING FIREBASE CART
   // ============================================================
 
   Future<void> _addToCart() async {
     final user = currentUser;
 
     if (user == null) {
-      _showMessage(
-        'Please sign in to add items to your cart.',
-      );
+      _showMessage('Please sign in to add items to your cart.');
       return;
     }
 
-    if (isAddingToCart) {
-      return;
-    }
+    if (isAddingToCart) return;
 
     setState(() {
       isAddingToCart = true;
@@ -321,84 +249,66 @@ class _ProductDetailPageState extends State<ProductDetailPage>
           .collection('cart')
           .doc(widget.productId);
 
-      final existing =
-          await cartReference.get();
-
-      final price = _toDouble(
-        widget.product['price'],
-      );
+      final existing = await cartReference.get();
 
       if (existing.exists) {
         final data = existing.data();
 
         int quantity = 1;
-
-        final existingQuantity =
-            data?['quantity'];
+        final existingQuantity = data?['quantity'];
 
         if (existingQuantity is num) {
-          quantity =
-              existingQuantity.toInt();
+          quantity = existingQuantity.toInt();
         } else {
           quantity = int.tryParse(
-                existingQuantity
-                        ?.toString() ??
-                    '',
+                existingQuantity?.toString() ?? '',
               ) ??
               1;
         }
 
         await cartReference.update({
           'quantity': quantity + 1,
-          'updatedAt':
-              FieldValue.serverTimestamp(),
+          'imageUrl': selectedImage,
+          'image': selectedImage,
+          'selectedColor': colorNames[selectedColor],
+          'colorIndex': selectedColor,
+          'size': sizes[selectedSize],
+          'updatedAt': FieldValue.serverTimestamp(),
         });
       } else {
         await cartReference.set({
-          'productId':
-              widget.productId,
-          'name':
-              productName,
-          'price':
-              price,
-          'imageUrl':
-              imageUrl,
-          'image':
-              imageUrl,
-          'quantity':
-              1,
-          'sellerId':
-              widget.product['sellerId']
-                      ?.toString() ??
-                  '',
-          'sellerName':
-              sellerName,
-          'category':
-              productCategory,
-          'description':
-              productDescription,
-          'size':
-              sizes[selectedSize],
-          'colorIndex':
-              selectedColor,
-          'createdAt':
-              FieldValue.serverTimestamp(),
-          'updatedAt':
-              FieldValue.serverTimestamp(),
+          'productId': widget.productId,
+          'name': productName,
+          'price': productPrice,
+
+          // IMPORTANT:
+          // Save the currently selected Nike image.
+          'imageUrl': selectedImage,
+          'image': selectedImage,
+
+          'quantity': 1,
+
+          'sellerId': widget.product['sellerId']?.toString() ?? '',
+          'sellerName': sellerName,
+          'category': productCategory,
+          'description': productDescription,
+
+          'size': sizes[selectedSize],
+          'colorIndex': selectedColor,
+          'selectedColor': colorNames[selectedColor],
+
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
         });
       }
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       _showMessage(
-        'Added to cart.',
+        '${colorNames[selectedColor]} Nike added to cart.',
       );
     } catch (e) {
-      debugPrint(
-        'Add to cart error: $e',
-      );
+      debugPrint('Add to cart error: $e');
 
       if (mounted) {
         _showMessage(
@@ -420,48 +330,35 @@ class _ProductDetailPageState extends State<ProductDetailPage>
 
   Widget _glassButton({
     required IconData icon,
-    required Color iconColor,
     required VoidCallback onPressed,
+    Color iconColor = pikkXBlack,
   }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onPressed,
-        borderRadius:
-            BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16),
         child: ClipRRect(
-          borderRadius:
-              BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(16),
           child: BackdropFilter(
             filter: ImageFilter.blur(
-              sigmaX: 12,
-              sigmaY: 12,
+              sigmaX: 14,
+              sigmaY: 14,
             ),
             child: Container(
               height: 46,
               width: 46,
               decoration: BoxDecoration(
-                color:
-                    Colors.white.withOpacity(
-                  0.78,
-                ),
-                borderRadius:
-                    BorderRadius.circular(16),
+                color: Colors.white.withOpacity(0.72),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color:
-                      Colors.white.withOpacity(
-                    0.9,
-                  ),
+                  color: Colors.white.withOpacity(0.9),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color:
-                        Colors.black.withOpacity(
-                      0.06,
-                    ),
+                    color: Colors.black.withOpacity(0.06),
                     blurRadius: 16,
-                    offset:
-                        const Offset(0, 7),
+                    offset: const Offset(0, 7),
                   ),
                 ],
               ),
@@ -488,13 +385,10 @@ class _ProductDetailPageState extends State<ProductDetailPage>
         vertical: 12,
       ),
       child: Row(
-        mainAxisAlignment:
-            MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           _glassButton(
-            icon:
-                Icons.arrow_back_ios_new_rounded,
-            iconColor: pikkXBlack,
+            icon: Icons.arrow_back_ios_new_rounded,
             onPressed: () {
               Navigator.of(context).pop();
             },
@@ -503,10 +397,8 @@ class _ProductDetailPageState extends State<ProductDetailPage>
             icon: isLiked
                 ? Icons.favorite_rounded
                 : Icons.favorite_border_rounded,
-            iconColor:
-                isLiked ? pikkXNavy : pikkXBlack,
-            onPressed:
-                _toggleFavourite,
+            iconColor: isLiked ? pikkXBlack : pikkXBlack,
+            onPressed: _toggleFavourite,
           ),
         ],
       ),
@@ -514,183 +406,212 @@ class _ProductDetailPageState extends State<ProductDetailPage>
   }
 
   // ============================================================
-  // PRODUCT IMAGE
+  // NIKE IMAGE CARD
   // ============================================================
 
-  Widget _productImage() {
-    if (imageUrl.isEmpty) {
-      return Expanded(
-        child: Center(
-          child: Container(
-            margin:
-                const EdgeInsets.symmetric(
-              horizontal: 25,
-              vertical: 10,
+  Widget _productImageCard() {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          20,
+          0,
+          20,
+          10,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(34),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(
+              sigmaX: 18,
+              sigmaY: 18,
             ),
-            decoration: BoxDecoration(
-              color: pikkXWhite,
-              borderRadius:
-                  BorderRadius.circular(32),
-              border: Border.all(
-                color:
-                    Colors.white.withOpacity(
-                  0.95,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.68),
+                borderRadius: BorderRadius.circular(34),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.9),
+                  width: 1.2,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.07),
+                    blurRadius: 28,
+                    offset: const Offset(0, 12),
+                  ),
+                ],
               ),
-            ),
-            child: const Center(
-              child: Icon(
-                Icons
-                    .image_not_supported_outlined,
-                size: 60,
-                color: pikkXMuted,
+              child: Stack(
+                children: [
+                  Positioned(
+                    top: -55,
+                    left: -45,
+                    child: Container(
+                      width: 150,
+                      height: 150,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.black.withOpacity(0.035),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: -70,
+                    right: -50,
+                    child: Container(
+                      width: 180,
+                      height: 180,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.black.withOpacity(0.025),
+                      ),
+                    ),
+                  ),
+
+                  // Swipeable product image.
+                  GestureDetector(
+                    onHorizontalDragEnd: (details) {
+                      final velocity =
+                          details.primaryVelocity ?? 0;
+
+                      if (velocity < 0) {
+                        // Swipe left → next color.
+                        setState(() {
+                          selectedColor =
+                              (selectedColor + 1) %
+                                  nikeImages.length;
+                        });
+                      } else if (velocity > 0) {
+                        // Swipe right → previous color.
+                        setState(() {
+                          selectedColor =
+                              (selectedColor -
+                                      1 +
+                                      nikeImages.length) %
+                                  nikeImages.length;
+                        });
+                      }
+                    },
+                    child: Center(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(
+                          milliseconds: 280,
+                        ),
+                        transitionBuilder:
+                            (child, animation) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: ScaleTransition(
+                              scale: Tween<double>(
+                                begin: 0.94,
+                                end: 1,
+                              ).animate(animation),
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: Image.asset(
+                          selectedImage,
+                          key: ValueKey(selectedImage),
+                          fit: BoxFit.contain,
+                          errorBuilder:
+                              (_, __, ___) {
+                            return const Icon(
+                              Icons
+                                  .image_not_supported_outlined,
+                              size: 65,
+                              color: pikkXMuted,
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Swipe hint.
+                  Positioned(
+                    bottom: 18,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.72),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.9),
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.chevron_left_rounded,
+                              size: 16,
+                              color: pikkXBlack,
+                            ),
+                            SizedBox(width: 3),
+                            Text(
+                              'Swipe',
+                              style: TextStyle(
+                                color: pikkXBlack,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            SizedBox(width: 3),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              size: 16,
+                              color: pikkXBlack,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    final Widget imageWidget =
-        imageUrl.startsWith('assets/')
-            ? Image.asset(
-                imageUrl,
-                fit: BoxFit.contain,
-                errorBuilder:
-                    (_, __, ___) {
-                  return const Icon(
-                    Icons
-                        .image_not_supported_outlined,
-                    size: 60,
-                    color: pikkXMuted,
-                  );
-                },
-              )
-            : Image.network(
-                imageUrl,
-                fit: BoxFit.contain,
-                errorBuilder:
-                    (_, __, ___) {
-                  return const Icon(
-                    Icons
-                        .image_not_supported_outlined,
-                    size: 60,
-                    color: pikkXMuted,
-                  );
-                },
-              );
+  // ============================================================
+  // COLOR INDICATOR
+  // ============================================================
 
-    return Expanded(
-      child: AnimatedBuilder(
-        animation: animation,
-        builder: (context, child) {
-          return FadeTransition(
-            opacity: animation,
-            child: ScaleTransition(
-              scale: Tween<double>(
-                begin: 0.92,
-                end: 1.0,
-              ).animate(animation),
-              child: child,
-            ),
-          );
-        },
-        child: Center(
-          child: Container(
-            margin:
-                const EdgeInsets.symmetric(
-              horizontal: 25,
-              vertical: 10,
-            ),
-            decoration: BoxDecoration(
-              color: pikkXWhite,
-              borderRadius:
-                  BorderRadius.circular(32),
-              border: Border.all(
-                color:
-                    Colors.white.withOpacity(
-                  0.95,
-                ),
-                width: 1.2,
+  Widget _thumbnailRow() {
+    return Padding(
+      padding: const EdgeInsets.only(
+        bottom: 10,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(
+          nikeImages.length,
+          (index) {
+            final selected = selectedColor == index;
+
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              height: selected ? 8 : 6,
+              width: selected ? 22 : 6,
+              decoration: BoxDecoration(
+                color: selected
+                    ? pikkXBlack
+                    : pikkXBlack.withOpacity(0.18),
+                borderRadius: BorderRadius.circular(20),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color:
-                      Colors.black.withOpacity(
-                    0.07,
-                  ),
-                  blurRadius: 25,
-                  offset:
-                      const Offset(0, 12),
-                ),
-              ],
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Positioned(
-                  top: -35,
-                  left: -35,
-                  child: Container(
-                    width: 135,
-                    height: 135,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color:
-                          pikkXNavy.withOpacity(
-                        0.06,
-                      ),
-                    ),
-                  ),
-                ),
-
-                Positioned(
-                  right: 20,
-                  top: 20,
-                  child: Container(
-                    padding:
-                        const EdgeInsets
-                            .symmetric(
-                      horizontal: 12,
-                      vertical: 7,
-                    ),
-                    decoration: BoxDecoration(
-                      color:
-                          pikkXNavy.withOpacity(
-                        0.08,
-                      ),
-                      borderRadius:
-                          BorderRadius.circular(
-                        20,
-                      ),
-                      border: Border.all(
-                        color:
-                            pikkXNavy.withOpacity(
-                          0.12,
-                        ),
-                      ),
-                    ),
-                    child: const Text(
-                      'PIKKX',
-                      style: TextStyle(
-                        color: pikkXNavy,
-                        fontSize: 10,
-                        fontWeight:
-                            FontWeight.w800,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                ),
-
-                Padding(
-                  padding:
-                      const EdgeInsets.all(35),
-                  child: imageWidget,
-                ),
-              ],
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
@@ -701,114 +622,45 @@ class _ProductDetailPageState extends State<ProductDetailPage>
   // ============================================================
 
   Widget _productSummary() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        4,
-        20,
-        12,
-      ),
-      child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-                Text(
-                  productName,
-                  maxLines: 2,
-                  overflow:
-                      TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: pikkXBlack,
-                    fontSize: 22,
-                    fontWeight:
-                        FontWeight.w900,
-                  ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                productName,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: pikkXBlack,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
                 ),
-                if (productCategory
-                    .isNotEmpty)
-                  Padding(
-                    padding:
-                        const EdgeInsets.only(
-                      top: 5,
-                    ),
-                    child: Text(
-                      productCategory,
-                      style:
-                          const TextStyle(
-                        color: pikkXNavy,
-                        fontSize: 12,
-                        fontWeight:
-                            FontWeight.w700,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                '$productCategory • ${colorNames[selectedColor]}',
+                style: const TextStyle(
+                  color: pikkXMuted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 15),
-          Text(
-            formattedPrice,
-            style: const TextStyle(
-              color: pikkXNavy,
-              fontSize: 20,
-              fontWeight:
-                  FontWeight.w900,
-            ),
+        ),
+        const SizedBox(width: 15),
+        Text(
+          formattedPrice,
+          style: const TextStyle(
+            color: pikkXBlack,
+            fontSize: 20,
+            fontWeight: FontWeight.w900,
           ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // THUMBNAIL / IMAGE INDICATOR
-  // ============================================================
-
-  Widget _thumbnailRow() {
-    return Padding(
-      padding: const EdgeInsets.only(
-        bottom: 8,
-      ),
-      child: Row(
-        mainAxisAlignment:
-            MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration:
-                const BoxDecoration(
-              color: pikkXNavy,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(
-              color:
-                  pikkXNavy.withOpacity(.18),
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(
-              color:
-                  pikkXNavy.withOpacity(.18),
-              shape: BoxShape.circle,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -817,28 +669,19 @@ class _ProductDetailPageState extends State<ProductDetailPage>
   // ============================================================
 
   Widget _rating() {
-    final rating =
-        widget.product['rating'];
-
-    final reviews =
-        widget.product['reviews'];
-
-    final ratingText =
-        rating?.toString() ?? '4.8';
-
-    final reviewsText =
-        reviews?.toString() ?? '120';
+    final rating = widget.product['rating'] ?? 4.8;
+    final reviews = widget.product['reviews'] ?? 120;
 
     return Row(
       children: [
         const Icon(
           Icons.star_rounded,
-          color: pikkXNavy,
+          color: pikkXBlack,
           size: 19,
         ),
         const SizedBox(width: 4),
         Text(
-          ratingText,
+          rating.toString(),
           style: const TextStyle(
             color: pikkXBlack,
             fontSize: 13,
@@ -847,7 +690,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
         ),
         const SizedBox(width: 5),
         Text(
-          '($reviewsText reviews)',
+          '($reviews reviews)',
           style: const TextStyle(
             color: pikkXMuted,
             fontSize: 12,
@@ -863,190 +706,159 @@ class _ProductDetailPageState extends State<ProductDetailPage>
 
   Widget _detailWidget() {
     return DraggableScrollableSheet(
-      maxChildSize: 0.82,
+      maxChildSize: 0.84,
       initialChildSize: 0.53,
       minChildSize: 0.53,
-      builder:
-          (context, scrollController) {
-        return Container(
-          padding:
-              const EdgeInsets.fromLTRB(
-            20,
-            8,
-            20,
-            20,
+      builder: (
+        context,
+        scrollController,
+      ) {
+        return ClipRRect(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(34),
+            topRight: Radius.circular(34),
           ),
-          decoration: BoxDecoration(
-            color:
-                Colors.white.withOpacity(.97),
-            borderRadius:
-                const BorderRadius.only(
-              topLeft:
-                  Radius.circular(34),
-              topRight:
-                  Radius.circular(34),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(
+              sigmaX: 18,
+              sigmaY: 18,
             ),
-            border: Border.all(
-              color: Colors.white,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color:
-                    Colors.black.withOpacity(
-                  .08,
-                ),
-                blurRadius: 25,
-                offset:
-                    const Offset(0, -5),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(
+                20,
+                8,
+                20,
+                20,
               ),
-            ],
-          ),
-          child: SingleChildScrollView(
-            controller:
-                scrollController,
-            physics:
-                const BouncingScrollPhysics(),
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    height: 5,
-                    width: 45,
-                    decoration:
-                        BoxDecoration(
-                      color: pikkXNavy,
-                      borderRadius:
-                          BorderRadius.circular(
-                        10,
-                      ),
-                    ),
-                  ),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.82),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(34),
+                  topRight: Radius.circular(34),
                 ),
-
-                const SizedBox(height: 18),
-
-                _productSummary(),
-
-                const SizedBox(height: 5),
-
-                if (sellerName.isNotEmpty)
-                  Text(
-                    'Seller: $sellerName',
-                    style:
-                        const TextStyle(
-                      color: pikkXMuted,
-                      fontSize: 11,
-                    ),
-                  ),
-
-                const SizedBox(height: 10),
-
-                _rating(),
-
-                const SizedBox(height: 25),
-
-                _sectionTitle(
-                  'Available Size',
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.9),
                 ),
-
-                const SizedBox(height: 12),
-
-                Row(
-                  children:
-                      List.generate(
-                    sizes.length,
-                    (index) =>
-                        Expanded(
-                      child: Padding(
-                        padding:
-                            EdgeInsets.only(
-                          right: index ==
-                                  sizes.length -
-                                      1
-                              ? 0
-                              : 8,
-                        ),
-                        child:
-                            _sizeWidget(
-                          sizes[index],
-                          index,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 25,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
+              ),
+              child: SingleChildScrollView(
+                controller: scrollController,
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        height: 5,
+                        width: 45,
+                        decoration: BoxDecoration(
+                          color: pikkXBlack.withOpacity(0.18),
+                          borderRadius:
+                              BorderRadius.circular(10),
                         ),
                       ),
                     ),
-                  ),
-                ),
 
-                const SizedBox(height: 24),
+                    const SizedBox(height: 18),
 
-                _sectionTitle(
-                  'Available Color',
-                ),
+                    _productSummary(),
 
-                const SizedBox(height: 14),
+                    const SizedBox(height: 10),
 
-                Row(
-                  children:
-                      List.generate(
-                    colors.length,
-                    (index) => Padding(
-                      padding:
-                          const EdgeInsets
-                              .only(
-                        right: 18,
+                    if (sellerName.isNotEmpty)
+                      Text(
+                        'Seller: $sellerName',
+                        style: const TextStyle(
+                          color: pikkXMuted,
+                          fontSize: 11,
+                        ),
                       ),
-                      child:
-                          _colorWidget(
-                        colors[index],
-                        index,
+
+                    const SizedBox(height: 10),
+
+                    _rating(),
+
+                    const SizedBox(height: 25),
+
+                    _sectionTitle('Available Size'),
+
+                    const SizedBox(height: 12),
+
+                    Row(
+                      children: List.generate(
+                        sizes.length,
+                        (index) {
+                          return Expanded(
+                            child: Padding(
+                              padding: EdgeInsets.only(
+                                right:
+                                    index == sizes.length - 1
+                                        ? 0
+                                        : 8,
+                              ),
+                              child: _sizeWidget(
+                                sizes[index],
+                                index,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
-                  ),
+
+                    const SizedBox(height: 24),
+
+                    _sectionTitle('Available Color'),
+
+                    const SizedBox(height: 12),
+
+                    _colorSelector(),
+
+                    const SizedBox(height: 25),
+
+                    _sectionTitle('Description'),
+
+                    const SizedBox(height: 10),
+
+                    Text(
+                      productDescription,
+                      style: const TextStyle(
+                        color: pikkXMuted,
+                        fontSize: 13,
+                        height: 1.65,
+                      ),
+                    ),
+
+                    const SizedBox(height: 25),
+
+                    _infoRow(
+                      Icons.local_shipping_outlined,
+                      'Fast delivery',
+                      'Get your order delivered quickly',
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    _infoRow(
+                      Icons.verified_outlined,
+                      'PikkX verified',
+                      'Quality product from a trusted seller',
+                    ),
+
+                    const SizedBox(height: 30),
+
+                    _firebaseAddButton(),
+
+                    const SizedBox(height: 40),
+                  ],
                 ),
-
-                const SizedBox(height: 25),
-
-                _sectionTitle(
-                  'Description',
-                ),
-
-                const SizedBox(height: 10),
-
-                Text(
-                  productDescription,
-                  style:
-                      const TextStyle(
-                    color: pikkXMuted,
-                    fontSize: 13,
-                    height: 1.65,
-                  ),
-                ),
-
-                const SizedBox(height: 25),
-
-                _infoRow(
-                  Icons
-                      .local_shipping_outlined,
-                  'Fast delivery',
-                  'Get your order delivered quickly',
-                ),
-
-                const SizedBox(height: 12),
-
-                _infoRow(
-                  Icons
-                      .verified_outlined,
-                  'pikkX verified',
-                  'Quality product from a trusted seller',
-                ),
-
-                const SizedBox(height: 30),
-
-                _firebaseAddButton(),
-
-                const SizedBox(height: 40),
-              ],
+              ),
             ),
           ),
         );
@@ -1058,9 +870,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
   // SECTION TITLE
   // ============================================================
 
-  Widget _sectionTitle(
-    String title,
-  ) {
+  Widget _sectionTitle(String title) {
     return Text(
       title,
       style: const TextStyle(
@@ -1072,15 +882,14 @@ class _ProductDetailPageState extends State<ProductDetailPage>
   }
 
   // ============================================================
-  // SIZE SELECTOR
+  // SIZE
   // ============================================================
 
   Widget _sizeWidget(
     String text,
     int index,
   ) {
-    final bool selected =
-        selectedSize == index;
+    final selected = selectedSize == index;
 
     return GestureDetector(
       onTap: () {
@@ -1089,36 +898,19 @@ class _ProductDetailPageState extends State<ProductDetailPage>
         });
       },
       child: AnimatedContainer(
-        duration:
-            const Duration(
-          milliseconds: 220,
-        ),
+        duration: const Duration(milliseconds: 220),
         height: 45,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: selected
-              ? pikkXNavy
-              : pikkXBackground,
-          borderRadius:
-              BorderRadius.circular(14),
+              ? pikkXBlack
+              : Colors.white.withOpacity(0.55),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: selected
-                ? pikkXNavy
+                ? pikkXBlack
                 : pikkXBorder,
           ),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color:
-                        pikkXNavy.withOpacity(
-                      .18,
-                    ),
-                    blurRadius: 10,
-                    offset:
-                        const Offset(0, 4),
-                  ),
-                ]
-              : [],
         ),
         child: Text(
           text,
@@ -1127,8 +919,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                 ? pikkXWhite
                 : pikkXBlack,
             fontSize: 12,
-            fontWeight:
-                FontWeight.w700,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
@@ -1139,59 +930,70 @@ class _ProductDetailPageState extends State<ProductDetailPage>
   // COLOR SELECTOR
   // ============================================================
 
-  Widget _colorWidget(
-    Color color,
-    int index,
-  ) {
-    final bool selected =
-        selectedColor == index;
+  Widget _colorSelector() {
+    return Row(
+      children: List.generate(
+        nikeImages.length,
+        (index) {
+          final selected = selectedColor == index;
 
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          selectedColor = index;
-        });
-      },
-      child: AnimatedContainer(
-        duration:
-            const Duration(
-          milliseconds: 200,
-        ),
-        height: 38,
-        width: 38,
-        padding:
-            const EdgeInsets.all(3),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: selected
-                ? pikkXNavy
-                : Colors.transparent,
-            width: 2,
-          ),
-        ),
-        child: Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: color,
-          ),
-          child: selected
-              ? Icon(
-                  Icons.check_rounded,
-                  color:
-                      color == Colors.white
-                          ? pikkXBlack
-                          : pikkXWhite,
-                  size: 17,
-                )
-              : null,
-        ),
+          return Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  selectedColor = index;
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: EdgeInsets.only(
+                  right: index == nikeImages.length - 1
+                      ? 0
+                      : 10,
+                ),
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? Colors.black.withOpacity(0.07)
+                      : Colors.white.withOpacity(0.55),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: selected
+                        ? pikkXBlack
+                        : Colors.white.withOpacity(0.9),
+                    width: selected ? 1.5 : 1,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    SizedBox(
+                      height: 55,
+                      child: Image.asset(
+                        nikeImages[index],
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      colorNames[index],
+                      style: const TextStyle(
+                        color: pikkXBlack,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
 
   // ============================================================
-  // INFORMATION ROW
+  // INFO
   // ============================================================
 
   Widget _infoRow(
@@ -1200,14 +1002,12 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     String subtitle,
   ) {
     return Container(
-      padding:
-          const EdgeInsets.all(13),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: pikkXBackground,
-        borderRadius:
-            BorderRadius.circular(17),
+        color: Colors.white.withOpacity(0.55),
+        borderRadius: BorderRadius.circular(17),
         border: Border.all(
-          color: pikkXBorder,
+          color: Colors.white.withOpacity(0.85),
         ),
       ),
       child: Row(
@@ -1216,37 +1016,32 @@ class _ProductDetailPageState extends State<ProductDetailPage>
             height: 38,
             width: 38,
             decoration: BoxDecoration(
-              color:
-                  pikkXNavy.withOpacity(.09),
+              color: pikkXBlack.withOpacity(0.07),
               shape: BoxShape.circle,
             ),
             child: Icon(
               icon,
-              color: pikkXNavy,
+              color: pikkXBlack,
               size: 20,
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style:
-                      const TextStyle(
+                  style: const TextStyle(
                     color: pikkXBlack,
                     fontSize: 12,
-                    fontWeight:
-                        FontWeight.w800,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   subtitle,
-                  style:
-                      const TextStyle(
+                  style: const TextStyle(
                     color: pikkXMuted,
                     fontSize: 10,
                   ),
@@ -1260,7 +1055,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
   }
 
   // ============================================================
-  // FIREBASE ADD BUTTON
+  // ADD TO CART BUTTON
   // ============================================================
 
   Widget _firebaseAddButton() {
@@ -1268,56 +1063,41 @@ class _ProductDetailPageState extends State<ProductDetailPage>
       width: double.infinity,
       height: 54,
       child: ElevatedButton(
-        onPressed:
-            isAddingToCart
-                ? null
-                : _addToCart,
-        style:
-            ElevatedButton.styleFrom(
-          backgroundColor:
-              pikkXBlack,
+        onPressed: isAddingToCart
+            ? null
+            : _addToCart,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: pikkXBlack,
           disabledBackgroundColor:
-              pikkXBlack.withOpacity(.65),
-          foregroundColor:
-              pikkXWhite,
+              pikkXBlack.withOpacity(0.65),
+          foregroundColor: pikkXWhite,
           elevation: 0,
-          shape:
-              RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(
-              16,
-            ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
         child: isAddingToCart
             ? const SizedBox(
                 height: 22,
                 width: 22,
-                child:
-                    CircularProgressIndicator(
+                child: CircularProgressIndicator(
                   strokeWidth: 2,
                   color: pikkXWhite,
                 ),
               )
-            : Row(
-                mainAxisAlignment:
-                    MainAxisAlignment
-                        .center,
+            : const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
-                    Icons
-                        .shopping_bag_outlined,
+                  Icon(
+                    Icons.shopping_bag_outlined,
                     size: 20,
                   ),
-                  const SizedBox(
-                    width: 9,
-                  ),
-                  const Text(
+                  SizedBox(width: 9),
+                  Text(
                     'Add to Cart',
                     style: TextStyle(
                       fontSize: 13,
-                      fontWeight:
-                          FontWeight.w800,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ],
@@ -1330,25 +1110,16 @@ class _ProductDetailPageState extends State<ProductDetailPage>
   // MESSAGE
   // ============================================================
 
-  void _showMessage(
-    String message,
-  ) {
-    if (!mounted) {
-      return;
-    }
+  void _showMessage(String message) {
+    if (!mounted) return;
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: pikkXNavy,
-        behavior:
-            SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.circular(12),
+        backgroundColor: pikkXBlack,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
         ),
       ),
     );
@@ -1359,26 +1130,19 @@ class _ProductDetailPageState extends State<ProductDetailPage>
   // ============================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          pikkXBackground,
+      backgroundColor: pikkXBackground,
       body: SafeArea(
         child: Container(
-          decoration:
-              const BoxDecoration(
-            gradient:
-                LinearGradient(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
               colors: [
                 pikkXBackground,
                 Colors.white,
               ],
-              begin:
-                  Alignment.topCenter,
-              end:
-                  Alignment.bottomCenter,
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
             ),
           ),
           child: Stack(
@@ -1386,7 +1150,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
               Column(
                 children: [
                   _appBar(),
-                  _productImage(),
+                  _productImageCard(),
                   _thumbnailRow(),
                 ],
               ),
