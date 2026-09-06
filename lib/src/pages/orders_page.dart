@@ -1,12 +1,9 @@
-
 import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import 'package:flutter_ecommerce_app/src/themes/theme.dart';
 
 class OrdersPage extends StatefulWidget {
   const OrdersPage({super.key});
@@ -29,6 +26,16 @@ class _OrdersPageState extends State<OrdersPage>
   String selectedCurrency = 'NGN';
 
   String? get userId => _auth.currentUser?.uid;
+
+  // ============================================================
+  // PIKKX COLORS
+  // ============================================================
+
+  static const Color pikkXBlack = Color(0xFF050505);
+  static const Color pikkXWhite = Color(0xFFFFFFFF);
+  static const Color pikkXBackground = Color(0xFFF7F7F7);
+  static const Color pikkXGrey = Color(0xFF777777);
+  static const Color lightGrey = Color(0xFFE8E8E8);
 
   // ============================================================
   // CURRENCY
@@ -56,11 +63,6 @@ class _OrdersPageState extends State<OrdersPage>
     'MXN': 'MX\$',
   };
 
-  // NGN-based rates.
-  //
-  // These are fallback/fixed rates for now.
-  // The selected currency is saved locally under
-  // "selected_currency".
   static const Map<String, double> currencyRates = {
     'NGN': 1.0,
     'USD': 0.00063,
@@ -111,7 +113,7 @@ class _OrdersPageState extends State<OrdersPage>
   }
 
   // ============================================================
-  // LOAD SELECTED CURRENCY
+  // LOAD CURRENCY
   // ============================================================
 
   Future<void> _loadCurrency() async {
@@ -138,8 +140,6 @@ class _OrdersPageState extends State<OrdersPage>
 
   // ============================================================
   // FIRESTORE
-  //
-  // orders/{orderId}
   // ============================================================
 
   CollectionReference<Map<String, dynamic>> get ordersRef {
@@ -147,7 +147,7 @@ class _OrdersPageState extends State<OrdersPage>
   }
 
   // ============================================================
-  // LOAD USER ORDERS
+  // LOAD ORDERS
   // ============================================================
 
   Future<void> _loadOrders() async {
@@ -176,21 +176,19 @@ class _OrdersPageState extends State<OrdersPage>
 
       final loadedOrders = snapshot.docs.map((doc) {
         return {
-          // IMPORTANT:
-          // Firestore document ID is the real order ID.
           'id': doc.id,
           ...doc.data(),
         };
       }).toList();
 
-      // Sort locally so no composite Firestore index
-      // is required.
       loadedOrders.sort((a, b) {
-        final aTime =
-            _timestampToDate(a['createdAt']);
+        final aTime = _timestampToDate(
+          a['createdAt'],
+        );
 
-        final bTime =
-            _timestampToDate(b['createdAt']);
+        final bTime = _timestampToDate(
+          b['createdAt'],
+        );
 
         return bTime.compareTo(aTime);
       });
@@ -223,9 +221,7 @@ class _OrdersPageState extends State<OrdersPage>
   List<Map<String, dynamic>> get activeOrders {
     return orders.where((order) {
       final status =
-          order['orderStatus']
-              ?.toString()
-              .toLowerCase();
+          order['orderStatus']?.toString().toLowerCase();
 
       return status != 'delivered' &&
           status != 'completed' &&
@@ -234,15 +230,13 @@ class _OrdersPageState extends State<OrdersPage>
   }
 
   // ============================================================
-  // COMPLETED / HISTORY
+  // HISTORY
   // ============================================================
 
   List<Map<String, dynamic>> get completedOrders {
     return orders.where((order) {
       final status =
-          order['orderStatus']
-              ?.toString()
-              .toLowerCase();
+          order['orderStatus']?.toString().toLowerCase();
 
       return status == 'delivered' ||
           status == 'completed' ||
@@ -257,12 +251,9 @@ class _OrdersPageState extends State<OrdersPage>
   void _openOrder(
     Map<String, dynamic> order,
   ) {
-    // ALWAYS use the Firestore document ID.
-    final orderId =
-        order['id']?.toString();
+    final orderId = order['id']?.toString();
 
-    if (orderId == null ||
-        orderId.isEmpty) {
+    if (orderId == null || orderId.isEmpty) {
       _showMessage(
         'Order ID is unavailable.',
       );
@@ -277,7 +268,7 @@ class _OrdersPageState extends State<OrdersPage>
   }
 
   // ============================================================
-  // CURRENCY CONVERSION
+  // CURRENCY
   // ============================================================
 
   double _convertMoney(double amount) {
@@ -289,8 +280,7 @@ class _OrdersPageState extends State<OrdersPage>
   }
 
   String _formatMoney(double amount) {
-    final converted =
-        _convertMoney(amount);
+    final converted = _convertMoney(amount);
 
     final symbol =
         currencySymbols[selectedCurrency] ??
@@ -306,8 +296,7 @@ class _OrdersPageState extends State<OrdersPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          AppTheme.lightBackground,
+      backgroundColor: pikkXBackground,
 
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -315,15 +304,16 @@ class _OrdersPageState extends State<OrdersPage>
         centerTitle: true,
 
         iconTheme: const IconThemeData(
-          color: AppTheme.pikkXBlack,
+          color: pikkXBlack,
         ),
 
         title: const Text(
           'My Orders',
           style: TextStyle(
-            color: AppTheme.pikkXBlack,
+            color: pikkXBlack,
             fontSize: 21,
             fontWeight: FontWeight.w800,
+            letterSpacing: -0.4,
           ),
         ),
       ),
@@ -331,24 +321,33 @@ class _OrdersPageState extends State<OrdersPage>
       body: Stack(
         children: [
           // ======================================================
-          // SOFT BACKGROUND
+          // BACKGROUND GLASS GLOW
           // ======================================================
 
           Positioned(
-            top: -100,
-            right: -80,
+            top: -120,
+            right: -90,
             child: _backgroundGlow(
-              size: 230,
+              size: 270,
               opacity: 0.035,
             ),
           ),
 
           Positioned(
-            bottom: -100,
-            left: -80,
+            top: 260,
+            left: -120,
             child: _backgroundGlow(
-              size: 240,
+              size: 250,
               opacity: 0.025,
+            ),
+          ),
+
+          Positioned(
+            bottom: -120,
+            right: -80,
+            child: _backgroundGlow(
+              size: 260,
+              opacity: 0.03,
             ),
           ),
 
@@ -356,77 +355,77 @@ class _OrdersPageState extends State<OrdersPage>
           // CONTENT
           // ======================================================
 
-          isLoading
-              ? const Center(
-                  child: SizedBox(
-                    width: 28,
-                    height: 28,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: AppTheme.pikkXBlack,
-                    ),
-                  ),
-                )
-              : Column(
-                  children: [
-                    _buildCurrencyIndicator(),
-
-                    _buildTabs(),
-
-                    Expanded(
-                      child: RefreshIndicator(
-                        color: AppTheme.pikkXBlack,
-                        backgroundColor:
-                            AppTheme.pikkXWhite,
-
-                        onRefresh: () async {
-                          await _loadCurrency();
-                          await _loadOrders();
-                        },
-
-                        child: TabBarView(
-                          controller:
-                              _tabController,
-
-                          children: [
-                            _buildOrderList(
-                              activeOrders,
-                              isActive: true,
-                            ),
-
-                            _buildOrderList(
-                              completedOrders,
-                              isActive: false,
-                            ),
-                          ],
-                        ),
+          SafeArea(
+            top: false,
+            child: isLoading
+                ? const Center(
+                    child: SizedBox(
+                      width: 30,
+                      height: 30,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: pikkXBlack,
                       ),
                     ),
-                  ],
-                ),
+                  )
+                : Column(
+                    children: [
+                      _buildCurrencyIndicator(),
+
+                      _buildTabs(),
+
+                      Expanded(
+                        child: RefreshIndicator(
+                          color: pikkXBlack,
+                          backgroundColor: pikkXWhite,
+
+                          onRefresh: () async {
+                            await _loadCurrency();
+                            await _loadOrders();
+                          },
+
+                          child: TabBarView(
+                            controller: _tabController,
+
+                            children: [
+                              _buildOrderList(
+                                activeOrders,
+                                isActive: true,
+                              ),
+
+                              _buildOrderList(
+                                completedOrders,
+                                isActive: false,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
         ],
       ),
     );
   }
 
   // ============================================================
-  // CURRENCY INDICATOR
+  // CURRENCY PILL
   // ============================================================
 
   Widget _buildCurrencyIndicator() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         16,
-        2,
+        3,
         16,
-        10,
+        12,
       ),
       child: Align(
         alignment: Alignment.centerRight,
-        child: _smallGlassPill(
+        child: _glassPill(
           icon: Icons.currency_exchange_rounded,
-          text:
-              'Prices in $selectedCurrency',
+          text: 'Prices in $selectedCurrency',
         ),
       ),
     );
@@ -440,34 +439,39 @@ class _OrdersPageState extends State<OrdersPage>
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         16,
-        2,
+        0,
         16,
         16,
       ),
       child: _glassContainer(
-        radius: 20,
+        radius: 22,
+        opacity: 0.72,
         child: Padding(
           padding: const EdgeInsets.all(5),
           child: TabBar(
             controller: _tabController,
 
             indicator: BoxDecoration(
-              color: AppTheme.pikkXBlack,
-              borderRadius:
-                  BorderRadius.circular(15),
+              color: pikkXBlack,
+              borderRadius: BorderRadius.circular(16),
+
+              boxShadow: [
+                BoxShadow(
+                  color: pikkXBlack.withOpacity(0.15),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
 
             indicatorSize:
                 TabBarIndicatorSize.tab,
 
-            dividerColor:
-                Colors.transparent,
+            dividerColor: Colors.transparent,
 
-            labelColor:
-                AppTheme.pikkXWhite,
+            labelColor: pikkXWhite,
 
-            unselectedLabelColor:
-                AppTheme.mutedText,
+            unselectedLabelColor: pikkXGrey,
 
             labelStyle: const TextStyle(
               fontSize: 13,
@@ -516,14 +520,14 @@ class _OrdersPageState extends State<OrdersPage>
         16,
         2,
         16,
-        30,
+        35,
       ),
 
       itemCount: orderList.length,
 
       separatorBuilder: (_, __) {
         return const SizedBox(
-          height: 13,
+          height: 14,
         );
       },
 
@@ -550,9 +554,8 @@ class _OrdersPageState extends State<OrdersPage>
             '';
 
     final status =
-        order['orderStatus']
-            ?.toString() ??
-        'pending';
+        order['orderStatus']?.toString() ??
+            'pending';
 
     final total =
         _toDouble(order['total']);
@@ -561,13 +564,13 @@ class _OrdersPageState extends State<OrdersPage>
         ? List.from(order['items'])
         : <dynamic>[];
 
-    final createdAt =
-        _timestampToDate(
+    final createdAt = _timestampToDate(
       order['createdAt'],
     );
 
     return _glassContainer(
-      radius: 25,
+      radius: 27,
+      opacity: 0.76,
       child: Material(
         color: Colors.transparent,
 
@@ -577,19 +580,16 @@ class _OrdersPageState extends State<OrdersPage>
           },
 
           borderRadius:
-              BorderRadius.circular(25),
+              BorderRadius.circular(27),
 
           splashColor:
-              AppTheme.pikkXBlack
-                  .withOpacity(0.05),
+              pikkXBlack.withOpacity(0.04),
 
           highlightColor:
-              AppTheme.pikkXBlack
-                  .withOpacity(0.025),
+              pikkXBlack.withOpacity(0.02),
 
           child: Padding(
-            padding:
-                const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(17),
 
             child: Column(
               crossAxisAlignment:
@@ -597,7 +597,7 @@ class _OrdersPageState extends State<OrdersPage>
 
               children: [
                 // =================================================
-                // ORDER HEADER
+                // HEADER
                 // =================================================
 
                 Row(
@@ -613,47 +613,58 @@ class _OrdersPageState extends State<OrdersPage>
                     Expanded(
                       child: Column(
                         crossAxisAlignment:
-                            CrossAxisAlignment
-                                .start,
-
+                            CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Order #${_shortOrderId(orderId.toString())}',
+                            'Order #${_shortOrderId(
+                              orderId.toString(),
+                            )}',
 
-                            style:
-                                const TextStyle(
-                              color:
-                                  AppTheme
-                                      .pikkXBlack,
+                            style: const TextStyle(
+                              color: pikkXBlack,
                               fontSize: 15,
-                              fontWeight:
-                                  FontWeight.w800,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.2,
                             ),
                           ),
 
                           const SizedBox(
-                            height: 4,
+                            height: 5,
                           ),
 
-                          Text(
-                            _formatDate(
-                              createdAt,
-                            ),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons
+                                    .calendar_today_rounded,
+                                size: 11,
+                                color: pikkXGrey,
+                              ),
 
-                            style:
-                                const TextStyle(
-                              color:
-                                  AppTheme
-                                      .mutedText,
-                              fontSize: 12,
-                            ),
+                              const SizedBox(
+                                width: 5,
+                              ),
+
+                              Text(
+                                _formatDate(
+                                  createdAt,
+                                ),
+                                style:
+                                    const TextStyle(
+                                  color: pikkXGrey,
+                                  fontSize: 11,
+                                  fontWeight:
+                                      FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
                     ),
 
                     const SizedBox(
-                      width: 8,
+                      width: 7,
                     ),
 
                     _statusBadge(status),
@@ -661,41 +672,114 @@ class _OrdersPageState extends State<OrdersPage>
                 ),
 
                 const SizedBox(
-                  height: 16,
+                  height: 17,
                 ),
 
                 // =================================================
-                // ITEMS PREVIEW
+                // ITEM PREVIEW GLASS SECTION
                 // =================================================
 
-                if (items.isNotEmpty)
-                  Text(
-                    _itemsPreview(items),
+                ClipRRect(
+                  borderRadius:
+                      BorderRadius.circular(16),
 
-                    maxLines: 2,
-
-                    overflow:
-                        TextOverflow.ellipsis,
-
-                    style:
-                        const TextStyle(
-                      color:
-                          AppTheme.mutedText,
-                      fontSize: 13,
-                      height: 1.4,
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(
+                      sigmaX: 10,
+                      sigmaY: 10,
                     ),
-                  )
-                else
-                  const Text(
-                    'Order items',
 
-                    style:
-                        TextStyle(
-                      color:
-                          AppTheme.mutedText,
-                      fontSize: 13,
+                    child: Container(
+                      width: double.infinity,
+
+                      padding:
+                          const EdgeInsets.all(12),
+
+                      decoration:
+                          BoxDecoration(
+                        color:
+                            pikkXWhite
+                                .withOpacity(0.34),
+
+                        borderRadius:
+                            BorderRadius.circular(
+                          16,
+                        ),
+
+                        border: Border.all(
+                          color:
+                              pikkXBlack
+                                  .withOpacity(
+                            0.045,
+                          ),
+                        ),
+                      ),
+
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+
+                            decoration:
+                                BoxDecoration(
+                              color:
+                                  pikkXBlack
+                                      .withOpacity(
+                                0.06,
+                              ),
+
+                              borderRadius:
+                                  BorderRadius
+                                      .circular(
+                                12,
+                              ),
+                            ),
+
+                            child: const Icon(
+                              Icons.shopping_bag_outlined,
+                              color: pikkXBlack,
+                              size: 18,
+                            ),
+                          ),
+
+                          const SizedBox(
+                            width: 10,
+                          ),
+
+                          Expanded(
+                            child: items.isNotEmpty
+                                ? Text(
+                                    _itemsPreview(
+                                      items,
+                                    ),
+                                    maxLines: 2,
+                                    overflow:
+                                        TextOverflow
+                                            .ellipsis,
+                                    style:
+                                        const TextStyle(
+                                      color: pikkXGrey,
+                                      fontSize: 12,
+                                      height: 1.35,
+                                      fontWeight:
+                                          FontWeight.w500,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Order items',
+                                    style:
+                                        TextStyle(
+                                      color: pikkXGrey,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
+                ),
 
                 const SizedBox(
                   height: 15,
@@ -707,8 +791,8 @@ class _OrdersPageState extends State<OrdersPage>
 
                 Container(
                   height: 1,
-                  color: AppTheme.pikkXBlack
-                      .withOpacity(0.07),
+                  color:
+                      pikkXBlack.withOpacity(0.065),
                 ),
 
                 const SizedBox(
@@ -716,60 +800,70 @@ class _OrdersPageState extends State<OrdersPage>
                 ),
 
                 // =================================================
-                // TOTAL + ACTION
+                // TOTAL + DETAILS
                 // =================================================
 
                 Row(
                   children: [
-                    const Text(
-                      'Total',
+                    Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'TOTAL',
+                          style: TextStyle(
+                            color: pikkXGrey,
+                            fontSize: 9,
+                            fontWeight:
+                                FontWeight.w800,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
 
-                      style:
-                          TextStyle(
-                        color:
-                            AppTheme.mutedText,
-                        fontSize: 13,
-                        fontWeight:
-                            FontWeight.w600,
-                      ),
-                    ),
+                        const SizedBox(
+                          height: 3,
+                        ),
 
-                    const SizedBox(
-                      width: 7,
-                    ),
-
-                    Text(
-                      _formatMoney(total),
-
-                      style:
-                          const TextStyle(
-                        color:
-                            AppTheme.pikkXBlack,
-                        fontSize: 16,
-                        fontWeight:
-                            FontWeight.w900,
-                      ),
+                        Text(
+                          _formatMoney(total),
+                          style:
+                              const TextStyle(
+                            color: pikkXBlack,
+                            fontSize: 17,
+                            fontWeight:
+                                FontWeight.w900,
+                          ),
+                        ),
+                      ],
                     ),
 
                     const Spacer(),
 
                     Container(
                       padding:
-                          const EdgeInsets
-                              .symmetric(
-                        horizontal: 10,
-                        vertical: 7,
+                          const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 9,
                       ),
 
                       decoration:
                           BoxDecoration(
-                        color: AppTheme
-                            .pikkXBlack
-                            .withOpacity(0.055),
+                        color:
+                            pikkXBlack
+                                .withOpacity(0.055),
 
                         borderRadius:
-                            BorderRadius
-                                .circular(11),
+                            BorderRadius.circular(
+                          13,
+                        ),
+
+                        border: Border.all(
+                          color:
+                              pikkXBlack
+                                  .withOpacity(
+                            0.055,
+                          ),
+                        ),
                       ),
 
                       child: const Row(
@@ -779,11 +873,8 @@ class _OrdersPageState extends State<OrdersPage>
                         children: [
                           Text(
                             'View Details',
-
-                            style:
-                                TextStyle(
-                              color: AppTheme
-                                  .pikkXBlack,
+                            style: TextStyle(
+                              color: pikkXBlack,
                               fontSize: 11,
                               fontWeight:
                                   FontWeight.w800,
@@ -791,15 +882,14 @@ class _OrdersPageState extends State<OrdersPage>
                           ),
 
                           SizedBox(
-                            width: 5,
+                            width: 6,
                           ),
 
                           Icon(
                             Icons
-                                .arrow_forward_ios_rounded,
-                            size: 11,
-                            color: AppTheme
-                                .pikkXBlack,
+                                .arrow_forward_rounded,
+                            size: 14,
+                            color: pikkXBlack,
                           ),
                         ],
                       ),
@@ -822,20 +912,20 @@ class _OrdersPageState extends State<OrdersPage>
     required bool isActive,
   }) {
     return Container(
-      width: 46,
-      height: 46,
+      width: 47,
+      height: 47,
 
       decoration: BoxDecoration(
-        color: AppTheme.pikkXBlack,
+        color: pikkXBlack,
         borderRadius:
             BorderRadius.circular(16),
 
         boxShadow: [
           BoxShadow(
-            color: AppTheme.pikkXBlack
-                .withOpacity(0.12),
-            blurRadius: 12,
-            offset: const Offset(0, 5),
+            color:
+                pikkXBlack.withOpacity(0.14),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -845,7 +935,7 @@ class _OrdersPageState extends State<OrdersPage>
             ? Icons.local_shipping_outlined
             : Icons.inventory_2_outlined,
 
-        color: AppTheme.pikkXWhite,
+        color: pikkXWhite,
         size: 21,
       ),
     );
@@ -865,8 +955,7 @@ class _OrdersPageState extends State<OrdersPage>
     switch (normalized) {
       case 'pending':
         label = 'Pending';
-        icon =
-            Icons.access_time_rounded;
+        icon = Icons.access_time_rounded;
         break;
 
       case 'confirmed':
@@ -895,20 +984,17 @@ class _OrdersPageState extends State<OrdersPage>
 
       case 'delivered':
         label = 'Delivered';
-        icon =
-            Icons.done_all_rounded;
+        icon = Icons.done_all_rounded;
         break;
 
       case 'completed':
         label = 'Completed';
-        icon =
-            Icons.check_circle_rounded;
+        icon = Icons.check_circle_rounded;
         break;
 
       case 'cancelled':
         label = 'Cancelled';
-        icon =
-            Icons.cancel_outlined;
+        icon = Icons.cancel_outlined;
         break;
 
       default:
@@ -918,60 +1004,68 @@ class _OrdersPageState extends State<OrdersPage>
             ' ',
           ),
         );
-
-        icon =
-            Icons.info_outline_rounded;
+        icon = Icons.info_outline_rounded;
     }
 
-    return Container(
-      padding:
-          const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 6,
-      ),
+    return ClipRRect(
+      borderRadius:
+          BorderRadius.circular(12),
 
-      decoration: BoxDecoration(
-        color: AppTheme.pikkXBlack
-            .withOpacity(0.07),
-
-        borderRadius:
-            BorderRadius.circular(11),
-
-        border: Border.all(
-          color: AppTheme.pikkXBlack
-              .withOpacity(0.08),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: 8,
+          sigmaY: 8,
         ),
-      ),
 
-      child: Row(
-        mainAxisSize:
-            MainAxisSize.min,
+        child: Container(
+          padding:
+              const EdgeInsets.symmetric(
+            horizontal: 9,
+            vertical: 6,
+          ),
 
-        children: [
-          Icon(
-            icon,
-            size: 13,
+          decoration:
+              BoxDecoration(
             color:
-                AppTheme.pikkXBlack,
-          ),
+                pikkXBlack.withOpacity(0.055),
 
-          const SizedBox(
-            width: 4,
-          ),
+            borderRadius:
+                BorderRadius.circular(12),
 
-          Text(
-            label,
-
-            style:
-                const TextStyle(
+            border: Border.all(
               color:
-                  AppTheme.pikkXBlack,
-              fontSize: 10,
-              fontWeight:
-                  FontWeight.w800,
+                  pikkXBlack.withOpacity(0.07),
             ),
           ),
-        ],
+
+          child: Row(
+            mainAxisSize:
+                MainAxisSize.min,
+
+            children: [
+              Icon(
+                icon,
+                size: 12,
+                color: pikkXBlack,
+              ),
+
+              const SizedBox(
+                width: 4,
+              ),
+
+              Text(
+                label,
+                style:
+                    const TextStyle(
+                  color: pikkXBlack,
+                  fontSize: 10,
+                  fontWeight:
+                      FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -988,43 +1082,51 @@ class _OrdersPageState extends State<OrdersPage>
           const AlwaysScrollableScrollPhysics(),
 
       padding:
-          const EdgeInsets.all(30),
+          const EdgeInsets.all(24),
 
       children: [
         const SizedBox(
-          height: 85,
+          height: 65,
         ),
 
         _glassContainer(
-          radius: 27,
+          radius: 30,
+          opacity: 0.75,
 
           child: Padding(
             padding:
-                const EdgeInsets.all(30),
+                const EdgeInsets.fromLTRB(
+              28,
+              32,
+              28,
+              32,
+            ),
 
             child: Column(
               children: [
                 Container(
-                  width: 78,
-                  height: 78,
+                  width: 82,
+                  height: 82,
 
                   decoration:
                       BoxDecoration(
-                    color:
-                        AppTheme.pikkXBlack,
+                    color: pikkXBlack,
 
                     borderRadius:
-                        BorderRadius
-                            .circular(25),
+                        BorderRadius.circular(
+                      27,
+                    ),
 
                     boxShadow: [
                       BoxShadow(
-                        color: AppTheme
-                            .pikkXBlack
-                            .withOpacity(0.12),
-                        blurRadius: 18,
+                        color:
+                            pikkXBlack
+                                .withOpacity(
+                          0.14,
+                        ),
+                        blurRadius: 20,
                         offset:
-                            const Offset(0, 8),
+                            const Offset(0, 9),
                       ),
                     ],
                   ),
@@ -1033,18 +1135,15 @@ class _OrdersPageState extends State<OrdersPage>
                     isActive
                         ? Icons
                             .local_shipping_outlined
-                        : Icons
-                            .history_rounded,
+                        : Icons.history_rounded,
 
                     size: 40,
-
-                    color:
-                        AppTheme.pikkXWhite,
+                    color: pikkXWhite,
                   ),
                 ),
 
                 const SizedBox(
-                  height: 18,
+                  height: 20,
                 ),
 
                 Text(
@@ -1057,16 +1156,16 @@ class _OrdersPageState extends State<OrdersPage>
 
                   style:
                       const TextStyle(
-                    fontSize: 19,
+                    fontSize: 20,
                     fontWeight:
                         FontWeight.w800,
-                    color:
-                        AppTheme.pikkXBlack,
+                    color: pikkXBlack,
+                    letterSpacing: -0.4,
                   ),
                 ),
 
                 const SizedBox(
-                  height: 8,
+                  height: 9,
                 ),
 
                 Text(
@@ -1079,9 +1178,8 @@ class _OrdersPageState extends State<OrdersPage>
 
                   style:
                       const TextStyle(
-                    color:
-                        AppTheme.mutedText,
-                    height: 1.4,
+                    color: pikkXGrey,
+                    height: 1.45,
                     fontSize: 13,
                   ),
                 ),
@@ -1137,10 +1235,7 @@ class _OrdersPageState extends State<OrdersPage>
       return orderId;
     }
 
-    return orderId.substring(
-      0,
-      8,
-    );
+    return orderId.substring(0, 8);
   }
 
   DateTime _timestampToDate(
@@ -1155,35 +1250,28 @@ class _OrdersPageState extends State<OrdersPage>
     }
 
     if (value is int) {
-      return DateTime
-          .fromMillisecondsSinceEpoch(
+      return DateTime.fromMillisecondsSinceEpoch(
         value,
       );
     }
 
-    return DateTime
-        .fromMillisecondsSinceEpoch(0);
+    return DateTime.fromMillisecondsSinceEpoch(
+      0,
+    );
   }
 
   String _formatDate(
     DateTime date,
   ) {
-    if (date.millisecondsSinceEpoch ==
-        0) {
+    if (date.millisecondsSinceEpoch == 0) {
       return 'Date unavailable';
     }
 
     final day =
-        date.day.toString().padLeft(
-              2,
-              '0',
-            );
+        date.day.toString().padLeft(2, '0');
 
     final month =
-        date.month.toString().padLeft(
-              2,
-              '0',
-            );
+        date.month.toString().padLeft(2, '0');
 
     return '$day/$month/${date.year}';
   }
@@ -1230,12 +1318,12 @@ class _OrdersPageState extends State<OrdersPage>
             SnackBarBehavior.floating,
 
         backgroundColor:
-            AppTheme.pikkXBlack,
+            pikkXBlack,
 
         shape:
             RoundedRectangleBorder(
           borderRadius:
-              BorderRadius.circular(14),
+              BorderRadius.circular(15),
         ),
       ),
     );
@@ -1248,6 +1336,7 @@ class _OrdersPageState extends State<OrdersPage>
   Widget _glassContainer({
     required Widget child,
     double radius = 24,
+    double opacity = 0.7,
   }) {
     return ClipRRect(
       borderRadius:
@@ -1255,37 +1344,33 @@ class _OrdersPageState extends State<OrdersPage>
 
       child: BackdropFilter(
         filter: ImageFilter.blur(
-          sigmaX: 18,
-          sigmaY: 18,
+          sigmaX: 20,
+          sigmaY: 20,
         ),
 
         child: Container(
           decoration:
               BoxDecoration(
             color:
-                AppTheme.glassWhite,
+                pikkXWhite.withOpacity(opacity),
 
             borderRadius:
-                BorderRadius.circular(
-              radius,
-            ),
+                BorderRadius.circular(radius),
 
             border: Border.all(
-              color: AppTheme.pikkXBlack
-                  .withOpacity(0.075),
-
+              color:
+                  pikkXWhite.withOpacity(0.65),
               width: 1,
             ),
 
             boxShadow: [
               BoxShadow(
-                color: AppTheme.pikkXBlack
-                    .withOpacity(0.055),
-
-                blurRadius: 20,
-
+                color:
+                    pikkXBlack.withOpacity(0.055),
+                blurRadius: 25,
+                spreadRadius: 1,
                 offset:
-                    const Offset(0, 9),
+                    const Offset(0, 10),
               ),
             ],
           ),
@@ -1297,42 +1382,52 @@ class _OrdersPageState extends State<OrdersPage>
   }
 
   // ============================================================
-  // SMALL GLASS PILL
+  // GLASS PILL
   // ============================================================
 
-  Widget _smallGlassPill({
+  Widget _glassPill({
     required IconData icon,
     required String text,
   }) {
     return ClipRRect(
       borderRadius:
-          BorderRadius.circular(14),
+          BorderRadius.circular(15),
 
       child: BackdropFilter(
         filter: ImageFilter.blur(
-          sigmaX: 12,
-          sigmaY: 12,
+          sigmaX: 14,
+          sigmaY: 14,
         ),
 
         child: Container(
           padding:
               const EdgeInsets.symmetric(
-            horizontal: 10,
-            vertical: 7,
+            horizontal: 11,
+            vertical: 8,
           ),
 
           decoration:
               BoxDecoration(
-            color: AppTheme.pikkXWhite
-                .withOpacity(0.58),
+            color:
+                pikkXWhite.withOpacity(0.58),
 
             borderRadius:
-                BorderRadius.circular(14),
+                BorderRadius.circular(15),
 
             border: Border.all(
-              color: AppTheme.pikkXBlack
-                  .withOpacity(0.06),
+              color:
+                  pikkXWhite.withOpacity(0.7),
             ),
+
+            boxShadow: [
+              BoxShadow(
+                color:
+                    pikkXBlack.withOpacity(0.035),
+                blurRadius: 12,
+                offset:
+                    const Offset(0, 4),
+              ),
+            ],
           ),
 
           child: Row(
@@ -1343,8 +1438,7 @@ class _OrdersPageState extends State<OrdersPage>
               Icon(
                 icon,
                 size: 13,
-                color:
-                    AppTheme.pikkXBlack,
+                color: pikkXBlack,
               ),
 
               const SizedBox(
@@ -1353,11 +1447,9 @@ class _OrdersPageState extends State<OrdersPage>
 
               Text(
                 text,
-
                 style:
                     const TextStyle(
-                  color:
-                      AppTheme.pikkXBlack,
+                  color: pikkXBlack,
                   fontSize: 10,
                   fontWeight:
                       FontWeight.w700,
@@ -1386,16 +1478,16 @@ class _OrdersPageState extends State<OrdersPage>
           BoxDecoration(
         shape: BoxShape.circle,
 
-        color: AppTheme.pikkXBlack
-            .withOpacity(opacity),
+        color:
+            pikkXBlack.withOpacity(opacity),
 
         boxShadow: [
           BoxShadow(
-            color: AppTheme.pikkXBlack
-                .withOpacity(opacity),
+            color:
+                pikkXBlack.withOpacity(opacity),
 
-            blurRadius: 70,
-            spreadRadius: 20,
+            blurRadius: 80,
+            spreadRadius: 25,
           ),
         ],
       ),
