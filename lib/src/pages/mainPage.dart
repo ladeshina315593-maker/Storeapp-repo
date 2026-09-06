@@ -11,6 +11,8 @@ import 'package:flutter_ecommerce_app/src/pages/orders_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/delivery_address_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/notifications_page.dart';
 import 'package:flutter_ecommerce_app/src/pages/settings_page.dart';
+import 'package:flutter_ecommerce_app/src/pages/favourite_page.dart';
+import 'package:flutter_ecommerce_app/src/pages/profile_page.dart';
 
 import 'package:flutter_ecommerce_app/src/widgets/BottomNavigationBar/bottom_navigation_bar.dart';
 
@@ -36,18 +38,19 @@ class _MainPageState extends State<MainPage> {
   static const Color pikkXBackground = Color(0xFFF7F7F7);
   static const Color pikkXGrey = Color(0xFF777777);
   static const Color pikkXLightGrey = Color(0xFFE8E8E8);
-  static const Color pikkXGlassGrey = Color(0xFFEFEFEF);
 
   // ============================================================
   // FIREBASE
   // ============================================================
 
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseAuth _auth =
+      FirebaseAuth.instance;
 
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
 
-  User? get currentUser => _auth.currentUser;
+  User? get currentUser =>
+      _auth.currentUser;
 
   // ============================================================
   // NAVIGATION
@@ -60,6 +63,10 @@ class _MainPageState extends State<MainPage> {
   // 2 = Chat
   // 3 = Favourite
   // 4 = Profile
+
+  // ============================================================
+  // CURRENT PAGE
+  // ============================================================
 
   Widget _buildCurrentPage() {
     switch (_selectedIndex) {
@@ -89,6 +96,10 @@ class _MainPageState extends State<MainPage> {
     }
   }
 
+  // ============================================================
+  // BOTTOM NAVIGATION
+  // ============================================================
+
   void _onBottomIconPressed(int index) {
     if (index < 0 || index > 4) {
       return;
@@ -109,7 +120,8 @@ class _MainPageState extends State<MainPage> {
     required VoidCallback onPressed,
   }) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius:
+          BorderRadius.circular(16),
       child: BackdropFilter(
         filter: ImageFilter.blur(
           sigmaX: 14,
@@ -119,28 +131,45 @@ class _MainPageState extends State<MainPage> {
           color: Colors.transparent,
           child: InkWell(
             onTap: onPressed,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius:
+                BorderRadius.circular(16),
             child: Container(
               height: 46,
               width: 46,
-              decoration: BoxDecoration(
-                color: pikkXWhite.withOpacity(0.68),
-                borderRadius: BorderRadius.circular(16),
+              decoration:
+                  BoxDecoration(
+                color:
+                    pikkXWhite.withOpacity(
+                  0.68,
+                ),
+                borderRadius:
+                    BorderRadius.circular(
+                  16,
+                ),
                 border: Border.all(
-                  color: pikkXWhite.withOpacity(0.92),
+                  color:
+                      pikkXWhite.withOpacity(
+                    0.92,
+                  ),
                   width: 1,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: pikkXBlack.withOpacity(0.055),
+                    color:
+                        pikkXBlack.withOpacity(
+                      0.055,
+                    ),
                     blurRadius: 16,
-                    offset: const Offset(0, 7),
+                    offset:
+                        const Offset(0, 7),
                   ),
                 ],
               ),
               child: Icon(
                 icon,
-                color: iconColor ?? pikkXBlack,
+                color:
+                    iconColor ??
+                        pikkXBlack,
                 size: 21,
               ),
             ),
@@ -152,11 +181,17 @@ class _MainPageState extends State<MainPage> {
 
   // ============================================================
   // APP BAR
+  //
+  // IMPORTANT:
+  // This is ONLY used for non-Home pages.
+  //
+  // HomePage already has its own header.
   // ============================================================
 
   Widget _appBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
+      padding:
+          const EdgeInsets.fromLTRB(
         20,
         14,
         20,
@@ -164,45 +199,73 @@ class _MainPageState extends State<MainPage> {
       ),
       child: Row(
         children: [
-          // ------------------------------------------------------
-          // PIKKX LOGO
-          // ------------------------------------------------------
+          // ======================================================
+          // LOGO / MENU
+          // ======================================================
 
           GestureDetector(
             onTap: _openMenu,
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(15),
+              borderRadius:
+                  BorderRadius.circular(
+                15,
+              ),
               child: BackdropFilter(
-                filter: ImageFilter.blur(
+                filter:
+                    ImageFilter.blur(
                   sigmaX: 12,
                   sigmaY: 12,
                 ),
                 child: Container(
                   width: 46,
                   height: 46,
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: pikkXWhite.withOpacity(0.70),
-                    borderRadius: BorderRadius.circular(15),
-                    border: Border.all(
-                      color: pikkXWhite.withOpacity(0.92),
-                      width: 1,
+                  padding:
+                      const EdgeInsets.all(
+                    6,
+                  ),
+                  decoration:
+                      BoxDecoration(
+                    color:
+                        pikkXWhite.withOpacity(
+                      0.70,
+                    ),
+                    borderRadius:
+                        BorderRadius.circular(
+                      15,
+                    ),
+                    border:
+                        Border.all(
+                      color:
+                          pikkXWhite.withOpacity(
+                        0.92,
+                      ),
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: pikkXBlack.withOpacity(0.045),
+                        color:
+                            pikkXBlack.withOpacity(
+                          0.045,
+                        ),
                         blurRadius: 14,
-                        offset: const Offset(0, 6),
+                        offset:
+                            const Offset(
+                          0,
+                          6,
+                        ),
                       ),
                     ],
                   ),
                   child: Image.asset(
                     'assets/images/pikkx_icon (1).png',
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) {
+                    fit:
+                        BoxFit.contain,
+                    errorBuilder:
+                        (_, __, ___) {
                       return const Icon(
-                        Icons.shopping_bag_rounded,
-                        color: pikkXBlack,
+                        Icons
+                            .shopping_bag_rounded,
+                        color:
+                            pikkXBlack,
                         size: 24,
                       );
                     },
@@ -212,11 +275,13 @@ class _MainPageState extends State<MainPage> {
             ),
           ),
 
-          const SizedBox(width: 12),
+          const SizedBox(
+            width: 12,
+          ),
 
-          // ------------------------------------------------------
+          // ======================================================
           // BRAND
-          // ------------------------------------------------------
+          // ======================================================
 
           const Expanded(
             child: Text(
@@ -224,31 +289,36 @@ class _MainPageState extends State<MainPage> {
               style: TextStyle(
                 color: pikkXBlack,
                 fontSize: 22,
-                fontWeight: FontWeight.w900,
+                fontWeight:
+                    FontWeight.w900,
                 letterSpacing: -0.8,
               ),
             ),
           ),
 
-          // ------------------------------------------------------
-          // DISPATCH / TRACKING
-          // ------------------------------------------------------
+          // ======================================================
+          // DISPATCH
+          // ======================================================
 
           _dispatchTrackingButton(),
 
-          const SizedBox(width: 9),
+          const SizedBox(
+            width: 9,
+          ),
 
-          // ------------------------------------------------------
-          // NOTIFICATION
-          // ------------------------------------------------------
+          // ======================================================
+          // NOTIFICATIONS
+          // ======================================================
 
           _notificationButton(),
 
-          const SizedBox(width: 9),
+          const SizedBox(
+            width: 9,
+          ),
 
-          // ------------------------------------------------------
+          // ======================================================
           // PROFILE
-          // ------------------------------------------------------
+          // ======================================================
 
           GestureDetector(
             onTap: () {
@@ -257,34 +327,62 @@ class _MainPageState extends State<MainPage> {
               });
             },
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(15),
+              borderRadius:
+                  BorderRadius.circular(
+                15,
+              ),
               child: BackdropFilter(
-                filter: ImageFilter.blur(
+                filter:
+                    ImageFilter.blur(
                   sigmaX: 12,
                   sigmaY: 12,
                 ),
                 child: Container(
                   height: 46,
                   width: 46,
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: pikkXWhite.withOpacity(0.70),
-                    borderRadius: BorderRadius.circular(15),
-                    border: Border.all(
-                      color: pikkXWhite.withOpacity(0.92),
-                      width: 1,
+                  padding:
+                      const EdgeInsets.all(
+                    2,
+                  ),
+                  decoration:
+                      BoxDecoration(
+                    color:
+                        pikkXWhite.withOpacity(
+                      0.70,
+                    ),
+                    borderRadius:
+                        BorderRadius.circular(
+                      15,
+                    ),
+                    border:
+                        Border.all(
+                      color:
+                          pikkXWhite.withOpacity(
+                        0.92,
+                      ),
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: pikkXBlack.withOpacity(0.045),
+                        color:
+                            pikkXBlack.withOpacity(
+                          0.045,
+                        ),
                         blurRadius: 14,
-                        offset: const Offset(0, 6),
+                        offset:
+                            const Offset(
+                          0,
+                          6,
+                        ),
                       ),
                     ],
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(13),
-                    child: _buildProfileImage(),
+                    borderRadius:
+                        BorderRadius.circular(
+                      13,
+                    ),
+                    child:
+                        _buildProfileImage(),
                   ),
                 ),
               ),
@@ -296,33 +394,37 @@ class _MainPageState extends State<MainPage> {
   }
 
   // ============================================================
-  // DISPATCH / TRACKING BUTTON
+  // DISPATCH TRACKING
   // ============================================================
 
   Widget _dispatchTrackingButton() {
     return _glassIcon(
       Icons.local_shipping_outlined,
-      onPressed: _openLatestOrderForTracking,
+      onPressed:
+          _openLatestOrderForTracking,
     );
   }
 
-  Future<void> _openLatestOrderForTracking() async {
+  Future<void>
+      _openLatestOrderForTracking() async {
     final user = currentUser;
 
     if (user == null) {
-      _showMessage('Please sign in first.');
+      _showMessage(
+        'Please sign in first.',
+      );
       return;
     }
 
     try {
-      final snapshot = await _firestore
-          .collection('orders')
-          .where(
-            'userId',
-            isEqualTo: user.uid,
-          )
-          .limit(10)
-          .get();
+      final snapshot =
+          await _firestore
+              .collection('orders')
+              .where(
+                'userId',
+                isEqualTo: user.uid,
+              )
+              .get();
 
       if (!mounted) return;
 
@@ -333,25 +435,50 @@ class _MainPageState extends State<MainPage> {
         return;
       }
 
-      // --------------------------------------------------------
-      // Find the newest order using createdAt when available.
-      // --------------------------------------------------------
+      final docs = [
+        ...snapshot.docs,
+      ];
 
-      final docs = [...snapshot.docs];
+      // ========================================================
+      // REMOVE FINISHED ORDERS
+      // ========================================================
+
+      docs.removeWhere((doc) {
+        final status = doc
+            .data()['status']
+            ?.toString()
+            .toLowerCase()
+            .trim();
+
+        return status == 'delivered' ||
+            status == 'completed' ||
+            status == 'cancelled';
+      });
+
+      if (docs.isEmpty) {
+        _showMessage(
+          'You do not have an active order to track.',
+        );
+        return;
+      }
+
+      // ========================================================
+      // NEWEST ACTIVE ORDER FIRST
+      // ========================================================
 
       docs.sort((a, b) {
-        final aData = a.data();
-        final bData = b.data();
-
-        final aTime = _timestampToDate(
-          aData['createdAt'],
+        final aTime =
+            _timestampToDate(
+          a.data()['createdAt'],
         );
 
-        final bTime = _timestampToDate(
-          bData['createdAt'],
+        final bTime =
+            _timestampToDate(
+          b.data()['createdAt'],
         );
 
-        if (aTime == null && bTime == null) {
+        if (aTime == null &&
+            bTime == null) {
           return 0;
         }
 
@@ -366,27 +493,34 @@ class _MainPageState extends State<MainPage> {
         return bTime.compareTo(aTime);
       });
 
-      final latestOrderId = docs.first.id;
+      final orderId =
+          docs.first.id;
+
+      // ========================================================
+      // OPEN THE EXISTING DISPATCH TRACKING SCREEN
+      // ========================================================
 
       Navigator.pushNamed(
         context,
-        '/order-details',
-        arguments: latestOrderId,
+        '/dispatch-tracking',
+        arguments: orderId,
       );
     } catch (e) {
       debugPrint(
-        'Open tracking error: $e',
+        'Open dispatch tracking error: $e',
       );
 
       if (!mounted) return;
 
       _showMessage(
-        'Could not find your latest order.',
+        'Could not find your active order.',
       );
     }
   }
 
-  DateTime? _timestampToDate(dynamic value) {
+  DateTime? _timestampToDate(
+    dynamic value,
+  ) {
     if (value is Timestamp) {
       return value.toDate();
     }
@@ -407,33 +541,46 @@ class _MainPageState extends State<MainPage> {
 
     if (user == null) {
       return _glassIcon(
-        Icons.notifications_none_rounded,
-        onPressed: _openNotifications,
+        Icons
+            .notifications_none_rounded,
+        onPressed:
+            _openNotifications,
       );
     }
 
     return StreamBuilder<
-        QuerySnapshot<Map<String, dynamic>>>(
+        QuerySnapshot<
+            Map<String, dynamic>>>(
       stream: _firestore
           .collection('users')
           .doc(user.uid)
           .collection('notifications')
           .snapshots(),
-      builder: (context, snapshot) {
+      builder:
+          (context, snapshot) {
         int unread = 0;
 
         if (snapshot.hasData) {
-          unread = snapshot.data!.docs.where((doc) {
-            return doc.data()['read'] != true;
-          }).length;
+          unread = snapshot
+              .data!
+              .docs
+              .where(
+                (doc) =>
+                    doc.data()['read'] !=
+                    true,
+              )
+              .length;
         }
 
         return Stack(
-          clipBehavior: Clip.none,
+          clipBehavior:
+              Clip.none,
           children: [
             _glassIcon(
-              Icons.notifications_none_rounded,
-              onPressed: _openNotifications,
+              Icons
+                  .notifications_none_rounded,
+              onPressed:
+                  _openNotifications,
             ),
 
             if (unread > 0)
@@ -441,24 +588,36 @@ class _MainPageState extends State<MainPage> {
                 right: -3,
                 top: -4,
                 child: Container(
-                  constraints: const BoxConstraints(
+                  constraints:
+                      const BoxConstraints(
                     minWidth: 17,
                   ),
                   height: 17,
-                  padding: const EdgeInsets.symmetric(
+                  padding:
+                      const EdgeInsets
+                          .symmetric(
                     horizontal: 4,
                   ),
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    color: pikkXBlack,
-                    shape: BoxShape.circle,
+                  alignment:
+                      Alignment.center,
+                  decoration:
+                      const BoxDecoration(
+                    color:
+                        pikkXBlack,
+                    shape:
+                        BoxShape.circle,
                   ),
                   child: Text(
-                    unread > 9 ? '9+' : '$unread',
-                    style: const TextStyle(
-                      color: pikkXWhite,
+                    unread > 9
+                        ? '9+'
+                        : '$unread',
+                    style:
+                        const TextStyle(
+                      color:
+                          pikkXWhite,
                       fontSize: 8,
-                      fontWeight: FontWeight.w900,
+                      fontWeight:
+                          FontWeight.w900,
                     ),
                   ),
                 ),
@@ -474,13 +633,16 @@ class _MainPageState extends State<MainPage> {
   // ============================================================
 
   Widget _buildProfileImage() {
-    final String? photoUrl = currentUser?.photoURL;
+    final photoUrl =
+        currentUser?.photoURL;
 
-    if (photoUrl != null && photoUrl.isNotEmpty) {
+    if (photoUrl != null &&
+        photoUrl.isNotEmpty) {
       return Image.network(
         photoUrl,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) {
+        errorBuilder:
+            (_, __, ___) {
           return _defaultProfileIcon();
         },
       );
@@ -493,7 +655,8 @@ class _MainPageState extends State<MainPage> {
     return Container(
       color: pikkXBackground,
       child: const Icon(
-        Icons.person_outline_rounded,
+        Icons
+            .person_outline_rounded,
         color: pikkXBlack,
         size: 25,
       ),
@@ -502,6 +665,9 @@ class _MainPageState extends State<MainPage> {
 
   // ============================================================
   // PAGE TITLE
+  //
+  // IMPORTANT:
+  // There is NO Home title here.
   // ============================================================
 
   Widget _title() {
@@ -534,19 +700,22 @@ class _MainPageState extends State<MainPage> {
         second = '';
     }
 
-    if (first.isEmpty && second.isEmpty) {
+    if (first.isEmpty &&
+        second.isEmpty) {
       return const SizedBox.shrink();
     }
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
+      padding:
+          const EdgeInsets.fromLTRB(
         20,
         5,
         20,
         12,
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+        crossAxisAlignment:
+            CrossAxisAlignment.end,
         children: [
           Column(
             crossAxisAlignment:
@@ -554,49 +723,53 @@ class _MainPageState extends State<MainPage> {
             children: [
               Text(
                 first,
-                style: const TextStyle(
-                  color: pikkXBlack,
+                style:
+                    const TextStyle(
+                  color:
+                      pikkXBlack,
                   fontSize: 25,
                   height: 1,
-                  fontWeight: FontWeight.w400,
+                  fontWeight:
+                      FontWeight.w400,
                 ),
               ),
               if (second.isNotEmpty) ...[
-                const SizedBox(height: 2),
+                const SizedBox(
+                  height: 2,
+                ),
                 Text(
                   second,
-                  style: const TextStyle(
-                    color: pikkXBlack,
+                  style:
+                      const TextStyle(
+                    color:
+                        pikkXBlack,
                     fontSize: 27,
                     height: 1,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.7,
+                    fontWeight:
+                        FontWeight.w900,
+                    letterSpacing:
+                        -0.7,
                   ),
                 ),
               ],
             ],
           ),
           const Spacer(),
-          if (_selectedIndex == 1)
-            _glassIcon(
-              Icons.delete_outline_rounded,
-              iconColor: pikkXBlack,
-              onPressed: _clearCart,
-            ),
         ],
       ),
     );
   }
 
   // ============================================================
-  // NOTIFICATIONS
+  // NOTIFICATIONS PAGE
   // ============================================================
 
   void _openNotifications() {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => const NotificationsPage(),
+        builder: (_) =>
+            const NotificationsPage(),
       ),
     );
   }
@@ -609,117 +782,176 @@ class _MainPageState extends State<MainPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _buildGlassMenu(),
+      backgroundColor:
+          Colors.transparent,
+      builder: (_) =>
+          _buildGlassMenu(),
     );
   }
 
   Widget _buildGlassMenu() {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding:
+            const EdgeInsets.all(12),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(30),
+          borderRadius:
+              BorderRadius.circular(30),
           child: BackdropFilter(
-            filter: ImageFilter.blur(
+            filter:
+                ImageFilter.blur(
               sigmaX: 22,
               sigmaY: 22,
             ),
             child: Container(
-              decoration: BoxDecoration(
-                color: pikkXWhite.withOpacity(0.88),
-                borderRadius: BorderRadius.circular(30),
+              decoration:
+                  BoxDecoration(
+                color:
+                    pikkXWhite.withOpacity(
+                  0.88,
+                ),
+                borderRadius:
+                    BorderRadius.circular(
+                  30,
+                ),
                 border: Border.all(
-                  color: pikkXWhite.withOpacity(0.95),
-                  width: 1,
+                  color:
+                      pikkXWhite.withOpacity(
+                    0.95,
+                  ),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: pikkXBlack.withOpacity(0.08),
+                    color:
+                        pikkXBlack.withOpacity(
+                      0.08,
+                    ),
                     blurRadius: 30,
-                    offset: const Offset(0, -5),
+                    offset:
+                        const Offset(
+                      0,
+                      -5,
+                    ),
                   ),
                 ],
               ),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(
+                padding:
+                    const EdgeInsets
+                        .fromLTRB(
                   20,
                   15,
                   20,
                   18,
                 ),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisSize:
+                      MainAxisSize.min,
                   children: [
                     Container(
                       width: 42,
                       height: 5,
-                      decoration: BoxDecoration(
-                        color: pikkXLightGrey,
+                      decoration:
+                          BoxDecoration(
+                        color:
+                            pikkXLightGrey,
                         borderRadius:
-                            BorderRadius.circular(10),
+                            BorderRadius
+                                .circular(
+                          10,
+                        ),
                       ),
                     ),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(
+                      height: 20,
+                    ),
 
                     Row(
                       children: [
                         ClipRRect(
                           borderRadius:
-                              BorderRadius.circular(13),
-                          child: Container(
+                              BorderRadius
+                                  .circular(
+                            13,
+                          ),
+                          child:
+                              Container(
                             width: 42,
                             height: 42,
                             padding:
-                                const EdgeInsets.all(6),
-                            color: pikkXBackground,
-                            child: Image.asset(
+                                const EdgeInsets
+                                    .all(
+                              6,
+                            ),
+                            color:
+                                pikkXBackground,
+                            child:
+                                Image.asset(
                               'assets/images/pikkx_icon (1).png',
-                              fit: BoxFit.contain,
+                              fit: BoxFit
+                                  .contain,
                               errorBuilder:
                                   (_, __, ___) {
                                 return const Icon(
                                   Icons
                                       .shopping_bag_rounded,
-                                  color: pikkXBlack,
+                                  color:
+                                      pikkXBlack,
                                 );
                               },
                             ),
                           ),
                         ),
 
-                        const SizedBox(width: 12),
+                        const SizedBox(
+                          width: 12,
+                        ),
 
                         const Text(
                           'pikkX Menu',
-                          style: TextStyle(
-                            color: pikkXBlack,
+                          style:
+                              TextStyle(
+                            color:
+                                pikkXBlack,
                             fontSize: 21,
-                            fontWeight: FontWeight.w900,
+                            fontWeight:
+                                FontWeight
+                                    .w900,
                           ),
                         ),
                       ],
                     ),
 
-                    const SizedBox(height: 15),
+                    const SizedBox(
+                      height: 15,
+                    ),
 
                     _menuItem(
-                      Icons.person_outline_rounded,
+                      Icons
+                          .person_outline_rounded,
                       'My Profile',
                       () {
-                        Navigator.pop(context);
+                        Navigator.pop(
+                          context,
+                        );
+
                         setState(() {
-                          _selectedIndex = 4;
+                          _selectedIndex =
+                              4;
                         });
                       },
                     ),
 
                     _menuItem(
-                      Icons.shopping_bag_outlined,
+                      Icons
+                          .shopping_bag_outlined,
                       'My Orders',
                       () {
-                        Navigator.pop(context);
+                        Navigator.pop(
+                          context,
+                        );
+
                         _pushPage(
                           const OrdersPage(),
                         );
@@ -727,19 +959,27 @@ class _MainPageState extends State<MainPage> {
                     ),
 
                     _menuItem(
-                      Icons.local_shipping_outlined,
+                      Icons
+                          .local_shipping_outlined,
                       'Track My Order',
                       () {
-                        Navigator.pop(context);
+                        Navigator.pop(
+                          context,
+                        );
+
                         _openLatestOrderForTracking();
                       },
                     ),
 
                     _menuItem(
-                      Icons.location_on_outlined,
+                      Icons
+                          .location_on_outlined,
                       'Delivery Addresses',
                       () {
-                        Navigator.pop(context);
+                        Navigator.pop(
+                          context,
+                        );
+
                         _pushPage(
                           const DeliveryAddressPage(),
                         );
@@ -747,30 +987,43 @@ class _MainPageState extends State<MainPage> {
                     ),
 
                     _menuItem(
-                      Icons.favorite_outline_rounded,
+                      Icons
+                          .favorite_outline_rounded,
                       'My Favourites',
                       () {
-                        Navigator.pop(context);
+                        Navigator.pop(
+                          context,
+                        );
+
                         setState(() {
-                          _selectedIndex = 3;
+                          _selectedIndex =
+                              3;
                         });
                       },
                     ),
 
                     _menuItem(
-                      Icons.notifications_none_rounded,
+                      Icons
+                          .notifications_none_rounded,
                       'Notifications',
                       () {
-                        Navigator.pop(context);
+                        Navigator.pop(
+                          context,
+                        );
+
                         _openNotifications();
                       },
                     ),
 
                     _menuItem(
-                      Icons.settings_outlined,
+                      Icons
+                          .settings_outlined,
                       'Settings',
                       () {
-                        Navigator.pop(context);
+                        Navigator.pop(
+                          context,
+                        );
+
                         _pushPage(
                           const SettingsPage(),
                         );
@@ -779,14 +1032,15 @@ class _MainPageState extends State<MainPage> {
 
                     const Divider(
                       height: 22,
-                      color: pikkXLightGrey,
+                      color:
+                          pikkXLightGrey,
                     ),
 
                     _menuItem(
-                      Icons.logout_rounded,
+                      Icons
+                          .logout_rounded,
                       'Log Out',
                       _logout,
-                      iconColor: pikkXBlack,
                     ),
                   ],
                 ),
@@ -805,16 +1059,18 @@ class _MainPageState extends State<MainPage> {
   Widget _menuItem(
     IconData icon,
     String title,
-    VoidCallback onTap, {
-    Color? iconColor,
-  }) {
+    VoidCallback onTap,
+  ) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius:
+            BorderRadius.circular(18),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
+          padding:
+              const EdgeInsets
+                  .symmetric(
             vertical: 8,
             horizontal: 5,
           ),
@@ -823,39 +1079,47 @@ class _MainPageState extends State<MainPage> {
               Container(
                 width: 43,
                 height: 43,
-                decoration: BoxDecoration(
-                  color: pikkXBackground,
+                decoration:
+                    BoxDecoration(
+                  color:
+                      pikkXBackground,
                   borderRadius:
-                      BorderRadius.circular(14),
-                  border: Border.all(
-                    color:
-                        pikkXBlack.withOpacity(0.05),
+                      BorderRadius.circular(
+                    14,
                   ),
                 ),
                 child: Icon(
                   icon,
-                  color: iconColor ?? pikkXBlack,
+                  color:
+                      pikkXBlack,
                   size: 21,
                 ),
               ),
 
-              const SizedBox(width: 13),
+              const SizedBox(
+                width: 13,
+              ),
 
               Expanded(
                 child: Text(
                   title,
-                  style: const TextStyle(
-                    color: pikkXBlack,
+                  style:
+                      const TextStyle(
+                    color:
+                        pikkXBlack,
                     fontSize: 14,
-                    fontWeight: FontWeight.w700,
+                    fontWeight:
+                        FontWeight.w700,
                   ),
                 ),
               ),
 
               const Icon(
-                Icons.arrow_forward_ios_rounded,
+                Icons
+                    .arrow_forward_ios_rounded,
                 size: 13,
-                color: pikkXGrey,
+                color:
+                    pikkXGrey,
               ),
             ],
           ),
@@ -868,7 +1132,9 @@ class _MainPageState extends State<MainPage> {
   // PUSH PAGE
   // ============================================================
 
-  void _pushPage(Widget page) {
+  void _pushPage(
+    Widget page,
+  ) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -878,124 +1144,30 @@ class _MainPageState extends State<MainPage> {
   }
 
   // ============================================================
-  // CLEAR FIREBASE CART
-  // ============================================================
-
-  Future<void> _clearCart() async {
-    final user = currentUser;
-
-    if (user == null) {
-      _showMessage('Please sign in first.');
-      return;
-    }
-
-    final bool? shouldClear =
-        await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: pikkXWhite,
-          shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(24),
-          ),
-          title: const Text(
-            'Clear cart?',
-            style: TextStyle(
-              color: pikkXBlack,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          content: const Text(
-            'This will remove all items from your cart.',
-            style: TextStyle(
-              color: pikkXGrey,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context, false);
-              },
-              child: const Text(
-                'Cancel',
-                style: TextStyle(
-                  color: pikkXBlack,
-                ),
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context, true);
-              },
-              child: const Text(
-                'Clear',
-                style: TextStyle(
-                  color: pikkXBlack,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (shouldClear != true) {
-      return;
-    }
-
-    try {
-      final snapshot = await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('cart')
-          .get();
-
-      final batch = _firestore.batch();
-
-      for (final document in snapshot.docs) {
-        batch.delete(document.reference);
-      }
-
-      await batch.commit();
-
-      if (!mounted) return;
-
-      _showMessage('Cart cleared.');
-    } catch (e) {
-      debugPrint(
-        'Clear cart error: $e',
-      );
-
-      if (!mounted) return;
-
-      _showMessage(
-        'Could not clear cart.',
-      );
-    }
-  }
-
-  // ============================================================
   // LOGOUT
   // ============================================================
 
   Future<void> _logout() async {
-    final bool? shouldLogout =
+    final shouldLogout =
         await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: pikkXWhite,
-          shape: RoundedRectangleBorder(
+          backgroundColor:
+              pikkXWhite,
+          shape:
+              RoundedRectangleBorder(
             borderRadius:
-                BorderRadius.circular(24),
+                BorderRadius.circular(
+              24,
+            ),
           ),
           title: const Text(
             'Log out?',
             style: TextStyle(
               color: pikkXBlack,
-              fontWeight: FontWeight.w900,
+              fontWeight:
+                  FontWeight.w900,
             ),
           ),
           content: const Text(
@@ -1007,24 +1179,33 @@ class _MainPageState extends State<MainPage> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context, false);
+                Navigator.pop(
+                  context,
+                  false,
+                );
               },
               child: const Text(
                 'Cancel',
                 style: TextStyle(
-                  color: pikkXBlack,
+                  color:
+                      pikkXBlack,
                 ),
               ),
             ),
             TextButton(
               onPressed: () {
-                Navigator.pop(context, true);
+                Navigator.pop(
+                  context,
+                  true,
+                );
               },
               child: const Text(
                 'Log Out',
                 style: TextStyle(
-                  color: pikkXBlack,
-                  fontWeight: FontWeight.w800,
+                  color:
+                      pikkXBlack,
+                  fontWeight:
+                      FontWeight.w800,
                 ),
               ),
             ),
@@ -1042,7 +1223,8 @@ class _MainPageState extends State<MainPage> {
 
       if (!mounted) return;
 
-      Navigator.of(context).pushNamedAndRemoveUntil(
+      Navigator.of(context)
+          .pushNamedAndRemoveUntil(
         '/login',
         (route) => false,
       );
@@ -1063,26 +1245,38 @@ class _MainPageState extends State<MainPage> {
   // MESSAGE
   // ============================================================
 
-  void _showMessage(String message) {
+  void _showMessage(
+    String message,
+  ) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: const TextStyle(
-            color: pikkXWhite,
-            fontWeight: FontWeight.w600,
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            message,
+            style:
+                const TextStyle(
+              color:
+                  pikkXWhite,
+              fontWeight:
+                  FontWeight.w600,
+            ),
+          ),
+          backgroundColor:
+              pikkXBlack,
+          behavior:
+              SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(
+              14,
+            ),
           ),
         ),
-        backgroundColor: pikkXBlack,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.circular(14),
-        ),
-      ),
-    );
+      );
   }
 
   // ============================================================
@@ -1090,56 +1284,63 @@ class _MainPageState extends State<MainPage> {
   // ============================================================
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Scaffold(
-      backgroundColor: pikkXBackground,
+      backgroundColor:
+          pikkXBackground,
       body: SafeArea(
         child: Stack(
           fit: StackFit.expand,
           children: [
+            // ====================================================
+            // MAIN CONTENT
+            // ====================================================
+
             Container(
-              color: pikkXBackground,
+              color:
+                  pikkXBackground,
               child: Column(
                 crossAxisAlignment:
                     CrossAxisAlignment.start,
                 children: [
-                  // ------------------------------------------------
-                  // HEADER
-                  // ------------------------------------------------
+                  // =================================================
+                  // ONLY NON-HOME PAGES GET THE MAINPAGE APP BAR
                   //
-                  // HomePage already has its own header.
-                  // Therefore the MainPage header is only shown
-                  // on non-home pages.
-                  //
+                  // HOME HAS ITS OWN HEADER.
+                  // =================================================
+
                   if (_selectedIndex != 0)
                     _appBar(),
 
-                  // ------------------------------------------------
-                  // PAGE TITLE
-                  // ------------------------------------------------
+                  // =================================================
+                  // ONLY NON-HOME PAGES GET A TITLE
                   //
-                  // IMPORTANT:
-                  // Home does NOT display "Our Products".
-                  // This removes the unwanted space above HomePage.
-                  //
+                  // THIS REMOVES "OUR PRODUCTS" AND ITS SPACE.
+                  // =================================================
+
                   if (_selectedIndex != 0)
                     _title(),
 
-                  // ------------------------------------------------
+                  // =================================================
                   // CURRENT PAGE
-                  // ------------------------------------------------
+                  // =================================================
 
                   Expanded(
-                    child: AnimatedSwitcher(
+                    child:
+                        AnimatedSwitcher(
                       duration:
                           const Duration(
-                        milliseconds: 260,
+                        milliseconds:
+                            220,
                       ),
                       switchInCurve:
                           Curves.easeOut,
                       switchOutCurve:
                           Curves.easeIn,
-                      child: KeyedSubtree(
+                      child:
+                          KeyedSubtree(
                         key: ValueKey(
                           _selectedIndex,
                         ),
@@ -1152,9 +1353,9 @@ class _MainPageState extends State<MainPage> {
               ),
             ),
 
-            // ------------------------------------------------------
-            // FLOATING GLASS NAVIGATION
-            // ------------------------------------------------------
+            // ====================================================
+            // FLOATING BOTTOM NAVIGATION
+            // ====================================================
 
             Positioned(
               bottom: 0,
@@ -1166,727 +1367,6 @@ class _MainPageState extends State<MainPage> {
                     _selectedIndex,
                 onIconPressedCallback:
                     _onBottomIconPressed,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ==================================================================
-// FAVOURITE PAGE
-// ==================================================================
-
-class FavouritePage extends StatelessWidget {
-  const FavouritePage({
-    super.key,
-  });
-
-  static const Color pikkXBlack =
-      Color(0xFF050505);
-  static const Color pikkXWhite =
-      Color(0xFFFFFFFF);
-  static const Color pikkXBackground =
-      Color(0xFFF7F7F7);
-  static const Color pikkXGrey =
-      Color(0xFF777777);
-
-  @override
-  Widget build(BuildContext context) {
-    final user =
-        FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      return const _SimpleEmptyState(
-        icon:
-            Icons.favorite_outline_rounded,
-        title:
-            'Sign in to view favourites',
-        subtitle:
-            'Your saved products will appear here.',
-      );
-    }
-
-    return StreamBuilder<
-        QuerySnapshot<
-            Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('favorites')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState ==
-            ConnectionState.waiting) {
-          return const Center(
-            child:
-                CircularProgressIndicator(
-              color: pikkXBlack,
-            ),
-          );
-        }
-
-        if (snapshot.hasError) {
-          return const _SimpleEmptyState(
-            icon:
-                Icons.error_outline_rounded,
-            title:
-                'Could not load favourites',
-            subtitle:
-                'Please try again.',
-          );
-        }
-
-        final docs =
-            snapshot.data?.docs ?? [];
-
-        if (docs.isEmpty) {
-          return const _SimpleEmptyState(
-            icon:
-                Icons.favorite_outline_rounded,
-            title:
-                'No favourites yet',
-            subtitle:
-                'Products you save will appear here.',
-          );
-        }
-
-        return ListView.builder(
-          padding:
-              const EdgeInsets.fromLTRB(
-            16,
-            5,
-            16,
-            90,
-          ),
-          itemCount: docs.length,
-          itemBuilder:
-              (context, index) {
-            final data =
-                docs[index].data();
-
-            final name =
-                data['name']?.toString() ??
-                    'Product';
-
-            final price =
-                data['price']?.toString() ??
-                    '0';
-
-            return Padding(
-              padding:
-                  const EdgeInsets.only(
-                bottom: 12,
-              ),
-              child: _GlassListTile(
-                icon:
-                    Icons.favorite_rounded,
-                title: name,
-                subtitle: price,
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
-// ==================================================================
-// PROFILE PAGE
-// ==================================================================
-
-class ProfilePage extends StatelessWidget {
-  const ProfilePage({
-    super.key,
-  });
-
-  static const Color pikkXBlack =
-      Color(0xFF050505);
-  static const Color pikkXWhite =
-      Color(0xFFFFFFFF);
-  static const Color pikkXBackground =
-      Color(0xFFF7F7F7);
-  static const Color pikkXGrey =
-      Color(0xFF777777);
-
-  @override
-  Widget build(BuildContext context) {
-    final user =
-        FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      return const _SimpleEmptyState(
-        icon:
-            Icons.person_outline_rounded,
-        title:
-            'You are not signed in',
-        subtitle:
-            'Sign in to view your profile.',
-      );
-    }
-
-    final name =
-        user.displayName?.trim();
-
-    final email =
-        user.email ?? '';
-
-    return ListView(
-      padding:
-          const EdgeInsets.fromLTRB(
-        16,
-        5,
-        16,
-        90,
-      ),
-      children: [
-        ClipRRect(
-          borderRadius:
-              BorderRadius.circular(28),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: 16,
-              sigmaY: 16,
-            ),
-            child: Container(
-              padding:
-                  const EdgeInsets.all(22),
-              decoration: BoxDecoration(
-                color:
-                    pikkXWhite.withOpacity(
-                  0.72,
-                ),
-                borderRadius:
-                    BorderRadius.circular(
-                  28,
-                ),
-                border: Border.all(
-                  color:
-                      pikkXWhite.withOpacity(
-                    0.92,
-                  ),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color:
-                        pikkXBlack.withOpacity(
-                      0.04,
-                    ),
-                    blurRadius: 20,
-                    offset:
-                        const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 42,
-                    backgroundColor:
-                        pikkXBackground,
-                    backgroundImage:
-                        user.photoURL !=
-                                    null &&
-                                user.photoURL!
-                                    .isNotEmpty
-                            ? NetworkImage(
-                                user.photoURL!,
-                              )
-                            : null,
-                    child:
-                        user.photoURL ==
-                                    null ||
-                                user.photoURL!
-                                    .isEmpty
-                            ? const Icon(
-                                Icons
-                                    .person_outline_rounded,
-                                size: 42,
-                                color:
-                                    pikkXBlack,
-                              )
-                            : null,
-                  ),
-
-                  const SizedBox(
-                    height: 14,
-                  ),
-
-                  Text(
-                    (name == null ||
-                            name.isEmpty)
-                        ? 'pikkX User'
-                        : name,
-                    style:
-                        const TextStyle(
-                      fontSize: 21,
-                      fontWeight:
-                          FontWeight.w900,
-                      color:
-                          pikkXBlack,
-                    ),
-                  ),
-
-                  if (email.isNotEmpty) ...[
-                    const SizedBox(
-                      height: 5,
-                    ),
-                    Text(
-                      email,
-                      style:
-                          const TextStyle(
-                        color:
-                            pikkXGrey,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ),
-
-        const SizedBox(
-          height: 18,
-        ),
-
-        _GlassListTile(
-          icon:
-              Icons.shopping_bag_outlined,
-          title:
-              'My Orders',
-          subtitle:
-              'View your orders',
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) =>
-                    const OrdersPage(),
-              ),
-            );
-          },
-        ),
-
-        const SizedBox(
-          height: 10,
-        ),
-
-        _GlassListTile(
-          icon:
-              Icons.local_shipping_outlined,
-          title:
-              'Track My Order',
-          subtitle:
-              'Track your latest order',
-          onTap: () async {
-            final user =
-                FirebaseAuth.instance
-                    .currentUser;
-
-            if (user == null) {
-              return;
-            }
-
-            try {
-              final snapshot =
-                  await FirebaseFirestore
-                      .instance
-                      .collection('orders')
-                      .where(
-                        'userId',
-                        isEqualTo:
-                            user.uid,
-                      )
-                      .limit(1)
-                      .get();
-
-              if (!context.mounted) {
-                return;
-              }
-
-              if (snapshot.docs.isEmpty) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'You do not have any orders yet.',
-                    ),
-                  ),
-                );
-                return;
-              }
-
-              Navigator.pushNamed(
-                context,
-                '/order-details',
-                arguments:
-                    snapshot.docs.first.id,
-              );
-            } catch (e) {
-              if (!context.mounted) {
-                return;
-              }
-
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Could not load your order.',
-                  ),
-                ),
-              );
-            }
-          },
-        ),
-
-        const SizedBox(
-          height: 10,
-        ),
-
-        _GlassListTile(
-          icon:
-              Icons.location_on_outlined,
-          title:
-              'Delivery Addresses',
-          subtitle:
-              'Manage your addresses',
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) =>
-                    const DeliveryAddressPage(),
-              ),
-            );
-          },
-        ),
-
-        const SizedBox(
-          height: 10,
-        ),
-
-        _GlassListTile(
-          icon:
-              Icons.favorite_outline_rounded,
-          title:
-              'My Favourites',
-          subtitle:
-              'View saved products',
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) =>
-                    const FavouritePage(),
-              ),
-            );
-          },
-        ),
-
-        const SizedBox(
-          height: 10,
-        ),
-
-        _GlassListTile(
-          icon:
-              Icons.settings_outlined,
-          title:
-              'Settings',
-          subtitle:
-              'Manage your account',
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) =>
-                    const SettingsPage(),
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-}
-
-// ==================================================================
-// GLASS LIST TILE
-// ==================================================================
-
-class _GlassListTile
-    extends StatelessWidget {
-  const _GlassListTile({
-    required this.icon,
-    required this.title,
-    this.subtitle,
-    this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String? subtitle;
-  final VoidCallback? onTap;
-
-  static const Color pikkXBlack =
-      Color(0xFF050505);
-  static const Color pikkXWhite =
-      Color(0xFFFFFFFF);
-  static const Color pikkXBackground =
-      Color(0xFFF7F7F7);
-  static const Color pikkXGrey =
-      Color(0xFF777777);
-
-  @override
-  Widget build(
-    BuildContext context,
-  ) {
-    return ClipRRect(
-      borderRadius:
-          BorderRadius.circular(22),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 14,
-          sigmaY: 14,
-        ),
-        child: Material(
-          color:
-              pikkXWhite.withOpacity(0.70),
-          child: InkWell(
-            onTap: onTap,
-            borderRadius:
-                BorderRadius.circular(22),
-            child: Container(
-              padding:
-                  const EdgeInsets.all(15),
-              decoration:
-                  BoxDecoration(
-                border: Border.all(
-                  color:
-                      pikkXWhite.withOpacity(
-                    0.90,
-                  ),
-                ),
-                borderRadius:
-                    BorderRadius.circular(
-                  22,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color:
-                        pikkXBlack.withOpacity(
-                      0.025,
-                    ),
-                    blurRadius: 14,
-                    offset:
-                        const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 45,
-                    height: 45,
-                    decoration:
-                        BoxDecoration(
-                      color:
-                          pikkXBackground,
-                      borderRadius:
-                          BorderRadius.circular(
-                        15,
-                      ),
-                    ),
-                    child: Icon(
-                      icon,
-                      color:
-                          pikkXBlack,
-                    ),
-                  ),
-
-                  const SizedBox(
-                    width: 13,
-                  ),
-
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment
-                              .start,
-                      children: [
-                        Text(
-                          title,
-                          style:
-                              const TextStyle(
-                            fontWeight:
-                                FontWeight
-                                    .w800,
-                            color:
-                                pikkXBlack,
-                          ),
-                        ),
-
-                        if (subtitle !=
-                            null) ...[
-                          const SizedBox(
-                            height: 3,
-                          ),
-                          Text(
-                            subtitle!,
-                            style:
-                                const TextStyle(
-                              fontSize: 12,
-                              color:
-                                  pikkXGrey,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-
-                  if (onTap != null)
-                    const Icon(
-                      Icons
-                          .arrow_forward_ios_rounded,
-                      size: 14,
-                      color:
-                          pikkXGrey,
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ==================================================================
-// EMPTY STATE
-// ==================================================================
-
-class _SimpleEmptyState
-    extends StatelessWidget {
-  const _SimpleEmptyState({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  static const Color pikkXBlack =
-      Color(0xFF050505);
-  static const Color pikkXWhite =
-      Color(0xFFFFFFFF);
-  static const Color pikkXBackground =
-      Color(0xFFF7F7F7);
-  static const Color pikkXGrey =
-      Color(0xFF777777);
-
-  @override
-  Widget build(
-    BuildContext context,
-  ) {
-    return Center(
-      child: Padding(
-        padding:
-            const EdgeInsets.all(30),
-        child: Column(
-          mainAxisSize:
-              MainAxisSize.min,
-          children: [
-            ClipRRect(
-              borderRadius:
-                  BorderRadius.circular(24),
-              child: BackdropFilter(
-                filter:
-                    ImageFilter.blur(
-                  sigmaX: 14,
-                  sigmaY: 14,
-                ),
-                child: Container(
-                  width: 78,
-                  height: 78,
-                  decoration:
-                      BoxDecoration(
-                    color:
-                        pikkXWhite.withOpacity(
-                      0.70,
-                    ),
-                    borderRadius:
-                        BorderRadius.circular(
-                      24,
-                    ),
-                    border: Border.all(
-                      color:
-                          pikkXWhite.withOpacity(
-                        0.92,
-                      ),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color:
-                            pikkXBlack.withOpacity(
-                          0.04,
-                        ),
-                        blurRadius: 18,
-                        offset:
-                            const Offset(0, 7),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    icon,
-                    size: 40,
-                    color:
-                        pikkXBlack,
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(
-              height: 16,
-            ),
-
-            Text(
-              title,
-              textAlign:
-                  TextAlign.center,
-              style:
-                  const TextStyle(
-                fontSize: 19,
-                fontWeight:
-                    FontWeight.w800,
-                color:
-                    pikkXBlack,
-              ),
-            ),
-
-            const SizedBox(
-              height: 7,
-            ),
-
-            Text(
-              subtitle,
-              textAlign:
-                  TextAlign.center,
-              style:
-                  const TextStyle(
-                color:
-                    pikkXGrey,
-                height: 1.4,
               ),
             ),
           ],
