@@ -1,5 +1,5 @@
-name: flutter_ecommerce_app
-description: A new Flutter project.
+name: pikkx
+description: PikkX - Your global marketplace.
 publish_to: "none"
 
 version: 1.0.0+1
@@ -56,4 +56,4 @@ flutter:
 
   assets:
     - assets/
-    - assets/images/pikkx_icon (1).png
+    - assets/images/
