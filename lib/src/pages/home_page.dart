@@ -136,54 +136,55 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   // ============================================================
-  // TWO REAL ASSET TEST PRODUCTS
+  // ONE REAL NIKE TEST PRODUCT
   //
-  // These use the actual assets already in the project.
+  // DEFAULT HOME IMAGE:
+  // assets/images/blue_nike.jpg
   //
-  // Jacket:
-  // assets/jacket.png
-  //
-  // Shoe:
-  // assets/shoe_thumb_1.png
-  //
-  // They are passed directly to the EXISTING
-  // ProductDetailPage.
+  // PRODUCT DETAIL HAS:
+  // blue_nike.jpg
+  // grey_nike.jpg
+  // purple_nike.jpg
   // ============================================================
 
   List<Map<String, dynamic>> _homeProducts() {
     return [
       {
-        'id': 'pikkx-jacket',
-        'name': 'Jacket',
+        'id': 'pikkx-nike',
+        'name': 'Nike',
         'category': 'Fashion',
         'price': 45000.0,
         'originalPrice': 55000.0,
         'currency': '₦',
-        'imageUrl': 'assets/jacket.png',
-        'image': 'assets/jacket.png',
+
+        // Default image shown on Home.
+        'imageUrl': 'assets/images/blue_nike.jpg',
+        'image': 'assets/images/blue_nike.jpg',
+
+        // Product Detail can use these.
+        'images': [
+          'assets/images/blue_nike.jpg',
+          'assets/images/grey_nike.jpg',
+          'assets/images/purple_nike.jpg',
+        ],
+
+        'colors': [
+          'Blue',
+          'Grey',
+          'Purple',
+        ],
+
         'rating': 4.8,
+        'reviews': 124,
         'deliveryTime': '25 min',
+
         'sellerId': 'pikkx_demo_seller',
         'sellerName': 'PikkX Fashion',
+
         'description':
-            'Jacket available on the PikkX marketplace.',
-        'isFeatured': true,
-      },
-      {
-        'id': 'pikkx-shoe',
-        'name': 'Shoe',
-        'category': 'Fashion',
-        'price': 38000.0,
-        'originalPrice': 45000.0,
-        'currency': '₦',
-        'imageUrl': 'assets/shoe_thumb_1.png',
-        'image': 'assets/shoe_thumb_1.png',
-        'rating': 4.7,
-        'deliveryTime': '25 min',
-        'sellerId': 'pikkx_demo_seller',
-        'sellerName': 'PikkX Footwear',
-        'description':
-            'Shoe available on the PikkX marketplace.',
+            'Nike footwear available on the PikkX marketplace. '
+            'Choose your preferred colour and size.',
+
         'isFeatured': true,
       },
     ];
@@ -1333,7 +1334,6 @@ class _MyHomePageState extends State<MyHomePage> {
                     height: 5,
                   ),
 
-                  // ⭐ 5 STAR RATING + NUMBER
                   _ratingStars(
                     rating,
                   ),
@@ -1672,8 +1672,6 @@ class _MyHomePageState extends State<MyHomePage> {
         return;
       }
 
-      // IMPORTANT:
-      // Opens the EXISTING dispatch tracking screen.
       Navigator.of(context).pushNamed(
         '/dispatch-tracking',
         arguments:
@@ -2141,18 +2139,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
   // ============================================================
   // BUILD
-  //
-  // IMPORTANT:
-  // There is NO "Our Products" title here.
-  // There is NO extra AppBar.
-  // There is NO extra Home shell spacing.
-  //
-  // Layout:
-  // PikkX Header
-  // Search
-  // Categories
-  // Promo Banner
-  // Products
   // ============================================================
 
   @override
@@ -2183,13 +2169,9 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             children: [
               _header(),
-
               _search(),
-
               _quickFilters(),
-
               _promoBanner(),
-
               _productWidget(),
             ],
           ),
