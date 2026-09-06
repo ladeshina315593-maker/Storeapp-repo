@@ -58,9 +58,7 @@ class _DispatchTrackingPageState
   // ============================================================
   // FIRESTORE ORDER STREAM
   //
-  // IMPORTANT:
-  // This page expects:
-  //
+  // Real order:
   // orders/{orderId}
   // ============================================================
 
@@ -105,6 +103,44 @@ class _DispatchTrackingPageState
     }
 
     return null;
+  }
+
+  // ============================================================
+  // IMPORTANT:
+  // Checkout uses orderStatus.
+  //
+  // Older documents may use status.
+  //
+  // This supports BOTH.
+  // ============================================================
+
+  String _getOrderStatus(
+    Map<String, dynamic> data,
+  ) {
+    final orderStatus =
+        data['orderStatus']?.toString().trim();
+
+    if (orderStatus != null &&
+        orderStatus.isNotEmpty) {
+      return orderStatus;
+    }
+
+    final status =
+        data['status']?.toString().trim();
+
+    if (status != null && status.isNotEmpty) {
+      return status;
+    }
+
+    final deliveryStatus =
+        data['deliveryStatus']?.toString().trim();
+
+    if (deliveryStatus != null &&
+        deliveryStatus.isNotEmpty) {
+      return deliveryStatus;
+    }
+
+    return 'pending';
   }
 
   String _formatStatus(String status) {
@@ -156,9 +192,87 @@ class _DispatchTrackingPageState
       case 'completed':
         return 3;
 
+      case 'cancelled':
+      case 'canceled':
+        return 0;
+
       default:
         return 0;
     }
+  }
+
+  // ============================================================
+  // DELIVERY ADDRESS
+  //
+  // Checkout saves deliveryAddress as a Map.
+  // This safely supports Map and String formats.
+  // ============================================================
+
+  String _formatDeliveryAddress(
+    dynamic value,
+  ) {
+    if (value == null) {
+      return 'Delivery address';
+    }
+
+    if (value is String) {
+      return value.isEmpty
+          ? 'Delivery address'
+          : value;
+    }
+
+    if (value is Map) {
+      final address =
+          Map<String, dynamic>.from(value);
+
+      final parts = <String>[];
+
+      final name = (
+        address['name'] ??
+        address['fullName']
+      )?.toString();
+
+      final street = (
+        address['address'] ??
+        address['street'] ??
+        address['addressLine']
+      )?.toString();
+
+      final city =
+          address['city']?.toString();
+
+      final state =
+          address['state']?.toString();
+
+      final country =
+          address['country']?.toString();
+
+      if (name != null && name.isNotEmpty) {
+        parts.add(name);
+      }
+
+      if (street != null && street.isNotEmpty) {
+        parts.add(street);
+      }
+
+      if (city != null && city.isNotEmpty) {
+        parts.add(city);
+      }
+
+      if (state != null && state.isNotEmpty) {
+        parts.add(state);
+      }
+
+      if (country != null && country.isNotEmpty) {
+        parts.add(country);
+      }
+
+      if (parts.isNotEmpty) {
+        return parts.join(', ');
+      }
+    }
+
+    return 'Delivery address';
   }
 
   // ============================================================
@@ -181,12 +295,11 @@ class _DispatchTrackingPageState
               Navigator.pop(context);
             },
           ),
-
           const SizedBox(width: 14),
-
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 const Text(
                   'Track Order',
@@ -210,7 +323,6 @@ class _DispatchTrackingPageState
               ],
             ),
           ),
-
           _glassIconButton(
             icon: Icons.my_location_rounded,
             onTap: () {
@@ -237,19 +349,24 @@ class _DispatchTrackingPageState
           color: Colors.transparent,
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(15),
+            borderRadius:
+                BorderRadius.circular(15),
             child: Container(
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: pikkXWhite.withOpacity(0.68),
-                borderRadius: BorderRadius.circular(15),
+                color:
+                    pikkXWhite.withOpacity(0.68),
+                borderRadius:
+                    BorderRadius.circular(15),
                 border: Border.all(
-                  color: pikkXWhite.withOpacity(0.90),
+                  color:
+                      pikkXWhite.withOpacity(0.90),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: pikkXBlack.withOpacity(0.055),
+                    color:
+                        pikkXBlack.withOpacity(0.055),
                     blurRadius: 16,
                     offset: const Offset(0, 6),
                   ),
@@ -274,16 +391,13 @@ class _DispatchTrackingPageState
   Widget _statusCard(
     Map<String, dynamic> data,
   ) {
-    final status = _stringValue(
-      data,
-      'status',
-      fallback: 'order_placed',
-    );
+    final status = _getOrderStatus(data);
 
     return _glass(
       padding: const EdgeInsets.all(20),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           Row(
             children: [
@@ -292,9 +406,7 @@ class _DispatchTrackingPageState
                 size: 48,
                 iconSize: 23,
               ),
-
               const SizedBox(width: 13),
-
               Expanded(
                 child: Column(
                   crossAxisAlignment:
@@ -320,15 +432,12 @@ class _DispatchTrackingPageState
                   ],
                 ),
               ),
-
               _blackPill(
                 text: 'LIVE',
               ),
             ],
           ),
-
           const SizedBox(height: 20),
-
           _deliveryProgress(status),
         ],
       ),
@@ -367,16 +476,21 @@ class _DispatchTrackingPageState
       children: List.generate(
         steps.length,
         (index) {
-          final completed = index <= current;
-          final last = index == steps.length - 1;
+          final completed =
+              index <= current;
+
+          final last =
+              index == steps.length - 1;
 
           return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               Column(
                 children: [
                   AnimatedContainer(
-                    duration: const Duration(
+                    duration:
+                        const Duration(
                       milliseconds: 250,
                     ),
                     width: 34,
@@ -397,7 +511,6 @@ class _DispatchTrackingPageState
                       size: 17,
                     ),
                   ),
-
                   if (!last)
                     Container(
                       width: 2,
@@ -408,13 +521,10 @@ class _DispatchTrackingPageState
                     ),
                 ],
               ),
-
               const SizedBox(width: 12),
-
               Padding(
-                padding: const EdgeInsets.only(
-                  top: 7,
-                ),
+                padding:
+                    const EdgeInsets.only(top: 7),
                 child: Text(
                   steps[index].$1,
                   style: TextStyle(
@@ -462,16 +572,14 @@ class _DispatchTrackingPageState
           )
         : _defaultLocation;
 
-    // IMPORTANT:
-    // Do not call setState directly while the widget
-    // is building. Schedule marker updates after build.
     if (hasLocation) {
       final riderLocation = LatLng(
         latitude!,
         longitude!,
       );
 
-      WidgetsBinding.instance.addPostFrameCallback(
+      WidgetsBinding.instance
+          .addPostFrameCallback(
         (_) {
           if (mounted) {
             _updateRiderMarker(
@@ -487,7 +595,8 @@ class _DispatchTrackingPageState
       child: Column(
         children: [
           ClipRRect(
-            borderRadius: const BorderRadius.vertical(
+            borderRadius:
+                const BorderRadius.vertical(
               top: Radius.circular(24),
             ),
             child: SizedBox(
@@ -499,18 +608,21 @@ class _DispatchTrackingPageState
                     initialCameraPosition:
                         CameraPosition(
                       target: initialPosition,
-                      zoom: hasLocation ? 15 : 11,
+                      zoom:
+                          hasLocation ? 15 : 11,
                     ),
-                    myLocationButtonEnabled: false,
+                    myLocationButtonEnabled:
+                        false,
                     zoomControlsEnabled: false,
                     mapToolbarEnabled: false,
                     compassEnabled: false,
                     buildingsEnabled: true,
                     markers: _markers,
-
                     onMapCreated:
-                        (GoogleMapController controller) {
-                      _mapController = controller;
+                        (GoogleMapController
+                            controller) {
+                      _mapController =
+                          controller;
 
                       if (hasLocation) {
                         _moveCamera(
@@ -520,10 +632,6 @@ class _DispatchTrackingPageState
                     },
                   ),
 
-                  // ==================================================
-                  // TRACKING PILL
-                  // ==================================================
-
                   Positioned(
                     top: 14,
                     left: 14,
@@ -531,24 +639,29 @@ class _DispatchTrackingPageState
                       borderRadius:
                           BorderRadius.circular(12),
                       child: BackdropFilter(
-                        filter: ImageFilter.blur(
+                        filter:
+                            ImageFilter.blur(
                           sigmaX: 10,
                           sigmaY: 10,
                         ),
                         child: Container(
                           padding:
-                              const EdgeInsets.symmetric(
+                              const EdgeInsets
+                                  .symmetric(
                             horizontal: 10,
                             vertical: 7,
                           ),
-                          decoration: BoxDecoration(
+                          decoration:
+                              BoxDecoration(
                             color: pikkXWhite
                                 .withOpacity(0.88),
                             borderRadius:
-                                BorderRadius.circular(12),
+                                BorderRadius.circular(
+                                    12),
                             border: Border.all(
                               color: pikkXWhite
-                                  .withOpacity(0.95),
+                                  .withOpacity(
+                                      0.95),
                             ),
                           ),
                           child: Row(
@@ -560,20 +673,22 @@ class _DispatchTrackingPageState
                                 height: 7,
                                 decoration:
                                     const BoxDecoration(
-                                  color: pikkXBlack,
-                                  shape: BoxShape.circle,
+                                  color:
+                                      pikkXBlack,
+                                  shape:
+                                      BoxShape.circle,
                                 ),
                               ),
-
-                              const SizedBox(width: 6),
-
+                              const SizedBox(
+                                  width: 6),
                               Text(
                                 hasLocation
                                     ? 'Tracking active'
                                     : 'Waiting for rider',
                                 style:
                                     const TextStyle(
-                                  color: pikkXBlack,
+                                  color:
+                                      pikkXBlack,
                                   fontSize: 10,
                                   fontWeight:
                                       FontWeight.w700,
@@ -586,10 +701,6 @@ class _DispatchTrackingPageState
                     ),
                   ),
 
-                  // ==================================================
-                  // MAP LOCATION BUTTON
-                  // ==================================================
-
                   Positioned(
                     right: 14,
                     bottom: 14,
@@ -600,10 +711,6 @@ class _DispatchTrackingPageState
             ),
           ),
 
-          // ========================================================
-          // LOCATION INFORMATION
-          // ========================================================
-
           Padding(
             padding: const EdgeInsets.all(17),
             child: Row(
@@ -611,9 +718,7 @@ class _DispatchTrackingPageState
                 _smallBlackIcon(
                   Icons.location_on_outlined,
                 ),
-
                 const SizedBox(width: 9),
-
                 Expanded(
                   child: Column(
                     crossAxisAlignment:
@@ -624,19 +729,19 @@ class _DispatchTrackingPageState
                         style: TextStyle(
                           color: pikkXBlack,
                           fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                          fontWeight:
+                              FontWeight.w700,
                         ),
                       ),
-
                       const SizedBox(height: 3),
-
                       Text(
                         hasLocation
                             ? '${latitude!.toStringAsFixed(5)}, '
                                 '${longitude!.toStringAsFixed(5)}'
                             : 'Location will appear when '
                                 'dispatch tracking starts.',
-                        style: const TextStyle(
+                        style:
+                            const TextStyle(
                           color: muted,
                           fontSize: 10,
                           height: 1.4,
@@ -659,7 +764,8 @@ class _DispatchTrackingPageState
 
   Widget _mapGlassButton() {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius:
+          BorderRadius.circular(14),
       child: BackdropFilter(
         filter: ImageFilter.blur(
           sigmaX: 12,
@@ -675,15 +781,18 @@ class _DispatchTrackingPageState
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: pikkXWhite.withOpacity(0.90),
+                color:
+                    pikkXWhite.withOpacity(0.90),
                 borderRadius:
                     BorderRadius.circular(14),
                 border: Border.all(
-                  color: pikkXWhite.withOpacity(0.95),
+                  color:
+                      pikkXWhite.withOpacity(0.95),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: pikkXBlack.withOpacity(0.08),
+                    color:
+                        pikkXBlack.withOpacity(0.08),
                     blurRadius: 15,
                   ),
                 ],
@@ -715,18 +824,16 @@ class _DispatchTrackingPageState
     _lastRiderLocation = location;
 
     final marker = Marker(
-      markerId: const MarkerId(
-        'dispatch_rider',
-      ),
+      markerId:
+          const MarkerId('dispatch_rider'),
       position: location,
       infoWindow: const InfoWindow(
         title: 'Dispatch rider',
-        snippet: 'Your order is on the way',
+        snippet:
+            'Your order is on the way',
       ),
-
-      // Neutral default marker.
-      // No blue/navy/purple PikkX accent.
-      icon: BitmapDescriptor.defaultMarker,
+      icon:
+          BitmapDescriptor.defaultMarker,
     );
 
     if (!mounted) {
@@ -737,9 +844,7 @@ class _DispatchTrackingPageState
       _markers = {marker};
     });
 
-    _moveCamera(
-      location,
-    );
+    _moveCamera(location);
   }
 
   // ============================================================
@@ -747,7 +852,8 @@ class _DispatchTrackingPageState
   // ============================================================
 
   Future<void> _moveToRider() async {
-    final location = _lastRiderLocation;
+    final location =
+        _lastRiderLocation;
 
     if (location == null) {
       return;
@@ -759,7 +865,8 @@ class _DispatchTrackingPageState
   Future<void> _moveCamera(
     LatLng location,
   ) async {
-    final controller = _mapController;
+    final controller =
+        _mapController;
 
     if (controller == null) {
       return;
@@ -774,9 +881,7 @@ class _DispatchTrackingPageState
           ),
         ),
       );
-    } catch (_) {
-      // Map controller may not be ready yet.
-    }
+    } catch (_) {}
   }
 
   // ============================================================
@@ -806,9 +911,7 @@ class _DispatchTrackingPageState
             size: 52,
             iconSize: 26,
           ),
-
           const SizedBox(width: 13),
-
           Expanded(
             child: Column(
               crossAxisAlignment:
@@ -821,9 +924,7 @@ class _DispatchTrackingPageState
                     fontSize: 10,
                   ),
                 ),
-
                 const SizedBox(height: 3),
-
                 Text(
                   riderName,
                   style: const TextStyle(
@@ -832,7 +933,6 @@ class _DispatchTrackingPageState
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-
                 if (riderPhone.isNotEmpty) ...[
                   const SizedBox(height: 3),
                   Text(
@@ -846,13 +946,12 @@ class _DispatchTrackingPageState
               ],
             ),
           ),
-
           _circleAction(
             icon: Icons.phone_outlined,
             onTap: riderPhone.isEmpty
                 ? null
                 : () {
-                    // Phone calling can be connected later.
+                    // Connect phone calling later.
                   },
           ),
         ],
@@ -876,10 +975,12 @@ class _DispatchTrackingPageState
           decoration: BoxDecoration(
             color: onTap == null
                 ? lightGrey
-                : pikkXBlack.withOpacity(0.06),
+                : pikkXBlack
+                    .withOpacity(0.06),
             shape: BoxShape.circle,
             border: Border.all(
-              color: pikkXBlack.withOpacity(0.06),
+              color:
+                  pikkXBlack.withOpacity(0.06),
             ),
           ),
           child: Icon(
@@ -908,7 +1009,8 @@ class _DispatchTrackingPageState
     );
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(23),
+      borderRadius:
+          BorderRadius.circular(23),
       child: BackdropFilter(
         filter: ImageFilter.blur(
           sigmaX: 15,
@@ -917,15 +1019,18 @@ class _DispatchTrackingPageState
         child: Container(
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: pikkXBlack.withOpacity(0.94),
+            color:
+                pikkXBlack.withOpacity(0.94),
             borderRadius:
                 BorderRadius.circular(23),
             border: Border.all(
-              color: pikkXWhite.withOpacity(0.10),
+              color:
+                  pikkXWhite.withOpacity(0.10),
             ),
             boxShadow: [
               BoxShadow(
-                color: pikkXBlack.withOpacity(0.14),
+                color:
+                    pikkXBlack.withOpacity(0.14),
                 blurRadius: 22,
                 offset: const Offset(0, 9),
               ),
@@ -937,7 +1042,8 @@ class _DispatchTrackingPageState
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: pikkXWhite.withOpacity(0.10),
+                  color: pikkXWhite
+                      .withOpacity(0.10),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -946,9 +1052,7 @@ class _DispatchTrackingPageState
                   size: 21,
                 ),
               ),
-
               const SizedBox(width: 13),
-
               Expanded(
                 child: Column(
                   crossAxisAlignment:
@@ -957,26 +1061,27 @@ class _DispatchTrackingPageState
                     const Text(
                       'Estimated arrival',
                       style: TextStyle(
-                        color: Color(0xFFBDBDBD),
+                        color:
+                            Color(0xFFBDBDBD),
                         fontSize: 10,
-                        fontWeight: FontWeight.w500,
+                        fontWeight:
+                            FontWeight.w500,
                       ),
                     ),
-
                     const SizedBox(height: 3),
-
                     Text(
                       eta,
-                      style: const TextStyle(
+                      style:
+                          const TextStyle(
                         color: pikkXWhite,
                         fontSize: 17,
-                        fontWeight: FontWeight.w800,
+                        fontWeight:
+                            FontWeight.w800,
                       ),
                     ),
                   ],
                 ),
               ),
-
               const Icon(
                 Icons.arrow_forward_ios_rounded,
                 color: Color(0xFFBDBDBD),
@@ -996,16 +1101,16 @@ class _DispatchTrackingPageState
   Widget _orderInfo(
     Map<String, dynamic> data,
   ) {
-    final total = _stringValue(
+    final total =
+        _stringValue(
       data,
       'total',
       fallback: '--',
     );
 
-    final address = _stringValue(
-      data,
-      'deliveryAddress',
-      fallback: 'Delivery address',
+    final address =
+        _formatDeliveryAddress(
+      data['deliveryAddress'],
     );
 
     return _glass(
@@ -1022,25 +1127,19 @@ class _DispatchTrackingPageState
               fontWeight: FontWeight.w800,
             ),
           ),
-
           const SizedBox(height: 15),
-
           _infoRow(
             Icons.receipt_long_outlined,
             'Order ID',
             widget.orderId,
           ),
-
           const SizedBox(height: 12),
-
           _infoRow(
             Icons.payments_outlined,
             'Total',
             total,
           ),
-
           const SizedBox(height: 12),
-
           _infoRow(
             Icons.location_on_outlined,
             'Delivery address',
@@ -1061,9 +1160,7 @@ class _DispatchTrackingPageState
           CrossAxisAlignment.start,
       children: [
         _smallBlackIcon(icon),
-
         const SizedBox(width: 10),
-
         Expanded(
           child: Column(
             crossAxisAlignment:
@@ -1076,9 +1173,7 @@ class _DispatchTrackingPageState
                   fontSize: 9,
                 ),
               ),
-
               const SizedBox(height: 3),
-
               Text(
                 value,
                 style: const TextStyle(
@@ -1129,10 +1224,12 @@ class _DispatchTrackingPageState
       width: 30,
       height: 30,
       decoration: BoxDecoration(
-        color: pikkXBlack.withOpacity(0.06),
+        color:
+            pikkXBlack.withOpacity(0.06),
         shape: BoxShape.circle,
         border: Border.all(
-          color: pikkXBlack.withOpacity(0.06),
+          color:
+              pikkXBlack.withOpacity(0.06),
         ),
       ),
       child: Icon(
@@ -1151,7 +1248,8 @@ class _DispatchTrackingPageState
     required String text,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         horizontal: 10,
         vertical: 7,
       ),
@@ -1192,16 +1290,19 @@ class _DispatchTrackingPageState
         child: Container(
           padding: padding,
           decoration: BoxDecoration(
-            color: pikkXWhite.withOpacity(0.70),
+            color:
+                pikkXWhite.withOpacity(0.70),
             borderRadius:
                 BorderRadius.circular(24),
             border: Border.all(
-              color: pikkXWhite.withOpacity(0.90),
+              color:
+                  pikkXWhite.withOpacity(0.90),
               width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: pikkXBlack.withOpacity(0.055),
+                color:
+                    pikkXBlack.withOpacity(0.055),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
               ),
@@ -1222,41 +1323,39 @@ class _DispatchTrackingPageState
   ) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(25),
+        padding:
+            const EdgeInsets.all(25),
         child: _glass(
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize:
+                MainAxisSize.min,
             children: [
               _blackCircleIcon(
                 Icons.error_outline_rounded,
                 size: 58,
                 iconSize: 30,
               ),
-
               const SizedBox(height: 13),
-
               const Text(
                 'Unable to load tracking',
                 style: TextStyle(
                   color: pikkXBlack,
                   fontSize: 16,
-                  fontWeight: FontWeight.w800,
+                  fontWeight:
+                      FontWeight.w800,
                 ),
               ),
-
               const SizedBox(height: 6),
-
               Text(
                 message,
-                textAlign: TextAlign.center,
+                textAlign:
+                    TextAlign.center,
                 style: const TextStyle(
                   color: muted,
                   fontSize: 11,
                 ),
               ),
-
               const SizedBox(height: 15),
-
               TextButton(
                 onPressed: () {
                   setState(() {});
@@ -1265,7 +1364,8 @@ class _DispatchTrackingPageState
                   'Try again',
                   style: TextStyle(
                     color: pikkXBlack,
-                    fontWeight: FontWeight.w800,
+                    fontWeight:
+                        FontWeight.w800,
                   ),
                 ),
               ),
@@ -1283,43 +1383,42 @@ class _DispatchTrackingPageState
   Widget _notFound() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(25),
+        padding:
+            const EdgeInsets.all(25),
         child: _glass(
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize:
+                MainAxisSize.min,
             children: [
               _blackCircleIcon(
                 Icons.inventory_2_outlined,
                 size: 58,
                 iconSize: 30,
               ),
-
               const SizedBox(height: 13),
-
               const Text(
                 'Order not found',
                 style: TextStyle(
                   color: pikkXBlack,
                   fontSize: 17,
-                  fontWeight: FontWeight.w800,
+                  fontWeight:
+                      FontWeight.w800,
                 ),
               ),
-
               const SizedBox(height: 6),
-
               Text(
-                'We could not find order #${widget.orderId} '
+                'We could not find order '
+                '#${widget.orderId} '
                 'in your account.',
-                textAlign: TextAlign.center,
+                textAlign:
+                    TextAlign.center,
                 style: const TextStyle(
                   color: muted,
                   fontSize: 11,
                   height: 1.4,
                 ),
               ),
-
               const SizedBox(height: 14),
-
               TextButton(
                 onPressed: () {
                   Navigator.pop(context);
@@ -1328,7 +1427,8 @@ class _DispatchTrackingPageState
                   'Go back',
                   style: TextStyle(
                     color: pikkXBlack,
-                    fontWeight: FontWeight.w800,
+                    fontWeight:
+                        FontWeight.w800,
                   ),
                 ),
               ),
@@ -1347,17 +1447,14 @@ class _DispatchTrackingPageState
   Widget build(
     BuildContext context,
   ) {
-    final currentUser = _auth.currentUser;
+    final currentUser =
+        _auth.currentUser;
 
     return Scaffold(
       backgroundColor: background,
       body: SafeArea(
         child: Stack(
           children: [
-            // ==================================================
-            // SOFT BACKGROUND GLASS LIGHT
-            // ==================================================
-
             Positioned(
               top: -80,
               right: -90,
@@ -1366,7 +1463,6 @@ class _DispatchTrackingPageState
                 opacity: 0.025,
               ),
             ),
-
             Positioned(
               bottom: -100,
               left: -100,
@@ -1375,10 +1471,6 @@ class _DispatchTrackingPageState
                 opacity: 0.02,
               ),
             ),
-
-            // ==================================================
-            // CONTENT
-            // ==================================================
 
             Column(
               children: [
@@ -1393,7 +1485,8 @@ class _DispatchTrackingPageState
                       context,
                       snapshot,
                     ) {
-                      if (snapshot.connectionState ==
+                      if (snapshot
+                              .connectionState ==
                           ConnectionState.waiting) {
                         return const Center(
                           child: SizedBox(
@@ -1402,7 +1495,8 @@ class _DispatchTrackingPageState
                             child:
                                 CircularProgressIndicator(
                               strokeWidth: 2.5,
-                              color: pikkXBlack,
+                              color:
+                                  pikkXBlack,
                             ),
                           ),
                         );
@@ -1410,7 +1504,8 @@ class _DispatchTrackingPageState
 
                       if (snapshot.hasError) {
                         return _errorState(
-                          snapshot.error.toString(),
+                          snapshot.error
+                              .toString(),
                         );
                       }
 
@@ -1424,10 +1519,7 @@ class _DispatchTrackingPageState
                               <String, dynamic>{};
 
                       // ==================================================
-                      // SECURITY:
-                      // Make sure the order belongs to the
-                      // currently signed-in user when userId
-                      // exists on the order.
+                      // SECURITY CHECK
                       // ==================================================
 
                       final orderUserId =
@@ -1445,14 +1537,14 @@ class _DispatchTrackingPageState
 
                       return RefreshIndicator(
                         color: pikkXBlack,
-                        backgroundColor: pikkXWhite,
+                        backgroundColor:
+                            pikkXWhite,
                         onRefresh: () async {
                           setState(() {});
                         },
                         child: ListView(
                           physics:
                               const BouncingScrollPhysics(),
-
                           padding:
                               const EdgeInsets.fromLTRB(
                             20,
@@ -1460,7 +1552,6 @@ class _DispatchTrackingPageState
                             20,
                             35,
                           ),
-
                           children: [
                             _statusCard(data),
 
@@ -1514,10 +1605,12 @@ class _DispatchTrackingPageState
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: pikkXBlack.withOpacity(opacity),
+        color:
+            pikkXBlack.withOpacity(opacity),
         boxShadow: [
           BoxShadow(
-            color: pikkXBlack.withOpacity(opacity),
+            color:
+                pikkXBlack.withOpacity(opacity),
             blurRadius: 70,
             spreadRadius: 20,
           ),
