@@ -13,12 +13,11 @@ class CheckoutPage extends StatefulWidget {
 
 class _CheckoutPageState extends State<CheckoutPage> {
   // ============================================================
-  // pikkX COLORS
+  // PIKKX COLORS
   // ============================================================
 
   static const Color pikkXBlack = Color(0xFF050505);
   static const Color pikkXWhite = Color(0xFFFFFFFF);
-  static const Color pikkXNavy = Color(0xFF10233F);
 
   static const Color lightBackground = Color(0xFFF7F7F7);
   static const Color darkText = Color(0xFF111111);
@@ -30,6 +29,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   // ============================================================
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
+
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
 
@@ -104,8 +104,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
   // ============================================================
   // LOAD CART
-  //
-  // users/{userId}/cart/{productId}
   // ============================================================
 
   Future<void> _loadCart() async {
@@ -113,8 +111,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
     final snapshot = await cartRef.get();
 
-    final loadedItems =
-        snapshot.docs.map((doc) {
+    final loadedItems = snapshot.docs.map((doc) {
       final data = doc.data();
 
       return <String, dynamic>{
@@ -125,6 +122,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
         'quantity': _toInt(data['quantity']),
         'imageUrl': data['imageUrl'] ?? '',
         'sellerId': data['sellerId'] ?? '',
+        'sellerName': data['sellerName'] ?? '',
+        'category': data['category'] ?? '',
+        'description': data['description'] ?? '',
+        'size': data['size'] ?? '',
+        'selectedColor': data['selectedColor'] ?? '',
+        'colorIndex': data['colorIndex'],
       };
     }).toList();
 
@@ -133,8 +136,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
   // ============================================================
   // LOAD ADDRESS
-  //
-  // users/{userId}/addresses/{addressId}
   // ============================================================
 
   Future<void> _loadDefaultAddress() async {
@@ -163,7 +164,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
       return;
     }
 
-    // No default address — use the first saved address.
     final firstSnapshot =
         await addressCollection.limit(1).get();
 
@@ -214,8 +214,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
     final productId =
         item['productId'].toString();
 
+    final oldQuantity =
+        _toInt(item['quantity']);
+
     final newQuantity =
-        _toInt(item['quantity']) + 1;
+        oldQuantity + 1;
 
     setState(() {
       item['quantity'] = newQuantity;
@@ -227,11 +230,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      debugPrint('Increase quantity error: $e');
+      debugPrint(
+        'Increase quantity error: $e',
+      );
 
       if (mounted) {
         setState(() {
-          item['quantity'] = newQuantity - 1;
+          item['quantity'] = oldQuantity;
         });
 
         _showMessage(
@@ -267,7 +272,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      debugPrint('Decrease quantity error: $e');
+      debugPrint(
+        'Decrease quantity error: $e',
+      );
 
       if (mounted) {
         setState(() {
@@ -311,13 +318,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
   // ============================================================
   // PLACE ORDER
   //
+  // REAL ORDER ID IS CREATED HERE.
+  //
   // orders/{orderId}
-  //
-  // Also:
   // users/{userId}/orders/{orderId}
-  //
-  // This gives the main order system and the user's
-  // personal order history access to the same order.
   // ============================================================
 
   Future<void> _placeOrder() async {
@@ -329,7 +333,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
     }
 
     if (cartItems.isEmpty) {
-      _showMessage('Your cart is empty.');
+      _showMessage(
+        'Your cart is empty.',
+      );
       return;
     }
 
@@ -347,57 +353,106 @@ class _CheckoutPageState extends State<CheckoutPage> {
     });
 
     try {
+      // --------------------------------------------------------
+      // CREATE REAL UNIQUE ORDER ID
+      // --------------------------------------------------------
+
       final orderReference =
           _firestore.collection('orders').doc();
+
+      final orderId =
+          orderReference.id;
 
       final userOrderReference = _firestore
           .collection('users')
           .doc(userId)
           .collection('orders')
-          .doc(orderReference.id);
+          .doc(orderId);
+
+      // --------------------------------------------------------
+      // ORDER ITEMS
+      // --------------------------------------------------------
 
       final orderItems =
           cartItems.map((item) {
         return <String, dynamic>{
           'productId':
               item['productId'],
+
           'name':
               item['name'],
+
           'price':
               _toDouble(item['price']),
+
           'quantity':
               _toInt(item['quantity']),
+
           'imageUrl':
               item['imageUrl'] ?? '',
+
           'sellerId':
               item['sellerId'] ?? '',
+
+          'sellerName':
+              item['sellerName'] ?? '',
+
+          'category':
+              item['category'] ?? '',
+
+          'description':
+              item['description'] ?? '',
+
+          'size':
+              item['size'] ?? '',
+
+          'selectedColor':
+              item['selectedColor'] ?? '',
+
+          'colorIndex':
+              item['colorIndex'],
         };
       }).toList();
+
+      // --------------------------------------------------------
+      // DELIVERY ADDRESS
+      // --------------------------------------------------------
 
       final deliveryAddress =
           <String, dynamic>{
         'fullName':
             selectedAddress?['fullName'] ?? '',
+
         'phone':
             selectedAddress?['phone'] ?? '',
+
         'addressLine':
             selectedAddress?['addressLine'] ?? '',
+
         'city':
             selectedAddress?['city'] ?? '',
+
         'state':
             selectedAddress?['state'] ?? '',
+
         'country':
             selectedAddress?['country'] ?? '',
+
         'latitude':
             selectedAddress?['latitude'],
+
         'longitude':
             selectedAddress?['longitude'],
       };
 
+      // --------------------------------------------------------
+      // ORDER DATA
+      // --------------------------------------------------------
+
       final orderData =
           <String, dynamic>{
         'orderId':
-            orderReference.id,
+            orderId,
 
         'userId':
             userId,
@@ -446,7 +501,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
       // ATOMIC FIRESTORE WRITE
       // --------------------------------------------------------
 
-      final batch = _firestore.batch();
+      final batch =
+          _firestore.batch();
 
       // Main order.
       batch.set(
@@ -454,13 +510,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
         orderData,
       );
 
-      // User's order history.
+      // User order history.
       batch.set(
         userOrderReference,
         orderData,
       );
 
-      // Remove purchased cart products.
+      // Remove purchased products from cart.
       for (final item in cartItems) {
         final productId =
             item['productId'].toString();
@@ -478,9 +534,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
         cartItems.clear();
       });
 
-      _showOrderSuccess(
-        orderReference.id,
-      );
+      _showOrderSuccess(orderId);
     } catch (e) {
       debugPrint(
         'Place order error: $e',
@@ -501,7 +555,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   // ============================================================
-  // SUCCESS
+  // SUCCESS DIALOG
   // ============================================================
 
   void _showOrderSuccess(
@@ -522,6 +576,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
           child: _glass(
             radius: 28,
+
             child: Padding(
               padding:
                   const EdgeInsets.all(26),
@@ -534,19 +589,24 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   Container(
                     width: 68,
                     height: 68,
+
                     decoration:
                         BoxDecoration(
                       shape:
                           BoxShape.circle,
+
                       color:
-                          pikkXNavy,
+                          pikkXBlack,
+
                       boxShadow: [
                         BoxShadow(
-                          color: pikkXNavy
-                              .withOpacity(
-                            0.22,
+                          color:
+                              pikkXBlack
+                                  .withOpacity(
+                            0.18,
                           ),
-                          blurRadius: 20,
+                          blurRadius:
+                              20,
                           offset:
                               const Offset(
                             0,
@@ -555,6 +615,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                         ),
                       ],
                     ),
+
                     child: const Icon(
                       Icons.check_rounded,
                       color:
@@ -569,10 +630,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
                   const Text(
                     'Order Placed!',
-                    style: TextStyle(
+                    style:
+                        TextStyle(
                       color:
                           darkText,
-                      fontSize: 22,
+                      fontSize:
+                          22,
                       fontWeight:
                           FontWeight.w800,
                     ),
@@ -586,10 +649,77 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     'Your order has been successfully created.',
                     textAlign:
                         TextAlign.center,
-                    style: TextStyle(
+                    style:
+                        TextStyle(
                       color:
                           mutedText,
-                      height: 1.4,
+                      height:
+                          1.4,
+                    ),
+                  ),
+
+                  const SizedBox(
+                    height: 16,
+                  ),
+
+                  Container(
+                    width:
+                        double.infinity,
+
+                    padding:
+                        const EdgeInsets
+                            .symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+
+                    decoration:
+                        BoxDecoration(
+                      color:
+                          pikkXBlack
+                              .withOpacity(
+                        0.05,
+                      ),
+                      borderRadius:
+                          BorderRadius.circular(
+                        14,
+                      ),
+                    ),
+
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Order ID',
+                          style:
+                              TextStyle(
+                            color:
+                                mutedText,
+                            fontSize:
+                                12,
+                            fontWeight:
+                                FontWeight.w600,
+                          ),
+                        ),
+
+                        const SizedBox(
+                          height: 4,
+                        ),
+
+                        Text(
+                          orderId,
+                          textAlign:
+                              TextAlign.center,
+                          style:
+                              const TextStyle(
+                            color:
+                                darkText,
+                            fontSize:
+                                12,
+                            fontWeight:
+                                FontWeight.w800,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
 
@@ -601,6 +731,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     width:
                         double.infinity,
                     height: 52,
+
                     child:
                         ElevatedButton(
                       onPressed: () {
@@ -615,6 +746,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                               orderId,
                         );
                       },
+
                       style:
                           ElevatedButton
                               .styleFrom(
@@ -622,7 +754,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
                             pikkXBlack,
                         foregroundColor:
                             pikkXWhite,
-                        elevation: 0,
+                        elevation:
+                            0,
                         shape:
                             RoundedRectangleBorder(
                           borderRadius:
@@ -632,24 +765,27 @@ class _CheckoutPageState extends State<CheckoutPage> {
                           ),
                         ),
                       ),
+
                       child:
                           const Row(
                         mainAxisAlignment:
                             MainAxisAlignment
                                 .center,
+
                         children: [
                           Text(
                             'Track Order',
                             style:
                                 TextStyle(
                               fontWeight:
-                                  FontWeight
-                                      .w700,
+                                  FontWeight.w700,
                             ),
                           ),
+
                           SizedBox(
                             width: 8,
                           ),
+
                           Icon(
                             Icons
                                 .arrow_forward_rounded,
@@ -683,15 +819,19 @@ class _CheckoutPageState extends State<CheckoutPage> {
       appBar: AppBar(
         backgroundColor:
             Colors.transparent,
+
         elevation: 0,
+
         centerTitle: true,
 
         title: const Text(
           'Checkout',
-          style: TextStyle(
+          style:
+              TextStyle(
             color:
                 darkText,
-            fontSize: 21,
+            fontSize:
+                21,
             fontWeight:
                 FontWeight.w800,
           ),
@@ -709,7 +849,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
               child:
                   CircularProgressIndicator(
                 color:
-                    pikkXNavy,
+                    pikkXBlack,
               ),
             )
           : cartItems.isEmpty
@@ -721,7 +861,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
                         const BouncingScrollPhysics(),
 
                     padding:
-                        const EdgeInsets.fromLTRB(
+                        const EdgeInsets
+                            .fromLTRB(
                       16,
                       8,
                       16,
@@ -792,15 +933,19 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   // ============================================================
-  // ADDRESS
+  // ADDRESS CARD
   // ============================================================
 
   Widget _buildAddressCard() {
     return _glass(
       radius: 24,
+
       child: InkWell(
         borderRadius:
-            BorderRadius.circular(24),
+            BorderRadius.circular(
+          24,
+        ),
+
         onTap:
             _openAddressPage,
 
@@ -820,8 +965,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
               Expanded(
                 child:
-                    selectedAddress ==
-                            null
+                    selectedAddress == null
                         ? const Column(
                             crossAxisAlignment:
                                 CrossAxisAlignment
@@ -836,13 +980,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                   fontSize:
                                       16,
                                   fontWeight:
-                                      FontWeight
-                                          .w700,
+                                      FontWeight.w700,
                                 ),
                               ),
                               SizedBox(
-                                height:
-                                    5,
+                                height: 5,
                               ),
                               Text(
                                 'Select your delivery address',
@@ -872,13 +1014,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                   fontSize:
                                       16,
                                   fontWeight:
-                                      FontWeight
-                                          .w700,
+                                      FontWeight.w700,
                                 ),
                               ),
                               const SizedBox(
-                                height:
-                                    5,
+                                height: 5,
                               ),
                               Text(
                                 _addressText(),
@@ -904,7 +1044,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     .arrow_forward_ios_rounded,
                 size: 16,
                 color:
-                    Color(0xFF777777),
+                    mutedText,
               ),
             ],
           ),
@@ -975,13 +1115,42 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 ?.toString() ??
             '';
 
+    final selectedColor =
+        item['selectedColor']
+            ?.toString();
+
+    final size =
+        item['size']
+            ?.toString();
+
+    final details = <String>[];
+
+    if (selectedColor != null &&
+        selectedColor.trim().isNotEmpty) {
+      details.add(
+        selectedColor,
+      );
+    }
+
+    if (size != null &&
+        size.trim().isNotEmpty) {
+      details.add(
+        'Size $size',
+      );
+    }
+
     return _glass(
       radius: 24,
+
       child: Padding(
         padding:
             const EdgeInsets.all(14),
 
         child: Row(
+          crossAxisAlignment:
+              CrossAxisAlignment
+                  .start,
+
           children: [
             _buildProductImage(
               imageUrl,
@@ -1011,10 +1180,32 @@ class _CheckoutPageState extends State<CheckoutPage> {
                       fontSize:
                           15,
                       fontWeight:
-                          FontWeight
-                              .w700,
+                          FontWeight.w700,
                     ),
                   ),
+
+                  if (details.isNotEmpty) ...[
+                    const SizedBox(
+                      height: 5,
+                    ),
+
+                    Text(
+                      details.join(' • '),
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow
+                              .ellipsis,
+                      style:
+                          const TextStyle(
+                        color:
+                            mutedText,
+                        fontSize:
+                            12,
+                        fontWeight:
+                            FontWeight.w500,
+                      ),
+                    ),
+                  ],
 
                   const SizedBox(
                     height: 7,
@@ -1025,10 +1216,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     style:
                         const TextStyle(
                       color:
-                          pikkXNavy,
+                          darkText,
                       fontWeight:
-                          FontWeight
-                              .w800,
+                          FontWeight.w800,
                     ),
                   ),
 
@@ -1050,8 +1240,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                         padding:
                             const EdgeInsets
                                 .symmetric(
-                          horizontal:
-                              10,
+                          horizontal: 10,
                         ),
                         child: Text(
                           '$quantity',
@@ -1060,8 +1249,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                             color:
                                 darkText,
                             fontWeight:
-                                FontWeight
-                                    .w800,
+                                FontWeight.w800,
                           ),
                         ),
                       ),
@@ -1092,8 +1280,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
     String imageUrl,
   ) {
     return Container(
-      width: 72,
-      height: 72,
+      width: 78,
+      height: 78,
 
       decoration:
           BoxDecoration(
@@ -1101,10 +1289,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
             pikkXWhite.withOpacity(
           0.55,
         ),
+
         borderRadius:
             BorderRadius.circular(
           19,
         ),
+
         border:
             Border.all(
           color:
@@ -1120,33 +1310,55 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   .shopping_bag_outlined,
               size: 30,
               color:
-                  pikkXNavy,
+                  darkText,
             )
           : ClipRRect(
               borderRadius:
                   BorderRadius.circular(
                 19,
               ),
+
               child:
-                  Image.network(
-                imageUrl,
-                fit:
-                    BoxFit.cover,
-                errorBuilder:
-                    (
-                  context,
-                  error,
-                  stackTrace,
-                ) {
-                  return const Icon(
-                    Icons
-                        .shopping_bag_outlined,
-                    size: 30,
-                    color:
-                        pikkXNavy,
-                  );
-                },
-              ),
+                  imageUrl.startsWith(
+                          'assets/')
+                      ? Image.asset(
+                          imageUrl,
+                          fit:
+                              BoxFit.cover,
+                          errorBuilder:
+                              (
+                            context,
+                            error,
+                            stackTrace,
+                          ) {
+                            return const Icon(
+                              Icons
+                                  .shopping_bag_outlined,
+                              size: 30,
+                              color:
+                                  darkText,
+                            );
+                          },
+                        )
+                      : Image.network(
+                          imageUrl,
+                          fit:
+                              BoxFit.cover,
+                          errorBuilder:
+                              (
+                            context,
+                            error,
+                            stackTrace,
+                          ) {
+                            return const Icon(
+                              Icons
+                                  .shopping_bag_outlined,
+                              size: 30,
+                              color:
+                                  darkText,
+                            );
+                          },
+                        ),
             ),
     );
   }
@@ -1168,6 +1380,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
             BorderRadius.circular(
           10,
         ),
+
         onTap:
             onPressed,
 
@@ -1182,6 +1395,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     .withOpacity(
               0.06,
             ),
+
             borderRadius:
                 BorderRadius.circular(
               10,
@@ -1192,7 +1406,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
             icon,
             size: 17,
             color:
-                pikkXNavy,
+                darkText,
           ),
         ),
       ),
@@ -1206,6 +1420,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   Widget _buildPaymentSection() {
     return _glass(
       radius: 24,
+
       child: Column(
         children: [
           _paymentOption(
@@ -1268,7 +1483,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
               icon,
               color:
                   selected
-                      ? pikkXNavy
+                      ? darkText
                       : mutedText,
             ),
 
@@ -1284,8 +1499,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   color:
                       darkText,
                   fontWeight:
-                      FontWeight
-                          .w600,
+                      FontWeight.w600,
                 ),
               ),
             ),
@@ -1298,7 +1512,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                       .radio_button_off,
               color:
                   selected
-                      ? pikkXNavy
+                      ? darkText
                       : const Color(
                           0xFF999999,
                         ),
@@ -1316,6 +1530,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   Widget _buildOrderSummary() {
     return _glass(
       radius: 24,
+
       child: Padding(
         padding:
             const EdgeInsets.all(18),
@@ -1382,10 +1597,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     : 14,
             fontWeight:
                 isTotal
-                    ? FontWeight
-                        .w800
-                    : FontWeight
-                        .w500,
+                    ? FontWeight.w800
+                    : FontWeight.w500,
           ),
         ),
 
@@ -1394,16 +1607,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
           style:
               TextStyle(
             color:
-                isTotal
-                    ? pikkXNavy
-                    : darkText,
+                darkText,
             fontSize:
                 isTotal
                     ? 18
                     : 14,
             fontWeight:
-                FontWeight
-                    .w800,
+                FontWeight.w800,
           ),
         ),
       ],
@@ -1411,7 +1621,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   // ============================================================
-  // PLACE ORDER
+  // PLACE ORDER BUTTON
   // ============================================================
 
   Widget _buildPlaceOrderButton() {
@@ -1429,6 +1639,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
               BorderRadius.circular(
             20,
           ),
+
           onTap:
               isPlacingOrder
                   ? null
@@ -1439,25 +1650,18 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 BoxDecoration(
               color:
                   pikkXBlack,
+
               borderRadius:
                   BorderRadius.circular(
                 20,
               ),
-              border:
-                  Border.all(
-                color:
-                    pikkXNavy
-                        .withOpacity(
-                  0.45,
-                ),
-                width: 1,
-              ),
+
               boxShadow: [
                 BoxShadow(
                   color:
-                      pikkXNavy
+                      pikkXBlack
                           .withOpacity(
-                    0.18,
+                    0.16,
                   ),
                   blurRadius:
                       20,
@@ -1488,6 +1692,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                           mainAxisAlignment:
                               MainAxisAlignment
                                   .center,
+
                           children: [
                             Text(
                               'Place Order',
@@ -1498,13 +1703,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                 fontSize:
                                     16,
                                 fontWeight:
-                                    FontWeight
-                                        .w800,
+                                    FontWeight.w800,
                               ),
                             ),
+
                             SizedBox(
                               width: 9,
                             ),
+
                             Icon(
                               Icons
                                   .arrow_forward_rounded,
@@ -1561,8 +1767,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     fontSize:
                         20,
                     fontWeight:
-                        FontWeight
-                            .w800,
+                        FontWeight.w800,
                   ),
                 ),
 
@@ -1625,8 +1830,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                       style:
                           TextStyle(
                         fontWeight:
-                            FontWeight
-                                .w700,
+                            FontWeight.w700,
                       ),
                     ),
                   ),
@@ -1669,7 +1873,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   // ============================================================
-  // GLASS FIXTURE
+  // GLASS COMPONENT
   // ============================================================
 
   Widget _glass({
@@ -1731,7 +1935,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
             ],
           ),
 
-          child: child,
+          child:
+              child,
         ),
       ),
     );
@@ -1752,10 +1957,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
       decoration:
           BoxDecoration(
         color:
-            pikkXNavy
+            pikkXBlack
                 .withOpacity(
-          0.09,
+          0.07,
         ),
+
         borderRadius:
             BorderRadius.circular(
           size * 0.32,
@@ -1765,7 +1971,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       child: Icon(
         icon,
         color:
-            pikkXNavy,
+            darkText,
         size:
             size * 0.48,
       ),
@@ -1813,11 +2019,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
       SnackBar(
         content:
             Text(message),
+
         behavior:
             SnackBarBehavior
                 .floating,
+
         backgroundColor:
             pikkXBlack,
+
         shape:
             RoundedRectangleBorder(
           borderRadius:
