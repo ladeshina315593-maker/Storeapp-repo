@@ -12,22 +12,16 @@ class NotificationsPage extends StatefulWidget {
       _NotificationsPageState();
 }
 
-class _NotificationsPageState
-    extends State<NotificationsPage> {
-  final FirebaseFirestore _firestore =
-      FirebaseFirestore.instance;
-
-  final FirebaseAuth _auth =
-      FirebaseAuth.instance;
+class _NotificationsPageState extends State<NotificationsPage> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   bool isLoading = true;
-
   List<Map<String, dynamic>> notifications = [];
 
   String? get userId => _auth.currentUser?.uid;
 
-  CollectionReference<Map<String, dynamic>>
-      get notificationsRef {
+  CollectionReference<Map<String, dynamic>> get notificationsRef {
     final uid = userId;
 
     if (uid == null) {
@@ -47,27 +41,27 @@ class _NotificationsPageState
   }
 
   // ============================================================
-  // LOAD NOTIFICATIONS FROM FIREBASE
+  // LOAD NOTIFICATIONS
   // ============================================================
 
   Future<void> _loadNotifications() async {
     if (userId == null) {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-          notifications = [];
-        });
-      }
+      if (!mounted) return;
+
+      setState(() {
+        notifications = [];
+        isLoading = false;
+      });
+
       return;
     }
 
+    setState(() {
+      isLoading = true;
+    });
+
     try {
-      final snapshot = await notificationsRef
-          .orderBy(
-            'createdAt',
-            descending: true,
-          )
-          .get();
+      final snapshot = await notificationsRef.get();
 
       final result = snapshot.docs.map((doc) {
         return {
@@ -76,6 +70,12 @@ class _NotificationsPageState
         };
       }).toList();
 
+      result.sort((a, b) {
+        return _date(b['createdAt']).compareTo(
+          _date(a['createdAt']),
+        );
+      });
+
       if (!mounted) return;
 
       setState(() {
@@ -83,69 +83,50 @@ class _NotificationsPageState
         isLoading = false;
       });
     } catch (e) {
-      debugPrint(
-        'Notifications error: $e',
-      );
+      debugPrint('Notifications error: $e');
 
-      // Fallback in case createdAt is missing
-      // or Firestore does not have the required index.
-      try {
-        final snapshot =
-            await notificationsRef.get();
+      if (!mounted) return;
 
-        final result =
-            snapshot.docs.map((doc) {
-          return {
-            'id': doc.id,
-            ...doc.data(),
-          };
-        }).toList();
+      setState(() {
+        notifications = [];
+        isLoading = false;
+      });
 
-        result.sort((a, b) {
-          final aTime = _date(a['createdAt']);
-          final bTime = _date(b['createdAt']);
-
-          return bTime.compareTo(aTime);
-        });
-
-        if (!mounted) return;
-
-        setState(() {
-          notifications = result;
-          isLoading = false;
-        });
-      } catch (fallbackError) {
-        debugPrint(
-          'Notifications fallback error: $fallbackError',
-        );
-
-        if (!mounted) return;
-
-        setState(() {
-          notifications = [];
-          isLoading = false;
-        });
-
-        _showMessage(
-          'Could not load notifications.',
-        );
-      }
+      _showMessage('Could not load notifications.');
     }
   }
 
   // ============================================================
-  // MARK ONE NOTIFICATION AS READ
+  // READ STATE
+  // ============================================================
+
+  bool _isRead(Map<String, dynamic> notification) {
+    if (notification['isRead'] == true) {
+      return true;
+    }
+
+    if (notification['read'] == true) {
+      return true;
+    }
+
+    return false;
+  }
+
+  // ============================================================
+  // MARK ONE AS READ
   // ============================================================
 
   Future<void> _markRead(String id) async {
     if (userId == null) return;
 
     try {
-      await notificationsRef
-          .doc(id)
-          .update({
-        'isRead': true,
-      });
+      await notificationsRef.doc(id).set(
+        {
+          'isRead': true,
+          'read': true,
+        },
+        SetOptions(merge: true),
+      );
 
       if (!mounted) return;
 
@@ -157,70 +138,95 @@ class _NotificationsPageState
 
         if (index != -1) {
           notifications[index]['isRead'] = true;
+          notifications[index]['read'] = true;
         }
       });
     } catch (e) {
-      debugPrint(
-        'Mark notification error: $e',
-      );
+      debugPrint('Mark notification error: $e');
     }
   }
 
   // ============================================================
-  // MARK ALL NOTIFICATIONS AS READ
+  // MARK ALL AS READ
   // ============================================================
 
   Future<void> _markAllRead() async {
     if (userId == null) return;
 
-    try {
-      final snapshot =
-          await notificationsRef.get();
+    final unreadNotifications = notifications
+        .where((notification) => !_isRead(notification))
+        .toList();
 
+    if (unreadNotifications.isEmpty) return;
+
+    try {
       final batch = _firestore.batch();
 
-      bool hasChanges = false;
+      for (final notification in unreadNotifications) {
+        final id = notification['id']?.toString();
 
-      for (final doc in snapshot.docs) {
-        if (doc.data()['isRead'] != true) {
-          batch.update(
-            doc.reference,
-            {
-              'isRead': true,
-            },
-          );
+        if (id == null || id.isEmpty) continue;
 
-          hasChanges = true;
-        }
+        batch.set(
+          notificationsRef.doc(id),
+          {
+            'isRead': true,
+            'read': true,
+          },
+          SetOptions(merge: true),
+        );
       }
 
-      if (hasChanges) {
-        await batch.commit();
-      }
+      await batch.commit();
 
       if (!mounted) return;
 
       setState(() {
-        for (final notification
-            in notifications) {
+        for (final notification in notifications) {
           notification['isRead'] = true;
+          notification['read'] = true;
         }
       });
 
-      _showMessage(
-        'All notifications marked as read.',
-      );
+      _showMessage('All notifications marked as read.');
     } catch (e) {
-      debugPrint(
-        'Mark all read error: $e',
-      );
+      debugPrint('Mark all read error: $e');
 
       if (mounted) {
-        _showMessage(
-          'Could not update notifications.',
-        );
+        _showMessage('Could not update notifications.');
       }
     }
+  }
+
+  // ============================================================
+  // OPEN NOTIFICATION
+  // ============================================================
+
+  Future<void> _openNotification(
+    Map<String, dynamic> notification,
+  ) async {
+    final id = notification['id']?.toString();
+
+    if (!_isRead(notification) && id != null) {
+      await _markRead(id);
+    }
+
+    if (!mounted) return;
+
+    final orderId = notification['orderId']?.toString();
+
+    if (orderId != null && orderId.trim().isNotEmpty) {
+      Navigator.pushNamed(
+        context,
+        '/order-details',
+        arguments: orderId,
+      );
+
+      return;
+    }
+
+    // Follow notifications don't need a fake route.
+    // They simply become read when opened.
   }
 
   // ============================================================
@@ -237,15 +243,14 @@ class _NotificationsPageState
     }
 
     if (value is String) {
-      return DateTime.tryParse(value) ??
-          DateTime(1970);
+      return DateTime.tryParse(value) ?? DateTime(1970);
     }
 
     return DateTime(1970);
   }
 
   // ============================================================
-  // NOTIFICATION ICON
+  // ICON
   // ============================================================
 
   IconData _icon(String type) {
@@ -260,10 +265,16 @@ class _NotificationsPageState
         return Icons.payments_outlined;
 
       case 'promotion':
+      case 'coupon':
+      case 'offer':
         return Icons.local_offer_outlined;
 
       case 'chat':
         return Icons.chat_bubble_outline_rounded;
+
+      case 'follow':
+      case 'merchant_follow':
+        return Icons.person_add_alt_1_outlined;
 
       case 'success':
         return Icons.check_circle_outline_rounded;
@@ -277,7 +288,7 @@ class _NotificationsPageState
   }
 
   // ============================================================
-  // ICON ACCENT
+  // ICON COLOR
   // ============================================================
 
   Color _iconColor(String type) {
@@ -286,10 +297,10 @@ class _NotificationsPageState
         return const Color(0xFF555555);
 
       case 'success':
-        return const Color(0xFF10233F);
+        return const Color(0xFF050505);
 
       default:
-        return const Color(0xFF10233F);
+        return const Color(0xFF050505);
     }
   }
 
@@ -300,8 +311,7 @@ class _NotificationsPageState
   void _showMessage(String message) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context)
-        .hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -327,14 +337,12 @@ class _NotificationsPageState
 
   @override
   Widget build(BuildContext context) {
-    final unread = notifications.where(
-      (notification) =>
-          notification['isRead'] != true,
-    ).length;
+    final unread = notifications
+        .where((notification) => !_isRead(notification))
+        .length;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7F7),
-
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -342,14 +350,10 @@ class _NotificationsPageState
         centerTitle: true,
 
         leading: Padding(
-          padding: const EdgeInsets.only(
-            left: 12,
-          ),
+          padding: const EdgeInsets.only(left: 12),
           child: _glassIcon(
             Icons.arrow_back_ios_new_rounded,
-            onTap: () {
-              Navigator.pop(context);
-            },
+            onTap: () => Navigator.pop(context),
           ),
         ),
 
@@ -365,13 +369,9 @@ class _NotificationsPageState
         actions: [
           if (unread > 0)
             Padding(
-              padding: const EdgeInsets.only(
-                right: 12,
-              ),
+              padding: const EdgeInsets.only(right: 12),
               child: _glassIcon(
                 Icons.done_all_rounded,
-                iconColor:
-                    const Color(0xFF10233F),
                 onTap: _markAllRead,
               ),
             ),
@@ -381,19 +381,18 @@ class _NotificationsPageState
       body: Stack(
         children: [
           // ======================================================
-          // SUBTLE NAVY BACKGROUND ACCENT
+          // SOFT GLASS BACKGROUND SHAPES
           // ======================================================
 
           Positioned(
-            top: -100,
-            right: -90,
+            top: -90,
+            right: -80,
             child: Container(
-              width: 230,
-              height: 230,
+              width: 220,
+              height: 220,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFF10233F)
-                    .withOpacity(0.035),
+                color: Colors.black.withOpacity(0.025),
               ),
             ),
           ),
@@ -406,8 +405,7 @@ class _NotificationsPageState
               height: 250,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.black
-                    .withOpacity(0.025),
+                color: Colors.black.withOpacity(0.018),
               ),
             ),
           ),
@@ -416,47 +414,43 @@ class _NotificationsPageState
           // CONTENT
           // ======================================================
 
-          isLoading
-              ? const Center(
-                  child:
-                      CircularProgressIndicator(
-                    color: Color(0xFF10233F),
-                  ),
-                )
-              : notifications.isEmpty
-                  ? _empty()
-                  : RefreshIndicator(
-                      color:
-                          const Color(0xFF10233F),
-                      backgroundColor:
-                          Colors.white,
-                      onRefresh:
-                          _loadNotifications,
-                      child: ListView.separated(
-                        physics:
-                            const AlwaysScrollableScrollPhysics(),
-                        padding:
-                            const EdgeInsets.fromLTRB(
-                          16,
-                          10,
-                          16,
-                          30,
-                        ),
-                        itemCount:
-                            notifications.length,
-                        separatorBuilder:
-                            (_, __) =>
-                                const SizedBox(
-                          height: 12,
-                        ),
-                        itemBuilder:
-                            (context, index) {
-                          return _notificationCard(
-                            notifications[index],
-                          );
-                        },
-                      ),
-                    ),
+          if (isLoading)
+            const Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.4,
+                  color: Color(0xFF050505),
+                ),
+              ),
+            )
+          else if (notifications.isEmpty)
+            _empty()
+          else
+            RefreshIndicator(
+              color: const Color(0xFF050505),
+              backgroundColor: Colors.white,
+              onRefresh: _loadNotifications,
+              child: ListView.separated(
+                physics:
+                    const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(
+                  16,
+                  8,
+                  16,
+                  30,
+                ),
+                itemCount: notifications.length,
+                separatorBuilder: (_, __) =>
+                    const SizedBox(height: 10),
+                itemBuilder: (context, index) {
+                  return _notificationCard(
+                    notifications[index],
+                  );
+                },
+              ),
+            ),
         ],
       ),
     );
@@ -468,7 +462,6 @@ class _NotificationsPageState
 
   Widget _glassIcon(
     IconData icon, {
-    Color? iconColor,
     required VoidCallback onTap,
   }) {
     return ClipRRect(
@@ -482,36 +475,27 @@ class _NotificationsPageState
           color: Colors.transparent,
           child: InkWell(
             onTap: onTap,
-            borderRadius:
-                BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(15),
             child: Container(
               width: 43,
               height: 43,
               decoration: BoxDecoration(
-                color:
-                    Colors.white.withOpacity(0.72),
-                borderRadius:
-                    BorderRadius.circular(15),
+                color: Colors.white.withOpacity(0.72),
+                borderRadius: BorderRadius.circular(15),
                 border: Border.all(
-                  color:
-                      Colors.white.withOpacity(0.95),
-                  width: 1,
+                  color: Colors.white.withOpacity(0.95),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black
-                        .withOpacity(0.045),
+                    color: Colors.black.withOpacity(0.045),
                     blurRadius: 15,
-                    offset:
-                        const Offset(0, 6),
+                    offset: const Offset(0, 6),
                   ),
                 ],
               ),
               child: Icon(
                 icon,
-                color:
-                    iconColor ??
-                    const Color(0xFF050505),
+                color: const Color(0xFF050505),
                 size: 19,
               ),
             ),
@@ -528,46 +512,30 @@ class _NotificationsPageState
   Widget _notificationCard(
     Map<String, dynamic> notification,
   ) {
-    final read =
-        notification['isRead'] == true;
+    final read = _isRead(notification);
 
     final type =
-        notification['type']
-                ?.toString() ??
-            'general';
+        notification['type']?.toString() ?? 'general';
 
     final orderId =
-        notification['orderId'];
+        notification['orderId']?.toString();
 
     final hasOrder =
-        orderId != null &&
-        orderId.toString().trim().isNotEmpty;
+        orderId != null && orderId.trim().isNotEmpty;
+
+    final title =
+        notification['title']?.toString() ??
+            'Notification';
+
+    final message =
+        notification['message']?.toString() ?? '';
 
     return _glass(
       child: InkWell(
-        borderRadius:
-            BorderRadius.circular(24),
-        onTap: () async {
-          if (!read) {
-            await _markRead(
-              notification['id'].toString(),
-            );
-          }
-
-          if (!mounted) return;
-
-          if (hasOrder) {
-            Navigator.pushNamed(
-              context,
-              '/order-details',
-              arguments:
-                  orderId.toString(),
-            );
-          }
-        },
+        borderRadius: BorderRadius.circular(24),
+        onTap: () => _openNotification(notification),
         child: Padding(
-          padding:
-              const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(15),
           child: Row(
             crossAxisAlignment:
                 CrossAxisAlignment.start,
@@ -577,30 +545,26 @@ class _NotificationsPageState
               // ==================================================
 
               Container(
-                width: 50,
-                height: 50,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   color: const Color(0xFFF1F1F1),
-                  borderRadius:
-                      BorderRadius.circular(17),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color:
-                        Colors.white.withOpacity(
-                      0.9,
-                    ),
+                    color: Colors.white.withOpacity(0.95),
                   ),
                 ),
                 child: Icon(
                   _icon(type),
                   color: _iconColor(type),
-                  size: 22,
+                  size: 21,
                 ),
               ),
 
-              const SizedBox(width: 13),
+              const SizedBox(width: 12),
 
               // ==================================================
-              // TEXT
+              // CONTENT
               // ==================================================
 
               Expanded(
@@ -614,9 +578,7 @@ class _NotificationsPageState
                       children: [
                         Expanded(
                           child: Text(
-                            notification['title']
-                                    ?.toString() ??
-                                'Notification',
+                            title,
                             style: TextStyle(
                               color:
                                   const Color(0xFF050505),
@@ -624,6 +586,7 @@ class _NotificationsPageState
                               fontWeight: read
                                   ? FontWeight.w600
                                   : FontWeight.w800,
+                              height: 1.25,
                             ),
                           ),
                         ),
@@ -635,73 +598,60 @@ class _NotificationsPageState
                               left: 8,
                               top: 4,
                             ),
-                            width: 8,
-                            height: 8,
+                            width: 7,
+                            height: 7,
                             decoration:
                                 const BoxDecoration(
-                              color:
-                                  Color(0xFF10233F),
-                              shape:
-                                  BoxShape.circle,
+                              color: Color(0xFF050505),
+                              shape: BoxShape.circle,
                             ),
                           ),
                       ],
                     ),
 
-                    const SizedBox(height: 6),
-
-                    Text(
-                      notification['message']
-                              ?.toString() ??
-                          '',
-                      style:
-                          const TextStyle(
-                        color:
-                            Color(0xFF666666),
-                        fontSize: 13,
-                        height: 1.4,
+                    if (message.isNotEmpty) ...[
+                      const SizedBox(height: 5),
+                      Text(
+                        message,
+                        style: const TextStyle(
+                          color: Color(0xFF666666),
+                          fontSize: 13,
+                          height: 1.4,
+                        ),
                       ),
-                    ),
+                    ],
 
-                    if (notification['createdAt'] !=
-                        null) ...[
-                      const SizedBox(height: 8),
+                    if (notification['createdAt'] != null) ...[
+                      const SizedBox(height: 7),
                       Text(
                         _formatDate(
-                          notification[
-                              'createdAt'],
+                          notification['createdAt'],
                         ),
-                        style:
-                            const TextStyle(
-                          color:
-                              Color(0xFF999999),
+                        style: const TextStyle(
+                          color: Color(0xFF999999),
                           fontSize: 10,
-                          fontWeight:
-                              FontWeight.w500,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
 
                     if (hasOrder) ...[
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 7),
                       Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: const [
                           Text(
                             'View order',
                             style: TextStyle(
-                              color:
-                                  Color(0xFF10233F),
+                              color: Color(0xFF050505),
                               fontSize: 11,
-                              fontWeight:
-                                  FontWeight.w800,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                           SizedBox(width: 4),
                           Icon(
-                            Icons
-                                .arrow_forward_rounded,
-                            color:
-                                Color(0xFF10233F),
+                            Icons.arrow_forward_rounded,
+                            color: Color(0xFF050505),
                             size: 14,
                           ),
                         ],
@@ -729,32 +679,36 @@ class _NotificationsPageState
     }
 
     final now = DateTime.now();
-    final difference =
-        now.difference(date);
+
+    if (date.isAfter(now)) {
+      return 'Just now';
+    }
+
+    final difference = now.difference(date);
 
     if (difference.inSeconds < 60) {
       return 'Just now';
     }
 
     if (difference.inMinutes < 60) {
-      final minutes =
-          difference.inMinutes;
+      final minutes = difference.inMinutes;
 
-      return '$minutes ${minutes == 1 ? 'minute' : 'minutes'} ago';
+      return '$minutes '
+          '${minutes == 1 ? 'minute' : 'minutes'} ago';
     }
 
     if (difference.inHours < 24) {
-      final hours =
-          difference.inHours;
+      final hours = difference.inHours;
 
-      return '$hours ${hours == 1 ? 'hour' : 'hours'} ago';
+      return '$hours '
+          '${hours == 1 ? 'hour' : 'hours'} ago';
     }
 
     if (difference.inDays < 7) {
-      final days =
-          difference.inDays;
+      final days = difference.inDays;
 
-      return '$days ${days == 1 ? 'day' : 'days'} ago';
+      return '$days '
+          '${days == 1 ? 'day' : 'days'} ago';
     }
 
     return '${date.day}/${date.month}/${date.year}';
@@ -767,37 +721,30 @@ class _NotificationsPageState
   Widget _empty() {
     return Center(
       child: Padding(
-        padding:
-            const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(24),
         child: _glass(
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(
+            padding: const EdgeInsets.symmetric(
               horizontal: 30,
               vertical: 34,
             ),
             child: Column(
-              mainAxisSize:
-                  MainAxisSize.min,
+              mainAxisSize: MainAxisSize.min,
               children: const [
                 Icon(
-                  Icons
-                      .notifications_none_rounded,
-                  size: 58,
-                  color:
-                      Color(0xFF10233F),
+                  Icons.notifications_none_rounded,
+                  size: 56,
+                  color: Color(0xFF050505),
                 ),
 
-                SizedBox(height: 16),
+                SizedBox(height: 15),
 
                 Text(
                   'No notifications',
                   style: TextStyle(
                     fontSize: 19,
-                    fontWeight:
-                        FontWeight.w800,
-                    color:
-                        Color(0xFF050505),
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF050505),
                   ),
                 ),
 
@@ -805,11 +752,9 @@ class _NotificationsPageState
 
                 Text(
                   'You are all caught up.',
-                  textAlign:
-                      TextAlign.center,
+                  textAlign: TextAlign.center,
                   style: TextStyle(
-                    color:
-                        Color(0xFF777777),
+                    color: Color(0xFF777777),
                     fontSize: 13,
                   ),
                 ),
@@ -829,8 +774,7 @@ class _NotificationsPageState
     required Widget child,
   }) {
     return ClipRRect(
-      borderRadius:
-          BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(24),
       child: BackdropFilter(
         filter: ImageFilter.blur(
           sigmaX: 16,
@@ -838,22 +782,17 @@ class _NotificationsPageState
         ),
         child: Container(
           decoration: BoxDecoration(
-            color:
-                Colors.white.withOpacity(0.74),
-            borderRadius:
-                BorderRadius.circular(24),
+            color: Colors.white.withOpacity(0.74),
+            borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color:
-                  Colors.white.withOpacity(0.92),
+              color: Colors.white.withOpacity(0.92),
               width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color:
-                    Colors.black.withOpacity(0.045),
+                color: Colors.black.withOpacity(0.045),
                 blurRadius: 20,
-                offset:
-                    const Offset(0, 8),
+                offset: const Offset(0, 8),
               ),
             ],
           ),
