@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'package:flutter_ecommerce_app/src/pages/product_detail.dart';
 import 'package:flutter_ecommerce_app/src/pages/profile_page.dart';
 
 class MyHomePage extends StatefulWidget {
@@ -21,7 +22,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   // ============================================================
-  // PIKKX IDENTITY
+  // PIKKX COLORS
   // ============================================================
 
   static const Color pikkXBlack = Color(0xFF050505);
@@ -88,38 +89,15 @@ class _MyHomePageState extends State<MyHomePage> {
   // USER
   // ============================================================
 
-  User? get _currentUser =>
-      _auth.currentUser;
+  User? get _currentUser => _auth.currentUser;
 
-  String get _userId =>
-      _currentUser?.uid ?? '';
+  String get _userId => _currentUser?.uid ?? '';
 
   // ============================================================
-  // FIRESTORE STREAMS
+  // FIREBASE STREAMS
   // ============================================================
 
-  Stream<QuerySnapshot<Map<String, dynamic>>>
-      _productsStream() {
-    return _firestore
-        .collection('products')
-        .snapshots();
-  }
-
-  Stream<QuerySnapshot<Map<String, dynamic>>>
-      _favouritesStream() {
-    if (_userId.isEmpty) {
-      return const Stream.empty();
-    }
-
-    return _firestore
-        .collection('users')
-        .doc(_userId)
-        .collection('favorites')
-        .snapshots();
-  }
-
-  Stream<QuerySnapshot<Map<String, dynamic>>>
-      _notificationsStream() {
+  Stream<QuerySnapshot<Map<String, dynamic>>> _notificationsStream() {
     if (_userId.isEmpty) {
       return const Stream.empty();
     }
@@ -131,8 +109,7 @@ class _MyHomePageState extends State<MyHomePage> {
         .snapshots();
   }
 
-  Stream<DocumentSnapshot<Map<String, dynamic>>>
-      _userProfileStream() {
+  Stream<DocumentSnapshot<Map<String, dynamic>>> _userProfileStream() {
     if (_userId.isEmpty) {
       return const Stream.empty();
     }
@@ -141,6 +118,65 @@ class _MyHomePageState extends State<MyHomePage> {
         .collection('users')
         .doc(_userId)
         .snapshots();
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> _favouritesStream() {
+    if (_userId.isEmpty) {
+      return const Stream.empty();
+    }
+
+    return _firestore
+        .collection('users')
+        .doc(_userId)
+        .collection('favorites')
+        .snapshots();
+  }
+
+  // ============================================================
+  // THE TWO HOME PRODUCTS
+  //
+  // These are LOCAL ASSET products.
+  // They are sent directly to the EXISTING ProductDetailPage.
+  // ProductDetailPage already supports assets/ images.
+  // ============================================================
+
+  List<Map<String, dynamic>> _homeProducts() {
+    return [
+      {
+        'id': 'pikkx-jacket',
+        'name': 'Premium Jacket',
+        'category': 'Fashion',
+        'price': 45000.0,
+        'originalPrice': 55000.0,
+        'currency': '₦',
+        'imageUrl': 'assets/jacket.png',
+        'image': 'assets/jacket.png',
+        'rating': 4.8,
+        'deliveryTime': '25 min',
+        'sellerId': 'pikkx_demo_seller',
+        'sellerName': 'PikkX Fashion',
+        'description':
+            'A stylish premium jacket selected for the PikkX marketplace.',
+        'isFeatured': true,
+      },
+      {
+        'id': 'pikkx-shoe',
+        'name': 'Classic Sneakers',
+        'category': 'Fashion',
+        'price': 38000.0,
+        'originalPrice': 45000.0,
+        'currency': '₦',
+        'imageUrl': 'assets/shoe_thumb_1.png',
+        'image': 'assets/shoe_thumb_1.png',
+        'rating': 4.7,
+        'deliveryTime': '25 min',
+        'sellerId': 'pikkx_demo_seller',
+        'sellerName': 'PikkX Footwear',
+        'description':
+            'A clean everyday sneaker from the PikkX footwear collection.',
+        'isFeatured': true,
+      },
+    ];
   }
 
   // ============================================================
@@ -156,20 +192,6 @@ class _MyHomePageState extends State<MyHomePage> {
           value?.toString() ?? '',
         ) ??
         0;
-  }
-
-  int _toInt(
-    dynamic value, {
-    int fallback = 0,
-  }) {
-    if (value is num) {
-      return value.toInt();
-    }
-
-    return int.tryParse(
-          value?.toString() ?? '',
-        ) ??
-        fallback;
   }
 
   String _formatPrice(
@@ -208,14 +230,13 @@ class _MyHomePageState extends State<MyHomePage> {
         '';
   }
 
-  String _imageUrl(
+  String _imagePath(
     Map<String, dynamic> product,
   ) {
     final imageUrl =
         product['imageUrl']?.toString().trim();
 
-    if (imageUrl != null &&
-        imageUrl.isNotEmpty) {
+    if (imageUrl != null && imageUrl.isNotEmpty) {
       return imageUrl;
     }
 
@@ -229,28 +250,7 @@ class _MyHomePageState extends State<MyHomePage> {
     return '';
   }
 
-  bool _isFood(
-    Map<String, dynamic> product,
-  ) {
-    final category =
-        _category(product).toLowerCase();
-
-    final type =
-        product['type']
-                ?.toString()
-                .toLowerCase() ??
-            '';
-
-    return category == 'food' ||
-        category == 'meals' ||
-        category == 'drinks' ||
-        category == 'drink' ||
-        type == 'food' ||
-        type == 'meal' ||
-        type == 'drink';
-  }
-
-  double? _rating(
+  double _rating(
     Map<String, dynamic> product,
   ) {
     final value =
@@ -258,14 +258,10 @@ class _MyHomePageState extends State<MyHomePage> {
             product['averageRating'] ??
             product['stars'];
 
-    if (value == null) {
-      return null;
-    }
-
     final rating = _toDouble(value);
 
     if (rating <= 0) {
-      return null;
+      return 0;
     }
 
     return rating.clamp(0, 5);
@@ -278,15 +274,13 @@ class _MyHomePageState extends State<MyHomePage> {
         product['deliveryTime'] ??
             product['delivery_time'] ??
             product['estimatedTime'] ??
-            product['prepTime'] ??
-            product['preparationTime'];
+            product['prepTime'];
 
     if (value == null) {
       return null;
     }
 
-    final text =
-        value.toString().trim();
+    final text = value.toString().trim();
 
     if (text.isEmpty) {
       return null;
@@ -311,20 +305,14 @@ class _MyHomePageState extends State<MyHomePage> {
       return null;
     }
 
-    final price = _toDouble(value);
+    final oldPrice = _toDouble(value);
+    final price = _toDouble(product['price']);
 
-    if (price <= _toDouble(product['price'])) {
+    if (oldPrice <= price) {
       return null;
     }
 
-    return price;
-  }
-
-  bool _isFeatured(
-    Map<String, dynamic> product,
-  ) {
-    return product['isFeatured'] == true ||
-        product['featured'] == true;
+    return oldPrice;
   }
 
   bool _matchesSearch(
@@ -344,8 +332,6 @@ class _MyHomePageState extends State<MyHomePage> {
       product['description'],
       product['category'],
       product['sellerName'],
-      product['seller'],
-      product['type'],
     ];
 
     return fields.any(
@@ -493,6 +479,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
           ),
 
+          // NOTIFICATIONS
           StreamBuilder<
               QuerySnapshot<
                   Map<String, dynamic>>>(
@@ -522,20 +509,19 @@ class _MyHomePageState extends State<MyHomePage> {
                     Icons.notifications_none_rounded,
                     _openNotifications,
                   ),
+
                   if (unread > 0)
                     Positioned(
                       right: -2,
                       top: -3,
-                      child:
-                          Container(
+                      child: Container(
                         constraints:
                             const BoxConstraints(
                           minWidth: 17,
                         ),
                         height: 17,
                         padding:
-                            const EdgeInsets
-                                .symmetric(
+                            const EdgeInsets.symmetric(
                           horizontal: 4,
                         ),
                         alignment:
@@ -568,6 +554,15 @@ class _MyHomePageState extends State<MyHomePage> {
 
           const SizedBox(width: 7),
 
+          // DISPATCH TRACKING
+          _headerButton(
+            Icons.delivery_dining_rounded,
+            _openDispatchTracking,
+          ),
+
+          const SizedBox(width: 7),
+
+          // PROFILE
           StreamBuilder<
               DocumentSnapshot<
                   Map<String, dynamic>>>(
@@ -891,9 +886,11 @@ class _MyHomePageState extends State<MyHomePage> {
                         letterSpacing: -.3,
                       ),
                     ),
+
                     const SizedBox(
                       height: 5,
                     ),
+
                     Text(
                       'Shop products, discover food.',
                       maxLines: 1,
@@ -909,6 +906,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   ],
                 ),
               ),
+
               Container(
                 width: 55,
                 height: 55,
@@ -943,276 +941,167 @@ class _MyHomePageState extends State<MyHomePage> {
   // ============================================================
 
   Widget _productWidget() {
+    final products =
+        _homeProducts()
+            .where(
+              _matchesSearch,
+            )
+            .where(
+              _matchesCategory,
+            )
+            .toList();
+
+    if (products.isEmpty) {
+      return _emptySearchState();
+    }
+
     return StreamBuilder<
         QuerySnapshot<
             Map<String, dynamic>>>(
-      stream: _productsStream(),
+      stream: _favouritesStream(),
       builder:
-          (context, snapshot) {
-        if (snapshot.connectionState ==
-            ConnectionState.waiting) {
-          return const Padding(
-            padding:
-                EdgeInsets.symmetric(
-              vertical: 35,
-            ),
-            child: Center(
-              child:
-                  CircularProgressIndicator(
-                color: pikkXBlack,
-                strokeWidth: 2,
-              ),
-            ),
-          );
-        }
+          (context, favouriteSnapshot) {
+        final favouriteIds =
+            <String>{};
 
-        if (snapshot.hasError) {
-          return _firebaseError();
-        }
+        if (favouriteSnapshot
+            .hasData) {
+          for (final doc
+              in favouriteSnapshot
+                  .data!
+                  .docs) {
+            favouriteIds.add(doc.id);
 
-        final documents =
-            snapshot.data?.docs ?? [];
+            final data =
+                doc.data();
 
-        final products =
-            documents.where((doc) {
-          final data = doc.data();
+            final productId =
+                data['productId']
+                    ?.toString();
 
-          return _matchesSearch(data) &&
-              _matchesCategory(data);
-        }).toList();
-
-        products.sort(
-          (a, b) {
-            final aData = a.data();
-            final bData = b.data();
-
-            final aFeatured =
-                _isFeatured(aData);
-            final bFeatured =
-                _isFeatured(bData);
-
-            if (aFeatured != bFeatured) {
-              return bFeatured
-                  ? 1
-                  : -1;
-            }
-
-            final aTime =
-                aData['createdAt'];
-            final bTime =
-                bData['createdAt'];
-
-            if (aTime is Timestamp &&
-                bTime is Timestamp) {
-              return bTime.compareTo(
-                aTime,
+            if (productId != null &&
+                productId.isNotEmpty) {
+              favouriteIds.add(
+                productId,
               );
             }
-
-            return 0;
-          },
-        );
-
-        if (products.isEmpty) {
-          return _emptySearchState();
+          }
         }
 
-        return StreamBuilder<
-            QuerySnapshot<
-                Map<String, dynamic>>>(
-          stream: _favouritesStream(),
-          builder:
-              (context, favouriteSnapshot) {
-            final favouriteIds =
-                <String>{};
-
-            if (favouriteSnapshot
-                .hasData) {
-              for (final doc
-                  in favouriteSnapshot
-                      .data!
-                      .docs) {
-                favouriteIds.add(doc.id);
-
-                final data =
-                    doc.data();
-
-                final productId =
-                    data['productId']
-                        ?.toString();
-
-                if (productId != null &&
-                    productId.isNotEmpty) {
-                  favouriteIds.add(
-                    productId,
-                  );
-                }
-              }
-            }
-
-            return Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-                _sectionHeader(
-                  'Products · Trending Now',
-                  onSeeAll: _showAllProducts,
+        return Padding(
+          padding:
+              const EdgeInsets.fromLTRB(
+            18,
+            8,
+            0,
+            25,
+          ),
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding:
+                    EdgeInsets.only(
+                  right: 18,
                 ),
-                _horizontalProducts(
-                  products,
-                  favouriteIds,
-                  height: 242,
-                ),
-                if (_searchController.text
-                    .trim()
-                    .isEmpty)
-                  ...[
-                    const SizedBox(
-                      height: 5,
-                    ),
-                    _sectionHeader(
-                      'Picked for you',
-                      onSeeAll:
-                          _showAllProducts,
-                    ),
-                    _horizontalProducts(
-                      _pickedProducts(products),
-                      favouriteIds,
-                      height: 242,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Products · Trending Now',
+                        style:
+                            TextStyle(
+                          color:
+                              pikkXBlack,
+                          fontSize: 18,
+                          fontWeight:
+                              FontWeight.w700,
+                          letterSpacing:
+                              -.3,
+                        ),
+                      ),
                     ),
                   ],
-                const SizedBox(
-                  height: 78,
                 ),
-              ],
-            );
-          },
+              ),
+
+              const SizedBox(
+                height: 12,
+              ),
+
+              SizedBox(
+                height: 315,
+                child: ListView.builder(
+                  scrollDirection:
+                      Axis.horizontal,
+                  physics:
+                      const BouncingScrollPhysics(),
+                  itemCount:
+                      products.length,
+                  itemBuilder:
+                      (context, index) {
+                    final product =
+                        products[index];
+
+                    final productId =
+                        product['id']
+                            .toString();
+
+                    return _productCard(
+                      productId,
+                      product,
+                      favouriteIds
+                          .contains(
+                        productId,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
   }
 
   // ============================================================
-  // SECTION HEADER
+  // RATING STARS
   // ============================================================
 
-  Widget _sectionHeader(
-    String title, {
-    required VoidCallback onSeeAll,
-  }) {
-    return Padding(
-      padding:
-          const EdgeInsets.fromLTRB(
-        18,
-        8,
-        18,
-        7,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              title,
-              style:
-                  const TextStyle(
-                color: pikkXBlack,
-                fontSize: 17,
-                fontWeight:
-                    FontWeight.w600,
-                letterSpacing: -.2,
-              ),
-            ),
-          ),
-          GestureDetector(
-            onTap: onSeeAll,
-            child: const Text(
-              'See all',
-              style:
-                  TextStyle(
-                color: pikkXGrey,
-                fontSize: 11,
-                fontWeight:
-                    FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // HORIZONTAL PRODUCTS
-  // ============================================================
-
-  Widget _horizontalProducts(
-    List<QueryDocumentSnapshot<
-            Map<String, dynamic>>>
-        products,
-    Set<String> favouriteIds, {
-    required double height,
-  }) {
-    if (products.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return SizedBox(
-      height: height,
-      child: ListView.builder(
-        padding:
-            const EdgeInsets.only(
-          left: 18,
-          right: 7,
-        ),
-        scrollDirection:
-            Axis.horizontal,
-        physics:
-            const BouncingScrollPhysics(),
-        itemCount: products.length,
-        itemBuilder:
-            (context, index) {
-          final document =
-              products[index];
-
-          return _productCard(
-            document.id,
-            document.data(),
-            favouriteIds.contains(
-              document.id,
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  List<QueryDocumentSnapshot<
-          Map<String, dynamic>>>
-      _pickedProducts(
-    List<QueryDocumentSnapshot<
-            Map<String, dynamic>>>
-        products,
+  Widget _ratingStars(
+    double rating,
   ) {
-    final copy =
-        List<QueryDocumentSnapshot<
-            Map<String, dynamic>>>.from(
-      products,
+    return Row(
+      mainAxisSize:
+          MainAxisSize.min,
+      children: [
+        for (int i = 1; i <= 5; i++)
+          Icon(
+            rating >= i
+                ? Icons.star_rounded
+                : rating >= i - .5
+                    ? Icons.star_half_rounded
+                    : Icons.star_border_rounded,
+            color: pikkXBlack,
+            size: 14,
+          ),
+
+        const SizedBox(width: 5),
+
+        Text(
+          rating.toStringAsFixed(1),
+          style:
+              const TextStyle(
+            color: pikkXBlack,
+            fontSize: 10,
+            fontWeight:
+                FontWeight.w700,
+          ),
+        ),
+      ],
     );
-
-    copy.sort(
-      (a, b) {
-        final aRating =
-            _rating(a.data()) ?? 0;
-        final bRating =
-            _rating(b.data()) ?? 0;
-
-        return bRating.compareTo(
-          aRating,
-        );
-      },
-    );
-
-    return copy;
   }
 
   // ============================================================
@@ -1230,11 +1119,13 @@ class _MyHomePageState extends State<MyHomePage> {
     final category =
         _category(product);
 
-    final imageUrl =
-        _imageUrl(product);
+    final imagePath =
+        _imagePath(product);
 
     final price =
-        _toDouble(product['price']);
+        _toDouble(
+      product['price'],
+    );
 
     final originalPrice =
         _originalPrice(product);
@@ -1245,26 +1136,15 @@ class _MyHomePageState extends State<MyHomePage> {
     final deliveryTime =
         _deliveryTime(product);
 
-    final seller =
-        product['sellerName']
-                ?.toString()
-                .trim() ??
-            '';
-
     final currency =
-        product['currencySymbol']
-                ?.toString() ??
-            product['currency']
-                ?.toString();
-
-    final food =
-        _isFood(product);
+        product['currency']
+            ?.toString();
 
     return Container(
-      width: 190,
+      width: 205,
       margin:
           const EdgeInsets.only(
-        right: 11,
+        right: 12,
         bottom: 7,
       ),
       child: _glass(
@@ -1278,7 +1158,7 @@ class _MyHomePageState extends State<MyHomePage> {
           children: [
             // IMAGE
             SizedBox(
-              height: 124,
+              height: 145,
               child: Stack(
                 children: [
                   Positioned.fill(
@@ -1297,26 +1177,38 @@ class _MyHomePageState extends State<MyHomePage> {
                             20,
                           ),
                         ),
-                        child:
-                            Container(
+                        child: Container(
                           color:
                               pikkXBackground,
                           child:
-                              imageUrl
-                                      .isNotEmpty
-                                  ? Image.network(
-                                      imageUrl,
+                              imagePath
+                                      .startsWith(
+                            'assets/',
+                          )
+                                  ? Image.asset(
+                                      imagePath,
                                       width:
                                           double.infinity,
                                       height:
                                           double.infinity,
-                                      fit:
-                                          BoxFit.cover,
+                                      fit: BoxFit
+                                          .contain,
                                       errorBuilder:
                                           (_, __, ___) =>
                                               _productPlaceholder(),
                                     )
-                                  : _productPlaceholder(),
+                                  : Image.network(
+                                      imagePath,
+                                      width:
+                                          double.infinity,
+                                      height:
+                                          double.infinity,
+                                      fit: BoxFit
+                                          .cover,
+                                      errorBuilder:
+                                          (_, __, ___) =>
+                                              _productPlaceholder(),
+                                    ),
                         ),
                       ),
                     ),
@@ -1324,24 +1216,24 @@ class _MyHomePageState extends State<MyHomePage> {
 
                   // FAVOURITE
                   Positioned(
-                    right: 8,
-                    top: 8,
+                    right: 9,
+                    top: 9,
                     child: GestureDetector(
                       onTap: () =>
                           _toggleFavourite(
                         productId,
                         product,
+                        isFavourite,
                       ),
-                      child:
-                          Container(
-                        width: 32,
-                        height: 32,
+                      child: Container(
+                        width: 34,
+                        height: 34,
                         decoration:
                             BoxDecoration(
                           color:
                               pikkXWhite
                                   .withOpacity(
-                            .92,
+                            .94,
                           ),
                           shape:
                               BoxShape.circle,
@@ -1355,65 +1247,23 @@ class _MyHomePageState extends State<MyHomePage> {
                                   .favorite_border_rounded,
                           color:
                               pikkXBlack,
-                          size: 17,
+                          size: 18,
                         ),
                       ),
                     ),
                   ),
-
-                  // SALE
-                  if (originalPrice !=
-                      null)
-                    Positioned(
-                      left: 8,
-                      top: 8,
-                      child:
-                          Container(
-                        padding:
-                            const EdgeInsets
-                                .symmetric(
-                          horizontal: 7,
-                          vertical: 4,
-                        ),
-                        decoration:
-                            BoxDecoration(
-                          color:
-                              pikkXBlack,
-                          borderRadius:
-                              BorderRadius
-                                  .circular(
-                            7,
-                          ),
-                        ),
-                        child:
-                            const Text(
-                          'SALE',
-                          style:
-                              TextStyle(
-                            color:
-                                pikkXWhite,
-                            fontSize:
-                                8,
-                            fontWeight:
-                                FontWeight
-                                    .w600,
-                          ),
-                        ),
-                      ),
-                    ),
                 ],
               ),
             ),
 
-            // DETAILS
+            // INFORMATION
             Padding(
               padding:
-                  const EdgeInsets
-                      .fromLTRB(
-                11,
-                8,
-                9,
-                9,
+                  const EdgeInsets.fromLTRB(
+                13,
+                10,
+                10,
+                10,
               ),
               child: Column(
                 crossAxisAlignment:
@@ -1426,35 +1276,28 @@ class _MyHomePageState extends State<MyHomePage> {
                         TextOverflow.ellipsis,
                     style:
                         const TextStyle(
-                      color: pikkXBlack,
-                      fontSize: 13,
+                      color:
+                          pikkXBlack,
+                      fontSize: 14,
                       fontWeight:
-                          FontWeight.w600,
+                          FontWeight.w700,
                     ),
                   ),
 
-                  if (category.isNotEmpty ||
-                      seller.isNotEmpty)
+                  if (category.isNotEmpty)
                     Padding(
                       padding:
                           const EdgeInsets
                               .only(
-                        top: 2,
+                        top: 3,
                       ),
                       child: Text(
-                        category.isNotEmpty
-                            ? category
-                            : seller,
-                        maxLines: 1,
-                        overflow:
-                            TextOverflow.ellipsis,
+                        category,
                         style:
                             const TextStyle(
                           color:
                               pikkXGrey,
-                          fontSize: 9,
-                          fontWeight:
-                              FontWeight.w500,
+                          fontSize: 10,
                         ),
                       ),
                     ),
@@ -1463,115 +1306,53 @@ class _MyHomePageState extends State<MyHomePage> {
                     height: 5,
                   ),
 
-                  // RATING / DELIVERY
-                  Row(
-                    children: [
-                      if (rating != null) ...[
+                  _ratingStars(
+                    rating,
+                  ),
+
+                  if (deliveryTime !=
+                      null) ...[
+                    const SizedBox(
+                      height: 4,
+                    ),
+                    Row(
+                      children: [
                         const Icon(
-                          Icons.star_rounded,
-                          color: pikkXBlack,
-                          size: 13,
+                          Icons
+                              .schedule_rounded,
+                          size: 12,
+                          color:
+                              pikkXGrey,
                         ),
                         const SizedBox(
-                          width: 2,
+                          width: 4,
                         ),
                         Text(
-                          rating
-                              .toStringAsFixed(
-                            1,
-                          ),
+                          deliveryTime,
                           style:
                               const TextStyle(
                             color:
-                                pikkXBlack,
+                                pikkXGrey,
                             fontSize: 9,
-                            fontWeight:
-                                FontWeight.w600,
                           ),
                         ),
                       ],
-
-                      if (rating != null &&
-                          deliveryTime !=
-                              null)
-                        const Padding(
-                          padding:
-                              EdgeInsets
-                                  .symmetric(
-                            horizontal: 5,
-                          ),
-                          child: Text(
-                            '·',
-                            style:
-                                TextStyle(
-                              color:
-                                  pikkXGrey,
-                            ),
-                          ),
-                        ),
-
-                      if (deliveryTime !=
-                          null)
-                        Expanded(
-                          child: Text(
-                            deliveryTime,
-                            maxLines: 1,
-                            overflow:
-                                TextOverflow
-                                    .ellipsis,
-                            style:
-                                const TextStyle(
-                              color:
-                                  pikkXGrey,
-                              fontSize: 9,
-                              fontWeight:
-                                  FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
+                    ),
+                  ],
 
                   const SizedBox(
-                    height: 6,
+                    height: 5,
                   ),
 
-                  // PRICE + PLUS
                   Row(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.center,
                     children: [
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment
-                                  .start,
+                        child: Row(
                           children: [
-                            Text(
-                              _formatPrice(
-                                price,
-                                currency:
-                                    currency,
-                              ),
-                              maxLines: 1,
-                              overflow:
-                                  TextOverflow
-                                      .ellipsis,
-                              style:
-                                  const TextStyle(
-                                color:
-                                    pikkXBlack,
-                                fontSize:
-                                    14,
-                                fontWeight:
-                                    FontWeight.w600,
-                              ),
-                            ),
-                            if (originalPrice !=
-                                null)
-                              Text(
+                            Flexible(
+                              child: Text(
                                 _formatPrice(
-                                  originalPrice,
+                                  price,
                                   currency:
                                       currency,
                                 ),
@@ -1582,41 +1363,67 @@ class _MyHomePageState extends State<MyHomePage> {
                                 style:
                                     const TextStyle(
                                   color:
-                                      pikkXGrey,
-                                  fontSize:
-                                      9,
-                                  decoration:
-                                      TextDecoration
-                                          .lineThrough,
+                                      pikkXBlack,
+                                  fontSize: 14,
                                   fontWeight:
-                                      FontWeight.w600,
+                                      FontWeight.w700,
                                 ),
                               ),
+                            ),
+
+                            if (originalPrice !=
+                                null) ...[
+                              const SizedBox(
+                                width: 5,
+                              ),
+                              Flexible(
+                                child: Text(
+                                  _formatPrice(
+                                    originalPrice,
+                                    currency:
+                                        currency,
+                                  ),
+                                  maxLines: 1,
+                                  overflow:
+                                      TextOverflow
+                                          .ellipsis,
+                                  style:
+                                      const TextStyle(
+                                    color:
+                                        pikkXGrey,
+                                    fontSize:
+                                        9,
+                                    decoration:
+                                        TextDecoration
+                                            .lineThrough,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
 
                       GestureDetector(
                         onTap: () =>
-                            _addToCart(
+                            _openProduct(
                           productId,
                           product,
                         ),
-                        child:
-                            Container(
-                          width: 34,
-                          height: 34,
+                        child: Container(
+                          width: 35,
+                          height: 35,
                           decoration:
                               const BoxDecoration(
                             color:
                                 pikkXBlack,
                             shape:
-                                BoxShape
-                                    .circle,
+                                BoxShape.circle,
                           ),
                           child:
                               const Icon(
-                            Icons.add_rounded,
+                            Icons
+                                .add_rounded,
                             color:
                                 pikkXWhite,
                             size: 21,
@@ -1635,115 +1442,36 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   // ============================================================
-  // PRODUCT PLACEHOLDER
+  // PRODUCT IMAGE PLACEHOLDER
   // ============================================================
 
   Widget _productPlaceholder() {
     return const Center(
       child: Icon(
-        Icons.shopping_bag_outlined,
-        color: pikkXBlack,
-        size: 38,
+        Icons.image_outlined,
+        color: pikkXGrey,
+        size: 40,
       ),
     );
   }
 
   // ============================================================
-  // ADD TO CART
+  // OPEN EXISTING PRODUCT DETAIL PAGE
   // ============================================================
 
-  Future<void> _addToCart(
+  void _openProduct(
     String productId,
     Map<String, dynamic> product,
-  ) async {
-    final user =
-        _currentUser;
-
-    if (user == null) {
-      _showMessage(
-        'Please sign in to add items to your cart.',
-      );
-      return;
-    }
-
-    try {
-      final reference =
-          _firestore
-              .collection('users')
-              .doc(user.uid)
-              .collection('cart')
-              .doc(productId);
-
-      final existing =
-          await reference.get();
-
-      if (existing.exists) {
-        final data =
-            existing.data();
-
-        final quantity =
-            _toInt(
-          data?['quantity'],
-          fallback: 1,
-        );
-
-        await reference.update({
-          'quantity':
-              quantity + 1,
-          'updatedAt':
-              FieldValue.serverTimestamp(),
-        });
-      } else {
-        await reference.set({
-          'productId':
-              productId,
-          'name':
-              _productName(product),
-          'price':
-              _toDouble(
-                product['price'],
-              ),
-          'imageUrl':
-              _imageUrl(product),
-          'image':
-              product['image']
-                      ?.toString() ??
-                  _imageUrl(product),
-          'quantity':
-              1,
-          'sellerId':
-              product['sellerId']
-                      ?.toString() ??
-                  '',
-          'sellerName':
-              product['sellerName']
-                      ?.toString() ??
-                  '',
-          'category':
-              _category(product),
-          'description':
-              product['description']
-                      ?.toString() ??
-                  '',
-          'createdAt':
-              FieldValue.serverTimestamp(),
-          'updatedAt':
-              FieldValue.serverTimestamp(),
-        });
-      }
-
-      _showMessage(
-        'Added to cart.',
-      );
-    } catch (e) {
-      debugPrint(
-        'Add to cart error: $e',
-      );
-
-      _showMessage(
-        'Could not add product to cart.',
-      );
-    }
+  ) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            ProductDetailPage(
+          productId: productId,
+          product: product,
+        ),
+      ),
+    );
   }
 
   // ============================================================
@@ -1753,6 +1481,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> _toggleFavourite(
     String productId,
     Map<String, dynamic> product,
+    bool isFavourite,
   ) async {
     final user =
         _currentUser;
@@ -1772,10 +1501,7 @@ class _MyHomePageState extends State<MyHomePage> {
               .collection('favorites')
               .doc(productId);
 
-      final existing =
-          await reference.get();
-
-      if (existing.exists) {
+      if (isFavourite) {
         await reference.delete();
 
         _showMessage(
@@ -1783,20 +1509,17 @@ class _MyHomePageState extends State<MyHomePage> {
         );
       } else {
         await reference.set({
-          'productId':
-              productId,
+          'productId': productId,
           'name':
               _productName(product),
           'price':
               _toDouble(
-                product['price'],
-              ),
+            product['price'],
+          ),
           'imageUrl':
-              _imageUrl(product),
+              _imagePath(product),
           'image':
-              product['image']
-                      ?.toString() ??
-                  _imageUrl(product),
+              _imagePath(product),
           'category':
               _category(product),
           'sellerId':
@@ -1811,6 +1534,8 @@ class _MyHomePageState extends State<MyHomePage> {
               product['description']
                       ?.toString() ??
                   '',
+          'rating':
+              _rating(product),
           'createdAt':
               FieldValue.serverTimestamp(),
         });
@@ -1831,410 +1556,382 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   // ============================================================
-  // PRODUCT DETAILS
+  // DISPATCH TRACKING
   // ============================================================
 
-  void _openProduct(
-    String productId,
-    Map<String, dynamic> product,
-  ) {
-    final name =
-        _productName(product);
+  Future<void> _openDispatchTracking() async {
+    final user =
+        _currentUser;
 
-    final description =
-        product['description']
+    if (user == null) {
+      _showMessage(
+        'Please sign in to track your order.',
+      );
+      return;
+    }
+
+    try {
+      final snapshot =
+          await _firestore
+              .collection('orders')
+              .where(
+                'userId',
+                isEqualTo: user.uid,
+              )
+              .get();
+
+      final activeOrders =
+          snapshot.docs.where((doc) {
+        final data =
+            doc.data();
+
+        final status =
+            data['status']
                 ?.toString()
-                .trim() ??
-            'No description available.';
+                .toLowerCase()
+                .trim();
 
-    final imageUrl =
-        _imageUrl(product);
+        return status != 'delivered' &&
+            status != 'completed' &&
+            status != 'cancelled';
+      }).toList();
 
-    final category =
-        _category(product);
+      if (activeOrders.isEmpty) {
+        _showMessage(
+          'You do not have an active order to track.',
+        );
+        return;
+      }
 
-    final seller =
-        product['sellerName']
-                ?.toString()
-                .trim() ??
-            '';
+      activeOrders.sort(
+        (a, b) {
+          final aCreated =
+              a.data()['createdAt'];
 
-    final rating =
-        _rating(product);
+          final bCreated =
+              b.data()['createdAt'];
 
-    final deliveryTime =
-        _deliveryTime(product);
+          if (aCreated is Timestamp &&
+              bCreated is Timestamp) {
+            return bCreated.compareTo(
+              aCreated,
+            );
+          }
 
-    final currency =
-        product['currencySymbol']
-                ?.toString() ??
-            product['currency']
-                ?.toString();
+          return 0;
+        },
+      );
 
+      final orderId =
+          activeOrders.first.id;
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.of(context).pushNamed(
+        '/dispatch-tracking',
+        arguments: orderId,
+      );
+    } catch (e) {
+      debugPrint(
+        'Dispatch tracking error: $e',
+      );
+
+      _showMessage(
+        'Could not load your active order.',
+      );
+    }
+  }
+
+  // ============================================================
+  // PROFILE
+  // ============================================================
+
+  void _openProfile() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            const ProfilePage(),
+      ),
+    );
+  }
+
+  // ============================================================
+  // NOTIFICATIONS
+  // ============================================================
+
+  void _openNotifications() {
     showModalBottomSheet(
       context: context,
       backgroundColor:
           Colors.transparent,
-      isScrollControlled:
-          true,
+      isScrollControlled: true,
       builder: (sheetContext) {
-        return ClipRRect(
-          borderRadius:
-              const BorderRadius
-                  .vertical(
-            top: Radius.circular(28),
-          ),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: 18,
-              sigmaY: 18,
+        return Container(
+          height:
+              MediaQuery.of(
+                    sheetContext,
+                  ).size.height *
+                  .70,
+          decoration:
+              const BoxDecoration(
+            color: pikkXBackground,
+            borderRadius:
+                BorderRadius.vertical(
+              top: Radius.circular(28),
             ),
-            child: Container(
-              constraints:
-                  BoxConstraints(
-                maxHeight:
-                    MediaQuery.of(
-                          sheetContext,
-                        ).size.height *
-                        .88,
+          ),
+          child: Column(
+            children: [
+              const SizedBox(
+                height: 10,
               ),
-              decoration:
-                  BoxDecoration(
-                color:
-                    pikkXWhite.withOpacity(
-                  .94,
-                ),
-                borderRadius:
-                    const BorderRadius
-                        .vertical(
-                  top:
-                      Radius.circular(28),
-                ),
-                border:
-                    Border.all(
+
+              Container(
+                width: 40,
+                height: 4,
+                decoration:
+                    BoxDecoration(
                   color:
-                      pikkXWhite.withOpacity(
-                    .95,
+                      pikkXLightGrey,
+                  borderRadius:
+                      BorderRadius.circular(
+                    20,
                   ),
                 ),
               ),
-              child: SafeArea(
-                child:
-                    SingleChildScrollView(
-                  padding:
-                      const EdgeInsets.all(
-                    18,
-                  ),
-                  child:
-                      Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment
-                            .start,
-                    children: [
-                      Center(
-                        child:
-                            Container(
-                          width: 38,
-                          height: 4,
-                          decoration:
-                              BoxDecoration(
-                            color:
-                                pikkXLightGrey,
-                            borderRadius:
-                                BorderRadius
-                                    .circular(
-                              10,
-                            ),
-                          ),
-                        ),
-                      ),
 
-                      const SizedBox(
-                        height: 14,
-                      ),
+              const SizedBox(
+                height: 18,
+              ),
 
-                      if (imageUrl
-                          .isNotEmpty)
-                        ClipRRect(
-                          borderRadius:
-                              BorderRadius
-                                  .circular(
-                            20,
-                          ),
-                          child:
-                              Image.network(
-                            imageUrl,
-                            width:
-                                double.infinity,
-                            height: 210,
-                            fit:
-                                BoxFit.cover,
-                            errorBuilder:
-                                (_, __, ___) =>
-                                    _productPlaceholder(),
-                          ),
-                        ),
-
-                      const SizedBox(
-                        height: 14,
-                      ),
-
-                      Text(
-                        name,
+              const Padding(
+                padding:
+                    EdgeInsets.symmetric(
+                  horizontal: 20,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Notifications',
                         style:
-                            const TextStyle(
-                          color:
-                              pikkXBlack,
-                          fontSize: 21,
-                          fontWeight:
-                              FontWeight.w600,
-                        ),
-                      ),
-
-                      if (category
-                          .isNotEmpty)
-                        Padding(
-                          padding:
-                              const EdgeInsets
-                                  .only(
-                            top: 4,
-                          ),
-                          child:
-                              Text(
-                            category,
-                            style:
-                                const TextStyle(
-                              color:
-                                  pikkXGrey,
-                              fontSize:
-                                  11,
-                              fontWeight:
-                                  FontWeight.w500,
-                            ),
-                          ),
-                        ),
-
-                      const SizedBox(
-                        height: 8,
-                      ),
-
-                      Row(
-                        children: [
-                          if (rating !=
-                              null) ...[
-                            const Icon(
-                              Icons.star_rounded,
-                              color:
-                                  pikkXBlack,
-                              size: 16,
-                            ),
-                            const SizedBox(
-                              width: 3,
-                            ),
-                            Text(
-                              rating
-                                  .toStringAsFixed(
-                                1,
-                              ),
-                              style:
-                                  const TextStyle(
-                                color:
-                                    pikkXBlack,
-                                fontSize:
-                                    11,
-                                fontWeight:
-                                    FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                          if (deliveryTime !=
-                              null) ...[
-                            const SizedBox(
-                              width: 10,
-                            ),
-                            const Icon(
-                              Icons.schedule_rounded,
-                              color:
-                                  pikkXGrey,
-                              size: 15,
-                            ),
-                            const SizedBox(
-                              width: 3,
-                            ),
-                            Text(
-                              deliveryTime,
-                              style:
-                                  const TextStyle(
-                                color:
-                                    pikkXGrey,
-                                fontSize:
-                                    10,
-                                fontWeight:
-                                    FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-
-                      const SizedBox(
-                        height: 10,
-                      ),
-
-                      Text(
-                        _formatPrice(
-                          product['price'],
-                          currency:
-                              currency,
-                        ),
-                        style:
-                            const TextStyle(
+                            TextStyle(
                           color:
                               pikkXBlack,
                           fontSize: 20,
                           fontWeight:
-                              FontWeight.w600,
+                              FontWeight.w700,
                         ),
                       ),
+                    ),
+                  ],
+                ),
+              ),
 
-                      if (seller.isNotEmpty)
-                        Padding(
+              const SizedBox(
+                height: 10,
+              ),
+
+              Expanded(
+                child: StreamBuilder<
+                    QuerySnapshot<
+                        Map<String,
+                            dynamic>>>(
+                  stream:
+                      _notificationsStream(),
+                  builder:
+                      (context, snapshot) {
+                    if (snapshot
+                            .connectionState ==
+                        ConnectionState
+                            .waiting) {
+                      return const Center(
+                        child:
+                            CircularProgressIndicator(
+                          color:
+                              pikkXBlack,
+                          strokeWidth: 2,
+                        ),
+                      );
+                    }
+
+                    if (snapshot
+                        .hasError) {
+                      return const Center(
+                        child: Text(
+                          'Unable to load notifications.',
+                          style:
+                              TextStyle(
+                            color:
+                                pikkXGrey,
+                          ),
+                        ),
+                      );
+                    }
+
+                    final docs =
+                        snapshot.data?.docs ??
+                            [];
+
+                    if (docs.isEmpty) {
+                      return const Center(
+                        child: Column(
+                          mainAxisSize:
+                              MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons
+                                  .notifications_none_rounded,
+                              color:
+                                  pikkXGrey,
+                              size: 45,
+                            ),
+                            SizedBox(
+                              height: 10,
+                            ),
+                            Text(
+                              'No notifications yet.',
+                              style:
+                                  TextStyle(
+                                color:
+                                    pikkXGrey,
+                                fontSize:
+                                    13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return ListView.builder(
+                      padding:
+                          const EdgeInsets
+                              .fromLTRB(
+                        18,
+                        5,
+                        18,
+                        20,
+                      ),
+                      itemCount:
+                          docs.length,
+                      itemBuilder:
+                          (context, index) {
+                        final data =
+                            docs[index]
+                                .data();
+
+                        final title =
+                            data['title']
+                                    ?.toString() ??
+                                'PikkX';
+
+                        final message =
+                            data['message']
+                                    ?.toString() ??
+                                data['body']
+                                    ?.toString() ??
+                                '';
+
+                        return Padding(
                           padding:
                               const EdgeInsets
                                   .only(
-                            top: 4,
+                            bottom: 10,
                           ),
-                          child:
-                              Text(
-                            'Seller: $seller',
-                            style:
-                                const TextStyle(
-                              color:
-                                  pikkXGrey,
-                              fontSize:
-                                  10,
+                          child: _glass(
+                            radius: 18,
+                            padding:
+                                const EdgeInsets
+                                    .all(
+                              15,
                             ),
-                          ),
-                        ),
-
-                      const SizedBox(
-                        height: 10,
-                      ),
-
-                      Text(
-                        description,
-                        style:
-                            const TextStyle(
-                          color:
-                              pikkXGrey,
-                          fontSize:
-                              12,
-                          height: 1.45,
-                        ),
-                      ),
-
-                      const SizedBox(
-                        height: 17,
-                      ),
-
-                      Row(
-                        children: [
-                          GestureDetector(
-                            onTap: () {
-                              _toggleFavourite(
-                                productId,
-                                product,
-                              );
-                            },
-                            child:
+                            color:
+                                pikkXWhite
+                                    .withOpacity(
+                              .82,
+                            ),
+                            child: Row(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment
+                                      .start,
+                              children: [
                                 Container(
-                              width: 52,
-                              height: 52,
-                              decoration:
-                                  BoxDecoration(
-                                color:
-                                    pikkXBackground,
-                                borderRadius:
-                                    BorderRadius
-                                        .circular(
-                                  16,
-                                ),
-                                border:
-                                    Border.all(
-                                  color:
-                                      pikkXLightGrey,
-                                ),
-                              ),
-                              child:
-                                  const Icon(
-                                Icons.favorite_border_rounded,
-                                color:
-                                    pikkXBlack,
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(
-                            width: 9,
-                          ),
-
-                          Expanded(
-                            child:
-                                SizedBox(
-                              height: 52,
-                              child:
-                                  ElevatedButton(
-                                onPressed:
-                                    () {
-                                  Navigator
-                                      .pop(
-                                    sheetContext,
-                                  );
-
-                                  _addToCart(
-                                    productId,
-                                    product,
-                                  );
-                                },
-                                style:
-                                    ElevatedButton
-                                        .styleFrom(
-                                  backgroundColor:
-                                      pikkXBlack,
-                                  foregroundColor:
-                                      pikkXWhite,
-                                  elevation:
-                                      0,
-                                  shape:
-                                      RoundedRectangleBorder(
-                                    borderRadius:
-                                        BorderRadius
-                                            .circular(
-                                      16,
-                                    ),
+                                  width: 42,
+                                  height: 42,
+                                  decoration:
+                                      const BoxDecoration(
+                                    color:
+                                        pikkXBlack,
+                                    shape:
+                                        BoxShape
+                                            .circle,
+                                  ),
+                                  child:
+                                      const Icon(
+                                    Icons
+                                        .notifications_none_rounded,
+                                    color:
+                                        pikkXWhite,
+                                    size: 20,
                                   ),
                                 ),
-                                child:
-                                    const Text(
-                                  'Add to Cart',
-                                  style:
-                                      TextStyle(
-                                    fontSize:
-                                        13,
-                                    fontWeight:
-                                        FontWeight.w600,
+
+                                const SizedBox(
+                                  width: 12,
+                                ),
+
+                                Expanded(
+                                  child:
+                                      Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment
+                                            .start,
+                                    children: [
+                                      Text(
+                                        title,
+                                        style:
+                                            const TextStyle(
+                                          color:
+                                              pikkXBlack,
+                                          fontSize:
+                                              13,
+                                          fontWeight:
+                                              FontWeight
+                                                  .w700,
+                                        ),
+                                      ),
+                                      if (message
+                                          .isNotEmpty) ...[
+                                        const SizedBox(
+                                          height: 4,
+                                        ),
+                                        Text(
+                                          message,
+                                          style:
+                                              const TextStyle(
+                                            color:
+                                                pikkXGrey,
+                                            fontSize:
+                                                11,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
                           ),
-                        ],
-                      ),
-                    ],
-                  ),
+                        );
+                      },
+                    );
+                  },
                 ),
               ),
-            ),
+            ],
           ),
         );
       },
@@ -2249,29 +1946,28 @@ class _MyHomePageState extends State<MyHomePage> {
     try {
       final image =
           await _imagePicker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 85,
+        source:
+            ImageSource.camera,
+        imageQuality: 80,
       );
 
-      if (image == null) {
+      if (!mounted) {
         return;
       }
 
-      setState(() {
-        _cameraImage = image;
-      });
+      if (image != null) {
+        setState(() {
+          _cameraImage = image;
+        });
 
-      if (!mounted) return;
-
-      _showMessage(
-        'Product image captured.',
-      );
+        _showMessage(
+          'Camera image selected.',
+        );
+      }
     } catch (e) {
       debugPrint(
         'Camera error: $e',
       );
-
-      if (!mounted) return;
 
       _showMessage(
         'Could not open the camera.',
@@ -2280,456 +1976,45 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   // ============================================================
-  // PROFILE
-  // ============================================================
-
-  void _openProfile() {
-    final user =
-        _currentUser;
-
-    if (user == null) {
-      _showMessage(
-        'Please sign in to view your profile.',
-      );
-      return;
-    }
-
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) =>
-            const ProfilePage(),
-      ),
-    );
-  }
-
-  // ============================================================
-  // NOTIFICATIONS
-  // ============================================================
-
-  void _openNotifications() {
-    final user =
-        _currentUser;
-
-    if (user == null) {
-      _showMessage(
-        'Please sign in to view notifications.',
-      );
-      return;
-    }
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor:
-          Colors.transparent,
-      isScrollControlled:
-          true,
-      builder: (sheetContext) {
-        return _glass(
-          radius: 28,
-          color:
-              pikkXWhite.withOpacity(.95),
-          child: SizedBox(
-            height:
-                MediaQuery.of(
-                      sheetContext,
-                    ).size.height *
-                    .70,
-            child: SafeArea(
-              child: Column(
-                children: [
-                  const SizedBox(
-                    height: 12,
-                  ),
-                  Container(
-                    width: 38,
-                    height: 4,
-                    decoration:
-                        BoxDecoration(
-                      color:
-                          pikkXLightGrey,
-                      borderRadius:
-                          BorderRadius.circular(
-                        10,
-                      ),
-                    ),
-                  ),
-                  const Padding(
-                    padding:
-                        EdgeInsets.fromLTRB(
-                      18,
-                      14,
-                      18,
-                      10,
-                    ),
-                    child: Align(
-                      alignment:
-                          Alignment.centerLeft,
-                      child: Text(
-                        'Notifications',
-                        style:
-                            TextStyle(
-                          color:
-                              pikkXBlack,
-                          fontSize: 19,
-                          fontWeight:
-                              FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child:
-                        StreamBuilder<
-                            QuerySnapshot<
-                                Map<String,
-                                    dynamic>>>(
-                      stream:
-                          _notificationsStream(),
-                      builder:
-                          (context,
-                              snapshot) {
-                        if (snapshot
-                                .connectionState ==
-                            ConnectionState
-                                .waiting) {
-                          return const Center(
-                            child:
-                                CircularProgressIndicator(
-                              color:
-                                  pikkXBlack,
-                              strokeWidth:
-                                  2,
-                            ),
-                          );
-                        }
-
-                        if (snapshot
-                            .hasError) {
-                          return const Center(
-                            child: Text(
-                              'Unable to load notifications.',
-                              style:
-                                  TextStyle(
-                                color:
-                                    pikkXGrey,
-                              ),
-                            ),
-                          );
-                        }
-
-                        final docs =
-                            snapshot.data
-                                    ?.docs ??
-                                [];
-
-                        if (docs.isEmpty) {
-                          return const Center(
-                            child:
-                                Column(
-                              mainAxisSize:
-                                  MainAxisSize
-                                      .min,
-                              children: [
-                                Icon(
-                                  Icons.notifications_none_rounded,
-                                  color:
-                                      pikkXBlack,
-                                  size: 42,
-                                ),
-                                SizedBox(
-                                  height: 8,
-                                ),
-                                Text(
-                                  'No notifications yet',
-                                  style:
-                                      TextStyle(
-                                    color:
-                                        pikkXBlack,
-                                    fontWeight:
-                                        FontWeight
-                                            .w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }
-
-                        return ListView
-                            .builder(
-                          padding:
-                              const EdgeInsets
-                                  .fromLTRB(
-                            18,
-                            0,
-                            18,
-                            18,
-                          ),
-                          itemCount:
-                              docs.length,
-                          itemBuilder:
-                              (context,
-                                  index) {
-                            final doc =
-                                docs[index];
-
-                            final data =
-                                doc.data();
-
-                            final title =
-                                data['title']
-                                        ?.toString() ??
-                                    'Notification';
-
-                            final message =
-                                data['message']
-                                        ?.toString() ??
-                                    '';
-
-                            final read =
-                                data['read'] ==
-                                    true;
-
-                            return Padding(
-                              padding:
-                                  const EdgeInsets
-                                      .only(
-                                bottom: 8,
-                              ),
-                              child:
-                                  _glass(
-                                radius: 17,
-                                color: read
-                                    ? pikkXBackground
-                                    : pikkXWhite,
-                                child:
-                                    ListTile(
-                                  contentPadding:
-                                      const EdgeInsets
-                                          .symmetric(
-                                    horizontal:
-                                        12,
-                                  ),
-                                  onTap:
-                                      () async {
-                                    if (!read) {
-                                      await doc
-                                          .reference
-                                          .update({
-                                        'read':
-                                            true,
-                                      });
-                                    }
-                                  },
-                                  leading:
-                                      Container(
-                                    width:
-                                        39,
-                                    height:
-                                        39,
-                                    decoration:
-                                        const BoxDecoration(
-                                      color:
-                                          pikkXBlack,
-                                      shape:
-                                          BoxShape
-                                              .circle,
-                                    ),
-                                    child:
-                                        const Icon(
-                                      Icons.notifications_none_rounded,
-                                      color:
-                                          pikkXWhite,
-                                      size:
-                                          19,
-                                    ),
-                                  ),
-                                  title:
-                                      Text(
-                                    title,
-                                    style:
-                                        const TextStyle(
-                                      color:
-                                          pikkXBlack,
-                                      fontSize:
-                                          12,
-                                      fontWeight:
-                                          FontWeight.w600,
-                                    ),
-                                  ),
-                                  subtitle:
-                                      message
-                                              .isNotEmpty
-                                          ? Text(
-                                              message,
-                                              style:
-                                                  const TextStyle(
-                                                color:
-                                                    pikkXGrey,
-                                                fontSize:
-                                                    10,
-                                              ),
-                                            )
-                                          : null,
-                                  trailing:
-                                      read
-                                          ? null
-                                          : Container(
-                                              width:
-                                                  7,
-                                              height:
-                                                  7,
-                                              decoration:
-                                                  const BoxDecoration(
-                                                color:
-                                                    pikkXBlack,
-                                                shape:
-                                                    BoxShape
-                                                        .circle,
-                                              ),
-                                            ),
-                                ),
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // ============================================================
-  // SEE ALL
-  // ============================================================
-
-  void _showAllProducts() {
-    _showMessage(
-      'Showing all available products.',
-    );
-  }
-
-  // ============================================================
   // EMPTY SEARCH
   // ============================================================
 
   Widget _emptySearchState() {
-    final searching =
-        _searchController.text
-            .trim()
-            .isNotEmpty;
-
     return Padding(
       padding:
-          const EdgeInsets.fromLTRB(
-        18,
-        28,
-        18,
-        80,
-      ),
-      child: _glass(
-        radius: 20,
-        padding:
-            const EdgeInsets.all(22),
-        color:
-            pikkXWhite.withOpacity(.68),
+          const EdgeInsets.all(30),
+      child: Center(
         child: Column(
           children: [
             const Icon(
               Icons.search_off_rounded,
-              color: pikkXBlack,
-              size: 38,
+              color: pikkXGrey,
+              size: 42,
             ),
             const SizedBox(
-              height: 9,
+              height: 10,
             ),
-            Text(
-              searching
-                  ? 'No products found'
-                  : 'No products available',
+            const Text(
+              'No products found',
               style:
-                  const TextStyle(
-                color: pikkXBlack,
+                  TextStyle(
+                color:
+                    pikkXBlack,
                 fontSize: 16,
                 fontWeight:
-                    FontWeight.w600,
+                    FontWeight.w700,
               ),
             ),
             const SizedBox(
-              height: 4,
+              height: 5,
             ),
             Text(
-              searching
-                  ? 'Try another search or category.'
-                  : 'Products added to PikkX will appear here.',
-              textAlign:
-                  TextAlign.center,
+              'Try another search or category.',
               style:
                   const TextStyle(
-                color: pikkXGrey,
+                color:
+                    pikkXGrey,
                 fontSize: 11,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // FIREBASE ERROR
-  // ============================================================
-
-  Widget _firebaseError() {
-    return Padding(
-      padding:
-          const EdgeInsets.fromLTRB(
-        18,
-        20,
-        18,
-        70,
-      ),
-      child: _glass(
-        radius: 20,
-        padding:
-            const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.cloud_off_rounded,
-              color: pikkXBlack,
-              size: 36,
-            ),
-            const SizedBox(
-              height: 8,
-            ),
-            const Text(
-              'Unable to load products',
-              style:
-                  TextStyle(
-                color: pikkXBlack,
-                fontSize: 15,
-                fontWeight:
-                    FontWeight.w600,
-              ),
-            ),
-            const SizedBox(
-              height: 4,
-            ),
-            const Text(
-              'Check your Firebase connection and Firestore rules.',
-              textAlign:
-                  TextAlign.center,
-              style:
-                  TextStyle(
-                color: pikkXGrey,
-                fontSize: 10,
               ),
             ),
           ],
@@ -2745,37 +2030,36 @@ class _MyHomePageState extends State<MyHomePage> {
   void _showMessage(
     String message,
   ) {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style:
-              const TextStyle(
-            color: pikkXWhite,
-            fontSize: 12,
-            fontWeight:
-                FontWeight.w600,
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            message,
+            style:
+                const TextStyle(
+              color: pikkXWhite,
+              fontWeight:
+                  FontWeight.w600,
+            ),
+          ),
+          behavior:
+              SnackBarBehavior.floating,
+          backgroundColor:
+              pikkXBlack,
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(
+              15,
+            ),
           ),
         ),
-        backgroundColor:
-            pikkXBlack,
-        behavior:
-            SnackBarBehavior.floating,
-        margin:
-            const EdgeInsets.all(14),
-        shape:
-            RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.circular(
-            13,
-          ),
-        ),
-      ),
-    );
+      );
   }
 
   // ============================================================
@@ -2786,43 +2070,60 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(
     BuildContext context,
   ) {
-    return Container(
-      color: pikkXBackground,
-      child: SingleChildScrollView(
-        physics:
-            const BouncingScrollPhysics(),
-        child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
-          children: [
-            _header(),
-            _search(),
-            _quickFilters(),
-            _promoBanner(),
-            _productWidget(),
-          ],
+    return Scaffold(
+      backgroundColor:
+          pikkXBackground,
+      body: SafeArea(
+        child: RefreshIndicator(
+          color: pikkXBlack,
+          onRefresh: () async {
+            setState(() {});
+          },
+          child: ListView(
+            physics:
+                const BouncingScrollPhysics(
+              parent:
+                  AlwaysScrollableScrollPhysics(),
+            ),
+            padding:
+                const EdgeInsets.only(
+              bottom: 25,
+            ),
+            children: [
+              _header(),
+
+              _search(),
+
+              _quickFilters(),
+
+              _promoBanner(),
+
+              _productWidget(),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ================================================================
-// SMALL TAP EXTENSION
-// ================================================================
+// ============================================================
+// TAP EXTENSION
+// ============================================================
 
-extension _HomeTapExtension
-    on Widget {
+extension _HomeTapExtension on Widget {
   Widget _tap(
     VoidCallback onTap, {
-    double radius = 16,
+    double radius = 20,
   }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius:
-            BorderRadius.circular(radius),
+            BorderRadius.circular(
+          radius,
+        ),
         child: this,
       ),
     );
