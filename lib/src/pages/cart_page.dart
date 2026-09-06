@@ -4,8 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import 'package:pikkx/src/themes/theme.dart';
-
 class CartPage extends StatefulWidget {
   const CartPage({
     super.key,
@@ -19,6 +17,20 @@ class CartPage extends StatefulWidget {
 }
 
 class _CartPageState extends State<CartPage> {
+  // ============================================================
+  // PIKKX COLORS
+  // ============================================================
+
+  static const Color pikkXBlack = Color(0xFF050505);
+  static const Color pikkXWhite = Color(0xFFFFFFFF);
+  static const Color pikkXBackground = Color(0xFFF7F7F7);
+  static const Color pikkXGrey = Color(0xFF777777);
+  static const Color pikkXBorder = Color(0xFFE8E8E8);
+
+  // ============================================================
+  // FIREBASE
+  // ============================================================
+
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
 
@@ -79,14 +91,23 @@ class _CartPageState extends State<CartPage> {
         };
       }).toList();
 
+      debugPrint(
+        'PikkX cart loaded: ${items.length} item(s)',
+      );
+
       if (!mounted) return;
 
       setState(() {
         _cartItems = items;
         _isLoading = false;
       });
-    } catch (e) {
-      debugPrint('Cart loading error: $e');
+    } catch (e, stackTrace) {
+      debugPrint(
+        'PikkX CART LOAD ERROR: $e',
+      );
+      debugPrint(
+        stackTrace.toString(),
+      );
 
       if (!mounted) return;
 
@@ -97,6 +118,10 @@ class _CartPageState extends State<CartPage> {
       _showMessage('Could not load your cart.');
     }
   }
+
+  // ============================================================
+  // UPDATE QUANTITY
+  // ============================================================
 
   Future<void> _updateQuantity(
     Map<String, dynamic> item,
@@ -111,21 +136,39 @@ class _CartPageState extends State<CartPage> {
 
     final id = item['id']?.toString();
 
-    if (id == null || id.isEmpty) return;
+    if (id == null || id.isEmpty) {
+      debugPrint(
+        'PikkX quantity update blocked: missing cart document ID.',
+      );
+      return;
+    }
+
+    if (_isUpdating) return;
 
     setState(() {
       _isUpdating = true;
     });
 
     try {
+      debugPrint(
+        'PikkX quantity update: '
+        'cartId=$id, '
+        'quantity=$newQuantity',
+      );
+
       await _cartRef.doc(id).update({
         'quantity': newQuantity,
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
       await _loadCart();
-    } catch (e) {
-      debugPrint('Quantity update error: $e');
+    } catch (e, stackTrace) {
+      debugPrint(
+        'PikkX QUANTITY UPDATE ERROR: $e',
+      );
+      debugPrint(
+        stackTrace.toString(),
+      );
 
       if (mounted) {
         _showMessage('Could not update quantity.');
@@ -155,15 +198,17 @@ class _CartPageState extends State<CartPage> {
   ) async {
     final quantity = _getQuantity(item);
 
-    if (quantity <= 1) {
-      return;
-    }
+    if (quantity <= 1) return;
 
     await _updateQuantity(
       item,
       quantity - 1,
     );
   }
+
+  // ============================================================
+  // REMOVE ITEM
+  // ============================================================
 
   Future<void> _removeItem(
     Map<String, dynamic> item,
@@ -175,9 +220,18 @@ class _CartPageState extends State<CartPage> {
 
     final id = item['id']?.toString();
 
-    if (id == null || id.isEmpty) return;
+    if (id == null || id.isEmpty) {
+      debugPrint(
+        'PikkX remove blocked: missing cart document ID.',
+      );
+      return;
+    }
 
     try {
+      debugPrint(
+        'PikkX removing cart item: $id',
+      );
+
       await _cartRef.doc(id).delete();
 
       await _loadCart();
@@ -185,8 +239,13 @@ class _CartPageState extends State<CartPage> {
       if (mounted) {
         _showMessage('Item removed from cart.');
       }
-    } catch (e) {
-      debugPrint('Remove cart item error: $e');
+    } catch (e, stackTrace) {
+      debugPrint(
+        'PikkX REMOVE CART ERROR: $e',
+      );
+      debugPrint(
+        stackTrace.toString(),
+      );
 
       if (mounted) {
         _showMessage('Could not remove item.');
@@ -195,7 +254,7 @@ class _CartPageState extends State<CartPage> {
   }
 
   // ============================================================
-  // HELPERS
+  // DATA HELPERS
   // ============================================================
 
   double _getPrice(
@@ -240,16 +299,42 @@ class _CartPageState extends State<CartPage> {
     return name;
   }
 
-  String _getImageUrl(
+  String _getImage(
     Map<String, dynamic> item,
   ) {
-    final imageUrl = item['imageUrl']?.toString().trim();
+    final imageUrl =
+        item['imageUrl']?.toString().trim() ?? '';
 
-    if (imageUrl == null || imageUrl.isEmpty) {
-      return '';
+    if (imageUrl.isNotEmpty) {
+      return imageUrl;
     }
 
-    return imageUrl;
+    final image =
+        item['image']?.toString().trim() ?? '';
+
+    if (image.isNotEmpty) {
+      return image;
+    }
+
+    final images = item['images'];
+
+    if (images is List && images.isNotEmpty) {
+      return images.first.toString();
+    }
+
+    return '';
+  }
+
+  String _getSize(
+    Map<String, dynamic> item,
+  ) {
+    return item['size']?.toString().trim() ?? '';
+  }
+
+  String _getColor(
+    Map<String, dynamic> item,
+  ) {
+    return item['selectedColor']?.toString().trim() ?? '';
   }
 
   double get subtotal {
@@ -279,22 +364,48 @@ class _CartPageState extends State<CartPage> {
   // MESSAGE
   // ============================================================
 
-  void _showMessage(String message) {
+  void _showMessage(
+    String message,
+  ) {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text(
-            message,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-            ),
+          content: Row(
+            children: [
+              Container(
+                width: 4,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: pikkXWhite,
+                  borderRadius:
+                      BorderRadius.circular(10),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  message,
+                  style: const TextStyle(
+                    color: pikkXWhite,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: AppTheme.pikkXBlack,
+          backgroundColor: pikkXBlack,
+          elevation: 0,
+          margin: const EdgeInsets.fromLTRB(
+            16,
+            0,
+            16,
+            18,
+          ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -309,7 +420,7 @@ class _CartPageState extends State<CartPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.lightBackground,
+      backgroundColor: pikkXBackground,
       appBar: _buildAppBar(),
       body: _buildBody(),
     );
@@ -332,15 +443,15 @@ class _CartPageState extends State<CartPage> {
         },
         icon: const Icon(
           Icons.arrow_back_ios_new_rounded,
-          size: 20,
+          size: 19,
         ),
-        color: AppTheme.darkText,
+        color: pikkXBlack,
       ),
 
       title: const Text(
         'My Cart',
         style: TextStyle(
-          color: AppTheme.darkText,
+          color: pikkXBlack,
           fontSize: 21,
           fontWeight: FontWeight.w800,
         ),
@@ -356,7 +467,7 @@ class _CartPageState extends State<CartPage> {
     if (_isLoading) {
       return const Center(
         child: CircularProgressIndicator(
-          color: AppTheme.pikkXNavy,
+          color: pikkXBlack,
         ),
       );
     }
@@ -381,42 +492,44 @@ class _CartPageState extends State<CartPage> {
       children: [
         Expanded(
           child: RefreshIndicator(
-            color: AppTheme.pikkXNavy,
-            backgroundColor: Colors.white,
+            color: pikkXBlack,
+            backgroundColor: pikkXWhite,
             onRefresh: _loadCart,
             child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(
+              physics:
+                  const AlwaysScrollableScrollPhysics(
                 parent: BouncingScrollPhysics(),
               ),
               padding: const EdgeInsets.fromLTRB(
                 16,
-                5,
+                2,
                 16,
-                20,
+                12,
               ),
               children: [
                 _sectionTitle('Your Items'),
 
-                const SizedBox(height: 5),
+                const SizedBox(height: 3),
 
                 ..._cartItems.map(
                   (item) => Padding(
-                    padding: const EdgeInsets.only(
-                      bottom: 12,
+                    padding:
+                        const EdgeInsets.only(
+                      bottom: 9,
                     ),
                     child: _buildCartItem(item),
                   ),
                 ),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 5),
 
                 _sectionTitle('Order Summary'),
 
-                const SizedBox(height: 5),
+                const SizedBox(height: 3),
 
                 _buildSummary(),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
               ],
             ),
           ),
@@ -437,18 +550,21 @@ class _CartPageState extends State<CartPage> {
     final name = _getName(item);
     final price = _getPrice(item);
     final quantity = _getQuantity(item);
-    final imageUrl = _getImageUrl(item);
+    final image = _getImage(item);
+    final size = _getSize(item);
+    final color = _getColor(item);
 
     return _glass(
-      radius: 24,
+      radius: 21,
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(11),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment:
+              CrossAxisAlignment.center,
           children: [
-            _buildProductImage(imageUrl),
+            _buildProductImage(image),
 
-            const SizedBox(width: 13),
+            const SizedBox(width: 11),
 
             Expanded(
               child: Column(
@@ -458,31 +574,53 @@ class _CartPageState extends State<CartPage> {
                   Text(
                     name,
                     maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                    overflow:
+                        TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: FontWeight.w800,
-                      color: AppTheme.darkText,
+                      color: pikkXBlack,
                     ),
                   ),
 
-                  const SizedBox(height: 7),
+                  if (size.isNotEmpty ||
+                      color.isNotEmpty) ...[
+                    const SizedBox(height: 5),
+
+                    Text(
+                      [
+                        if (color.isNotEmpty) color,
+                        if (size.isNotEmpty) size,
+                      ].join(' • '),
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: pikkXGrey,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 5),
 
                   Text(
                     '₦${price.toStringAsFixed(2)}',
                     style: const TextStyle(
-                      color: AppTheme.pikkXNavy,
+                      color: pikkXBlack,
                       fontSize: 14,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
 
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
 
                   Row(
                     children: [
                       _quantityButton(
-                        icon: Icons.remove_rounded,
+                        icon:
+                            Icons.remove_rounded,
                         onPressed:
                             _isUpdating
                                 ? null
@@ -494,21 +632,25 @@ class _CartPageState extends State<CartPage> {
 
                       Padding(
                         padding:
-                            const EdgeInsets.symmetric(
-                          horizontal: 13,
+                            const EdgeInsets
+                                .symmetric(
+                          horizontal: 11,
                         ),
                         child: Text(
                           '$quantity',
-                          style: const TextStyle(
-                            color: AppTheme.darkText,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
+                          style:
+                              const TextStyle(
+                            color: pikkXBlack,
+                            fontSize: 13,
+                            fontWeight:
+                                FontWeight.w800,
                           ),
                         ),
                       ),
 
                       _quantityButton(
-                        icon: Icons.add_rounded,
+                        icon:
+                            Icons.add_rounded,
                         onPressed:
                             _isUpdating
                                 ? null
@@ -523,7 +665,7 @@ class _CartPageState extends State<CartPage> {
               ),
             ),
 
-            const SizedBox(width: 5),
+            const SizedBox(width: 3),
 
             _deleteButton(item),
           ],
@@ -537,60 +679,126 @@ class _CartPageState extends State<CartPage> {
   // ============================================================
 
   Widget _buildProductImage(
-    String imageUrl,
+    String image,
   ) {
     return Container(
-      width: 78,
-      height: 78,
+      width: 82,
+      height: 82,
       decoration: BoxDecoration(
-        color: AppTheme.lightCard,
-        borderRadius: BorderRadius.circular(19),
+        color: pikkXBackground,
+        borderRadius:
+            BorderRadius.circular(18),
         border: Border.all(
-          color: AppTheme.pikkXNavy.withOpacity(0.08),
+          color: pikkXBorder,
         ),
       ),
-      child: imageUrl.isEmpty
-          ? const Icon(
-              Icons.shopping_bag_outlined,
-              size: 31,
-              color: AppTheme.pikkXNavy,
-            )
+      child: image.isEmpty
+          ? _imageFallback()
           : ClipRRect(
-              borderRadius: BorderRadius.circular(19),
-              child: Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                loadingBuilder:
-                    (
-                      context,
-                      child,
-                      loadingProgress,
-                    ) {
-                      if (loadingProgress == null) {
-                        return child;
-                      }
-
-                      return const Center(
-                        child: SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppTheme.pikkXNavy,
-                          ),
-                        ),
-                      );
-                    },
-                errorBuilder:
-                    (context, error, stackTrace) {
-                  return const Icon(
-                    Icons.shopping_bag_outlined,
-                    size: 31,
-                    color: AppTheme.pikkXNavy,
-                  );
-                },
-              ),
+              borderRadius:
+                  BorderRadius.circular(18),
+              child: _imageWidget(image),
             ),
+    );
+  }
+
+  Widget _imageWidget(
+    String image,
+  ) {
+    // ----------------------------------------------------------
+    // LOCAL ASSET
+    // ----------------------------------------------------------
+
+    if (image.startsWith('assets/')) {
+      return Image.asset(
+        image,
+        fit: BoxFit.contain,
+        errorBuilder: (
+          context,
+          error,
+          stackTrace,
+        ) {
+          debugPrint(
+            'PikkX asset image error: '
+            '$image\n$error',
+          );
+
+          return _imageFallback();
+        },
+      );
+    }
+
+    // ----------------------------------------------------------
+    // NETWORK / FIREBASE URL
+    // ----------------------------------------------------------
+
+    return Image.network(
+      image,
+      fit: BoxFit.contain,
+      loadingBuilder: (
+        context,
+        child,
+        loadingProgress,
+      ) {
+        if (loadingProgress == null) {
+          return child;
+        }
+
+        return const Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: pikkXBlack,
+            ),
+          ),
+        );
+      },
+      errorBuilder: (
+        context,
+        error,
+        stackTrace,
+      ) {
+        debugPrint(
+          'PikkX network image error: '
+          '$image\n$error',
+        );
+
+        return _imageFallback();
+      },
+    );
+  }
+
+  // ============================================================
+  // BRANDED IMAGE FALLBACK
+  // ============================================================
+
+  Widget _imageFallback() {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      decoration: BoxDecoration(
+        color: pikkXBlack.withOpacity(0.035),
+        borderRadius:
+            BorderRadius.circular(18),
+      ),
+      child: Center(
+        child: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: pikkXBlack,
+            borderRadius:
+                BorderRadius.circular(13),
+          ),
+          child: const Icon(
+            Icons.shopping_bag_outlined,
+            color: pikkXWhite,
+            size: 22,
+          ),
+        ),
+      ),
     );
   }
 
@@ -605,21 +813,25 @@ class _CartPageState extends State<CartPage> {
       color: Colors.transparent,
       child: InkWell(
         onTap: () => _removeItem(item),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius:
+            BorderRadius.circular(13),
         child: Container(
-          width: 38,
-          height: 38,
+          width: 36,
+          height: 36,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.62),
-            borderRadius: BorderRadius.circular(14),
+            color:
+                Colors.white.withOpacity(0.62),
+            borderRadius:
+                BorderRadius.circular(13),
             border: Border.all(
-              color: Colors.black.withOpacity(0.07),
+              color:
+                  pikkXBorder,
             ),
           ),
           child: const Icon(
             Icons.delete_outline_rounded,
-            size: 20,
-            color: AppTheme.darkText,
+            size: 19,
+            color: pikkXBlack,
           ),
         ),
       ),
@@ -638,21 +850,25 @@ class _CartPageState extends State<CartPage> {
       color: Colors.transparent,
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius:
+            BorderRadius.circular(9),
         child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 150),
-          opacity: onPressed == null ? 0.45 : 1,
+          duration:
+              const Duration(milliseconds: 150),
+          opacity:
+              onPressed == null ? 0.45 : 1,
           child: Container(
-            width: 31,
-            height: 31,
+            width: 29,
+            height: 29,
             decoration: BoxDecoration(
-              color: AppTheme.pikkXBlack,
-              borderRadius: BorderRadius.circular(10),
+              color: pikkXBlack,
+              borderRadius:
+                  BorderRadius.circular(9),
             ),
             child: Icon(
               icon,
-              size: 17,
-              color: Colors.white,
+              size: 16,
+              color: pikkXWhite,
             ),
           ),
         ),
@@ -666,9 +882,9 @@ class _CartPageState extends State<CartPage> {
 
   Widget _buildSummary() {
     return _glass(
-      radius: 24,
+      radius: 21,
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(15),
         child: Column(
           children: [
             _summaryRow(
@@ -676,7 +892,7 @@ class _CartPageState extends State<CartPage> {
               '₦${subtotal.toStringAsFixed(2)}',
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 9),
 
             _summaryRow(
               'Delivery fee',
@@ -684,12 +900,14 @@ class _CartPageState extends State<CartPage> {
             ),
 
             Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: 15,
+              padding:
+                  const EdgeInsets.symmetric(
+                vertical: 11,
               ),
               child: Container(
                 height: 1,
-                color: Colors.black.withOpacity(0.08),
+                color:
+                    pikkXBorder,
               ),
             ),
 
@@ -716,24 +934,23 @@ class _CartPageState extends State<CartPage> {
         Text(
           title,
           style: TextStyle(
-            fontSize: isTotal ? 17 : 14,
+            fontSize:
+                isTotal ? 16 : 13,
             fontWeight:
                 isTotal
                     ? FontWeight.w800
                     : FontWeight.w500,
-            color: AppTheme.darkText,
+            color: pikkXBlack,
           ),
         ),
-
         Text(
           value,
           style: TextStyle(
-            fontSize: isTotal ? 18 : 14,
-            fontWeight: FontWeight.w800,
-            color:
-                isTotal
-                    ? AppTheme.pikkXNavy
-                    : AppTheme.darkText,
+            fontSize:
+                isTotal ? 17 : 13,
+            fontWeight:
+                FontWeight.w800,
+            color: pikkXBlack,
           ),
         ),
       ],
@@ -748,15 +965,17 @@ class _CartPageState extends State<CartPage> {
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(
+        padding:
+            const EdgeInsets.fromLTRB(
           16,
-          8,
+          6,
           16,
-          14,
+          12,
         ),
         child: _primaryButton(
           text: 'Proceed to Checkout',
-          icon: Icons.arrow_forward_rounded,
+          icon:
+              Icons.arrow_forward_rounded,
           onPressed: () {
             Navigator.pushNamed(
               context,
@@ -777,22 +996,25 @@ class _CartPageState extends State<CartPage> {
       color: Colors.transparent,
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(21),
+        borderRadius:
+            BorderRadius.circular(19),
         child: Container(
           width: double.infinity,
-          height: 58,
+          height: 56,
           decoration: BoxDecoration(
-            color: AppTheme.pikkXBlack,
-            borderRadius: BorderRadius.circular(21),
+            color: pikkXBlack,
+            borderRadius:
+                BorderRadius.circular(19),
             border: Border.all(
-              color: AppTheme.pikkXNavy.withOpacity(0.35),
-              width: 1,
+              color: pikkXWhite.withOpacity(0.15),
             ),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.pikkXNavy.withOpacity(0.16),
-                blurRadius: 22,
-                offset: const Offset(0, 9),
+                color:
+                    Colors.black.withOpacity(0.12),
+                blurRadius: 20,
+                offset:
+                    const Offset(0, 8),
               ),
             ],
           ),
@@ -803,18 +1025,16 @@ class _CartPageState extends State<CartPage> {
               Text(
                 text,
                 style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
+                  color: pikkXWhite,
+                  fontSize: 14,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-
-              const SizedBox(width: 9),
-
+              const SizedBox(width: 8),
               Icon(
                 icon,
-                color: Colors.white,
-                size: 21,
+                color: pikkXWhite,
+                size: 20,
               ),
             ],
           ),
@@ -830,66 +1050,69 @@ class _CartPageState extends State<CartPage> {
   Widget _buildEmptyCart() {
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(28),
+        padding:
+            const EdgeInsets.all(22),
         child: _glass(
-          radius: 30,
+          radius: 27,
           child: Padding(
-            padding: const EdgeInsets.all(30),
+            padding:
+                const EdgeInsets.all(25),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize:
+                  MainAxisSize.min,
               children: [
                 Container(
-                  width: 82,
-                  height: 82,
-                  decoration: BoxDecoration(
-                    color: AppTheme.pikkXBlack,
+                  width: 76,
+                  height: 76,
+                  decoration:
+                      BoxDecoration(
+                    color: pikkXBlack,
                     borderRadius:
-                        BorderRadius.circular(26),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.pikkXNavy
-                            .withOpacity(0.14),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
+                        BorderRadius.circular(23),
                   ),
                   child: const Icon(
                     Icons.shopping_cart_outlined,
-                    size: 40,
-                    color: Colors.white,
+                    size: 37,
+                    color: pikkXWhite,
                   ),
                 ),
 
-                const SizedBox(height: 19),
+                const SizedBox(height: 16),
 
                 const Text(
                   'Your cart is empty',
-                  textAlign: TextAlign.center,
+                  textAlign:
+                      TextAlign.center,
                   style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.darkText,
+                    fontSize: 19,
+                    fontWeight:
+                        FontWeight.w800,
+                    color: pikkXBlack,
                   ),
                 ),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 7),
 
                 const Text(
                   'Add products to your cart and they will appear here.',
-                  textAlign: TextAlign.center,
+                  textAlign:
+                      TextAlign.center,
                   style: TextStyle(
-                    color: AppTheme.mutedText,
-                    height: 1.45,
+                    color: pikkXGrey,
+                    fontSize: 12,
+                    height: 1.4,
                   ),
                 ),
 
-                const SizedBox(height: 22),
+                const SizedBox(height: 18),
 
                 _smallActionButton(
-                  text: 'Continue Shopping',
+                  text:
+                      'Continue Shopping',
                   onPressed: () {
-                    widget.onContinueShopping?.call();
+                    widget
+                        .onContinueShopping
+                        ?.call();
                   },
                 ),
               ],
@@ -901,59 +1124,67 @@ class _CartPageState extends State<CartPage> {
   }
 
   // ============================================================
-  // SIGN IN STATE
+  // SIGN IN
   // ============================================================
 
   Widget _buildSignInState() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(28),
+        padding:
+            const EdgeInsets.all(22),
         child: _glass(
-          radius: 30,
+          radius: 27,
           child: Padding(
-            padding: const EdgeInsets.all(30),
+            padding:
+                const EdgeInsets.all(25),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize:
+                  MainAxisSize.min,
               children: [
                 Container(
-                  width: 82,
-                  height: 82,
-                  decoration: BoxDecoration(
-                    color: AppTheme.pikkXBlack,
+                  width: 76,
+                  height: 76,
+                  decoration:
+                      BoxDecoration(
+                    color: pikkXBlack,
                     borderRadius:
-                        BorderRadius.circular(26),
+                        BorderRadius.circular(23),
                   ),
                   child: const Icon(
                     Icons.lock_outline_rounded,
-                    size: 38,
-                    color: Colors.white,
+                    size: 36,
+                    color: pikkXWhite,
                   ),
                 ),
 
-                const SizedBox(height: 18),
+                const SizedBox(height: 16),
 
                 const Text(
                   'Sign in to view your cart',
-                  textAlign: TextAlign.center,
+                  textAlign:
+                      TextAlign.center,
                   style: TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.darkText,
+                    fontSize: 18,
+                    fontWeight:
+                        FontWeight.w800,
+                    color: pikkXBlack,
                   ),
                 ),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 7),
 
                 const Text(
                   'Your cart is saved securely to your account.',
-                  textAlign: TextAlign.center,
+                  textAlign:
+                      TextAlign.center,
                   style: TextStyle(
-                    color: AppTheme.mutedText,
+                    color: pikkXGrey,
+                    fontSize: 12,
                     height: 1.4,
                   ),
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 18),
 
                 _smallActionButton(
                   text: 'Sign In',
@@ -972,6 +1203,10 @@ class _CartPageState extends State<CartPage> {
     );
   }
 
+  // ============================================================
+  // SMALL BUTTON
+  // ============================================================
+
   Widget _smallActionButton({
     required String text,
     required VoidCallback onPressed,
@@ -980,21 +1215,24 @@ class _CartPageState extends State<CartPage> {
       color: Colors.transparent,
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius:
+            BorderRadius.circular(15),
         child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 22,
-            vertical: 13,
+          padding:
+              const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 12,
           ),
           decoration: BoxDecoration(
-            color: AppTheme.pikkXBlack,
-            borderRadius: BorderRadius.circular(16),
+            color: pikkXBlack,
+            borderRadius:
+                BorderRadius.circular(15),
           ),
           child: Text(
             text,
             style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
+              color: pikkXWhite,
+              fontSize: 13,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -1007,18 +1245,21 @@ class _CartPageState extends State<CartPage> {
   // SECTION TITLE
   // ============================================================
 
-  Widget _sectionTitle(String title) {
+  Widget _sectionTitle(
+    String title,
+  ) {
     return Padding(
-      padding: const EdgeInsets.only(
-        left: 4,
-        bottom: 7,
+      padding:
+          const EdgeInsets.only(
+        left: 3,
+        bottom: 5,
       ),
       child: Text(
         title,
         style: const TextStyle(
-          fontSize: 17,
+          fontSize: 16,
           fontWeight: FontWeight.w800,
-          color: AppTheme.darkText,
+          color: pikkXBlack,
         ),
       ),
     );
@@ -1033,7 +1274,8 @@ class _CartPageState extends State<CartPage> {
     double radius = 24,
   }) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(radius),
+      borderRadius:
+          BorderRadius.circular(radius),
       child: BackdropFilter(
         filter: ImageFilter.blur(
           sigmaX: 18,
@@ -1041,24 +1283,22 @@ class _CartPageState extends State<CartPage> {
         ),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.70),
+            color:
+                Colors.white.withOpacity(0.70),
             borderRadius:
                 BorderRadius.circular(radius),
             border: Border.all(
-              color: Colors.white.withOpacity(0.90),
+              color:
+                  Colors.white.withOpacity(0.90),
               width: 1.2,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.055),
+                color:
+                    Colors.black.withOpacity(0.055),
                 blurRadius: 22,
-                offset: const Offset(0, 10),
-              ),
-              BoxShadow(
-                color: AppTheme.pikkXNavy
-                    .withOpacity(0.045),
-                blurRadius: 28,
-                spreadRadius: 1,
+                offset:
+                    const Offset(0, 10),
               ),
             ],
           ),
