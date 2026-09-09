@@ -1,7 +1,6 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:pikkx/src/themes/theme.dart';
 
 class CustomBottomNavigationBar extends StatefulWidget {
   const CustomBottomNavigationBar({
@@ -23,55 +22,34 @@ class CustomBottomNavigationBar extends StatefulWidget {
 
 class _CustomBottomNavigationBarState
     extends State<CustomBottomNavigationBar>
-    with TickerProviderStateMixin {
-  late AnimationController _xController;
-  late AnimationController _yController;
-
-  int _previousIndex = 0;
-
-  // ==================================================
-  // 5 BOTTOM NAVIGATION ICONS
+    with SingleTickerProviderStateMixin {
+  // ============================================================
+  // PIKKX BOTTOM NAVIGATION
+  //
   // Home → Cart → Chat → Favourite → Profile
-  // ==================================================
+  //
+  // IMPORTANT:
+  // - ONE floating glass container only
+  // - NO circles around individual icons
+  // - Cart uses a real shopping-cart icon
+  // - Responsive across screen sizes
+  // ============================================================
 
-  final List<IconData> _icons = const [
-    Icons.home_rounded,
-    Icons.shopping_bag_rounded,
-    Icons.chat_bubble_rounded,
-    Icons.favorite_rounded,
-    Icons.person_rounded,
-  ];
+  static const Color pikkXBlack = Color(0xFF050505);
+  static const Color pikkXWhite = Color(0xFFFFFFFF);
+  static const Color pikkXGrey = Color(0xFF777777);
+
+  late final AnimationController _selectionController;
 
   @override
   void initState() {
     super.initState();
 
-    _previousIndex = widget.selectedIndex;
-
-    _xController = AnimationController(
+    _selectionController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 620),
-      animationBehavior: AnimationBehavior.preserve,
+      duration: const Duration(milliseconds: 280),
+      value: 1.0,
     );
-
-    _yController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-      animationBehavior: AnimationBehavior.preserve,
-    );
-
-    _yController.value = 1.0;
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-
-    _xController.value =
-        _indexToPosition(widget.selectedIndex) /
-            MediaQuery.of(context).size.width;
-
-    _yController.value = 1.0;
   }
 
   @override
@@ -81,94 +59,18 @@ class _CustomBottomNavigationBarState
     super.didUpdateWidget(oldWidget);
 
     if (oldWidget.selectedIndex != widget.selectedIndex) {
-      _animateToIndex(widget.selectedIndex);
+      _playSelectionAnimation();
     }
   }
 
-  // ==================================================
-  // POSITION
-  // ==================================================
+  // ============================================================
+  // SELECTION ANIMATION
+  // ============================================================
 
-  double _indexToPosition(int index) {
-    const double buttonCount = 5.0;
-
-    final double appWidth =
-        MediaQuery.of(context).size.width;
-
-    final double buttonsWidth =
-        _getButtonContainerWidth();
-
-    final double startX =
-        (appWidth - buttonsWidth) / 2;
-
-    return startX +
-        index.toDouble() *
-            buttonsWidth /
-            buttonCount +
-        buttonsWidth /
-            (buttonCount * 2.0);
-  }
-
-  double _getButtonContainerWidth() {
-    double width =
-        MediaQuery.of(context).size.width;
-
-    if (width > 400.0) {
-      width = 400.0;
-    }
-
-    return width;
-  }
-
-  // ==================================================
-  // ANIMATION
-  // ==================================================
-
-  void _animateToIndex(int index) {
+  void _playSelectionAnimation() {
     if (!mounted) return;
 
-    if (_xController.isAnimating) {
-      _xController.stop();
-    }
-
-    final double screenWidth =
-        MediaQuery.of(context).size.width;
-
-    final double target =
-        _indexToPosition(index) /
-            screenWidth;
-
-    _yController.value = 1.0;
-
-    _xController.animateTo(
-      target,
-      duration:
-          const Duration(milliseconds: 620),
-      curve: Curves.easeOutCubic,
-    );
-
-    _yController.animateTo(
-      0.0,
-      duration:
-          const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
-    );
-
-    Future.delayed(
-      const Duration(milliseconds: 500),
-      () {
-        if (!mounted) return;
-
-        _yController.animateTo(
-          1.0,
-          duration:
-              const Duration(milliseconds: 900),
-          curve: Curves.easeOutBack,
-        );
-      },
-    );
-
-    _previousIndex = index;
+    _selectionController.forward(from: 0.0);
   }
 
   void _handlePressed(int index) {
@@ -176,100 +78,122 @@ class _CustomBottomNavigationBarState
       return;
     }
 
-    if (_xController.isAnimating) {
-      _xController.stop();
-    }
-
     widget.onIconPressedCallback(index);
 
-    _animateToIndex(index);
+    _playSelectionAnimation();
   }
 
-  // ==================================================
-  // ICON
-  // ==================================================
+  // ============================================================
+  // TAB DATA
+  // ============================================================
 
-  Widget _icon(
-    IconData icon,
-    bool isSelected,
-    int index,
-  ) {
+  static const List<IconData> _icons = [
+    Icons.home_rounded,
+    Icons.shopping_cart_rounded,
+    Icons.chat_bubble_rounded,
+    Icons.favorite_rounded,
+    Icons.person_rounded,
+  ];
+
+  static const List<String> _labels = [
+    'Home',
+    'Cart',
+    'Chat',
+    'Favourite',
+    'Profile',
+  ];
+
+  // ============================================================
+  // SINGLE ICON ITEM
+  //
+  // There is intentionally NO BoxDecoration here.
+  // No circle, no pill, no separate background.
+  // ============================================================
+
+  Widget _buildNavItem({
+    required int index,
+    required double iconSize,
+  }) {
+    final bool isSelected =
+        widget.selectedIndex == index;
+
     return Expanded(
-      child: InkWell(
-        borderRadius:
-            BorderRadius.circular(40),
-        splashColor: Colors.transparent,
-        highlightColor: Colors.transparent,
-        onTap: () {
-          _handlePressed(index);
-        },
-        child: AnimatedContainer(
-          duration:
-              const Duration(milliseconds: 450),
-          curve: Curves.easeOutCubic,
-          alignment: isSelected
-              ? Alignment.topCenter
-              : Alignment.center,
-          child: AnimatedContainer(
-            duration:
-                const Duration(milliseconds: 300),
-            curve: Curves.easeOutCubic,
-            width: isSelected ? 44 : 38,
-            height: isSelected ? 44 : 38,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
+      child: Semantics(
+        button: true,
+        selected: isSelected,
+        label: _labels[index],
+        child: InkWell(
+          onTap: () => _handlePressed(index),
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          hoverColor: Colors.transparent,
+          focusColor: Colors.transparent,
+          borderRadius: BorderRadius.zero,
+          child: AnimatedBuilder(
+            animation: _selectionController,
+            builder: (
+              context,
+              child,
+            ) {
+              final double t =
+                  Curves.easeOutCubic.transform(
+                _selectionController.value,
+              );
 
-              // BLACK & WHITE
-              color: isSelected
-                  ? Colors.black
-                  : Colors.white.withOpacity(0.38),
+              /*
+               * Selected icons become slightly larger and settle
+               * smoothly without receiving their own container.
+               */
+              final double scale = isSelected
+                  ? 0.94 + (0.10 * t)
+                  : 1.0;
 
-              border: Border.all(
-                color: Colors.white.withOpacity(0.85),
-                width: 1.2,
-              ),
+              final double selectedOpacity =
+                  isSelected
+                      ? 0.72 + (0.28 * t)
+                      : 1.0;
 
-              boxShadow: [
-                BoxShadow(
-                  color: isSelected
-                      ? Colors.black.withOpacity(0.25)
-                      : Colors.black.withOpacity(0.04),
-                  blurRadius:
-                      isSelected ? 14 : 8,
-                  spreadRadius:
-                      isSelected ? 1 : 0,
-                  offset:
-                      const Offset(0, 5),
+              return Center(
+                child: Transform.translate(
+                  offset: isSelected
+                      ? Offset(
+                          0,
+                          -2.0 * t,
+                        )
+                      : Offset.zero,
+                  child: Transform.scale(
+                    scale: scale,
+                    child: Opacity(
+                      opacity: selectedOpacity,
+                      child: Icon(
+                        _icons[index],
+                        size: isSelected
+                            ? iconSize + 1
+                            : iconSize,
+                        color: isSelected
+                            ? pikkXBlack
+                            : pikkXGrey,
+                      ),
+                    ),
+                  ),
                 ),
-              ],
-            ),
-            child: Opacity(
-              opacity: isSelected
-                  ? _yController.value
-                  : 1.0,
-              child: Icon(
-                icon,
-                size: isSelected ? 22 : 20,
-                color: isSelected
-                    ? Colors.white
-                    : Colors.black,
-              ),
-            ),
+              );
+            },
           ),
         ),
       ),
     );
   }
 
-  // ==================================================
+  // ============================================================
   // GLASS BACKGROUND
-  // ==================================================
+  //
+  // THIS is the ONE floating container.
+  // ============================================================
 
   Widget _buildGlassBackground() {
     return ClipRRect(
-      borderRadius:
-          BorderRadius.circular(30),
+      borderRadius: BorderRadius.circular(30),
       child: BackdropFilter(
         filter: ImageFilter.blur(
           sigmaX: 18,
@@ -277,24 +201,18 @@ class _CustomBottomNavigationBarState
         ),
         child: Container(
           decoration: BoxDecoration(
-            color:
-                Colors.white.withOpacity(0.58),
-            borderRadius:
-                BorderRadius.circular(30),
-
+            color: pikkXWhite.withOpacity(0.62),
+            borderRadius: BorderRadius.circular(30),
             border: Border.all(
-              color:
-                  Colors.white.withOpacity(0.82),
-              width: 1.2,
+              color: pikkXWhite.withOpacity(0.90),
+              width: 1.15,
             ),
-
             boxShadow: [
               BoxShadow(
-                color:
-                    Colors.black.withOpacity(0.08),
+                color: pikkXBlack.withOpacity(0.085),
                 blurRadius: 24,
-                offset:
-                    const Offset(0, 10),
+                spreadRadius: 0,
+                offset: const Offset(0, 9),
               ),
             ],
           ),
@@ -303,80 +221,113 @@ class _CustomBottomNavigationBarState
     );
   }
 
-  // ==================================================
+  // ============================================================
   // BUILD
-  // ==================================================
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
-    final double width =
-        MediaQuery.of(context).size.width;
+    final mediaQuery = MediaQuery.of(context);
 
-    return Container(
-      width: width,
-      height: 76,
-      padding: const EdgeInsets.only(
-        left: 16,
-        right: 16,
-        bottom: 10,
-      ),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: _buildGlassBackground(),
-          ),
+    final double screenWidth =
+        mediaQuery.size.width;
 
-          Positioned(
-            left: 8,
-            right: 8,
-            top: 5,
-            bottom: 5,
-            child: Row(
-              mainAxisAlignment:
-                  MainAxisAlignment.spaceAround,
-              children: [
-                _icon(
-                  _icons[0],
-                  widget.selectedIndex == 0,
-                  0,
-                ),
+    /*
+     * Responsive horizontal padding.
+     *
+     * The navigation never becomes ridiculously wide on tablets
+     * and does not become cramped on smaller phones.
+     */
+    final double horizontalPadding =
+        screenWidth < 360
+            ? 8
+            : screenWidth < 420
+                ? 14
+                : 24;
 
-                _icon(
-                  _icons[1],
-                  widget.selectedIndex == 1,
-                  1,
-                ),
+    final double bottomPadding =
+        mediaQuery.padding.bottom > 0
+            ? 4
+            : 10;
 
-                // CHAT — MIDDLE
-                _icon(
-                  _icons[2],
-                  widget.selectedIndex == 2,
-                  2,
-                ),
+    final double iconSize =
+        screenWidth < 360
+            ? 21
+            : screenWidth < 420
+                ? 22
+                : 23;
 
-                _icon(
-                  _icons[3],
-                  widget.selectedIndex == 3,
-                  3,
-                ),
+    final double navHeight =
+        screenWidth < 360
+            ? 66
+            : 70;
 
-                _icon(
-                  _icons[4],
-                  widget.selectedIndex == 4,
-                  4,
-                ),
-              ],
+    return SizedBox(
+      width: screenWidth,
+      height: navHeight + bottomPadding,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          horizontalPadding,
+          0,
+          horizontalPadding,
+          bottomPadding,
+        ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // ----------------------------------------------------
+            // SINGLE FLOATING GLASS BAR
+            // ----------------------------------------------------
+
+            Positioned.fill(
+              child: _buildGlassBackground(),
             ),
-          ),
-        ],
+
+            // ----------------------------------------------------
+            // ICONS
+            // ----------------------------------------------------
+
+            Positioned.fill(
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(
+                  horizontal: 5,
+                ),
+                child: Row(
+                  children: [
+                    _buildNavItem(
+                      index: 0,
+                      iconSize: iconSize,
+                    ),
+                    _buildNavItem(
+                      index: 1,
+                      iconSize: iconSize,
+                    ),
+                    _buildNavItem(
+                      index: 2,
+                      iconSize: iconSize,
+                    ),
+                    _buildNavItem(
+                      index: 3,
+                      iconSize: iconSize,
+                    ),
+                    _buildNavItem(
+                      index: 4,
+                      iconSize: iconSize,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   @override
   void dispose() {
-    _xController.dispose();
-    _yController.dispose();
+    _selectionController.dispose();
     super.dispose();
   }
 }
