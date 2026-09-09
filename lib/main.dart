@@ -3,8 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'package:pikkx/src/pages/mainPage.dart'
-    hide FavouritePage;
+import 'package:pikkx/src/pages/mainPage.dart';
 import 'package:pikkx/src/pages/login_screen.dart';
 import 'package:pikkx/src/pages/signup_screen.dart';
 import 'package:pikkx/src/pages/phone_auth_screen.dart';
@@ -21,7 +20,6 @@ import 'package:pikkx/src/pages/chat_page.dart';
 import 'package:pikkx/src/pages/settings_page.dart';
 import 'package:pikkx/src/pages/dispatch_tracking_page.dart';
 
-// Legal pages
 import 'package:pikkx/src/pages/terms_conditions_page.dart';
 import 'package:pikkx/src/pages/privacy_policy_page.dart';
 
@@ -33,17 +31,9 @@ import 'firebase_options.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ==========================================================
-  // FIREBASE
-  // ==========================================================
-
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
-  // ==========================================================
-  // START PIKKX
-  // ==========================================================
 
   runApp(const PikkXApp());
 }
@@ -57,89 +47,66 @@ class PikkXApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final baseTheme = AppTheme.lightTheme;
+
     return MaterialApp(
       title: 'PikkX',
       debugShowCheckedModeBanner: false,
 
-      // ========================================================
-      // PIKKX THEME
-      // ========================================================
+      theme: baseTheme.copyWith(
+        scaffoldBackgroundColor: AppTheme.lightBackground,
+        primaryColor: AppTheme.pikkXBlack,
 
-      theme: AppTheme.lightTheme.copyWith(
-        scaffoldBackgroundColor:
-            AppTheme.lightBackground,
-
-        // PikkX uses black/white/grey.
-        primaryColor:
-            AppTheme.pikkXBlack,
-
-        colorScheme:
-            AppTheme.lightTheme.colorScheme.copyWith(
-          primary:
-              AppTheme.pikkXBlack,
-          secondary:
-              AppTheme.pikkXBlack,
+        colorScheme: baseTheme.colorScheme.copyWith(
+          primary: AppTheme.pikkXBlack,
+          secondary: AppTheme.pikkXBlack,
         ),
 
-        // Clean Mulish typography.
-        textTheme:
-            GoogleFonts.mulishTextTheme(
-          AppTheme.lightTheme.textTheme,
+        textTheme: GoogleFonts.mulishTextTheme(
+          baseTheme.textTheme,
         ).apply(
-          bodyColor:
-              AppTheme.pikkXBlack,
-          displayColor:
-              AppTheme.pikkXBlack,
+          bodyColor: AppTheme.pikkXBlack,
+          displayColor: AppTheme.pikkXBlack,
         ),
 
-        appBarTheme:
-            const AppBarTheme(
-          backgroundColor:
-              Colors.transparent,
+        // IMPORTANT:
+        // No const here because AppTheme.pikkXBlack
+        // is not a compile-time constant in this project.
+        appBarTheme: AppBarTheme(
+          backgroundColor: Colors.transparent,
           elevation: 0,
-          iconTheme:
-              IconThemeData(
-            color:
-                AppTheme.pikkXBlack,
+          iconTheme: IconThemeData(
+            color: AppTheme.pikkXBlack,
           ),
         ),
       ),
 
-      // ========================================================
-      // NORMAL ROUTES
-      // ========================================================
+      // ======================================================
+      // ROUTES
+      // ======================================================
 
       routes: {
-        // ------------------------------------------------------
+        // ----------------------------------------------------
         // AUTH
-        // ------------------------------------------------------
+        // ----------------------------------------------------
 
-        '/login': (context) =>
-            const LoginScreen(),
+        '/login': (context) => const LoginScreen(),
 
-        '/signup': (context) =>
-            const SignUpScreen(),
-
-        // ------------------------------------------------------
-        // FORGOT PASSWORD
-        // ------------------------------------------------------
+        '/signup': (context) => const SignUpScreen(),
 
         '/forgot-password': (context) =>
             const ForgotPasswordScreen(),
 
-        // ------------------------------------------------------
-        // PHONE AUTH
-        // ------------------------------------------------------
-
+        // Kept so existing references do not break.
         '/phone-login': (context) =>
             const PhoneAuthScreen(),
 
         '/phone-signup': (context) =>
             const PhoneAuthScreen(),
 
-        // ------------------------------------------------------
-        // TERMS & PRIVACY
-        // ------------------------------------------------------
+        // ----------------------------------------------------
+        // LEGAL
+        // ----------------------------------------------------
 
         '/terms': (context) =>
             const TermsConditionsPage(),
@@ -147,84 +114,73 @@ class PikkXApp extends StatelessWidget {
         '/privacy': (context) =>
             const PrivacyPolicyPage(),
 
-        // ------------------------------------------------------
-        // HOME
-        // ------------------------------------------------------
+        // ----------------------------------------------------
+        // MAIN APP
+        // ----------------------------------------------------
 
-        '/': (context) =>
-            const AuthGate(),
+        '/': (context) => const AuthGate(),
 
-        '/home': (context) =>
-            MainPage(),
+        '/home': (context) => const MainPage(),
 
-        '/MainPage': (context) =>
-            MainPage(),
+        '/MainPage': (context) => const MainPage(),
 
-        // ------------------------------------------------------
-        // SHOPPING
-        // ------------------------------------------------------
+        // ----------------------------------------------------
+        // CART
+        // ----------------------------------------------------
 
-        '/cart': (context) =>
-            ShoppingCartPage(),
+        '/cart': (context) => ShoppingCartPage(),
 
-        // ------------------------------------------------------
+        // ----------------------------------------------------
         // FAVOURITES
-        // ------------------------------------------------------
+        // ----------------------------------------------------
 
         '/favourites': (context) =>
             const FavouritePage(),
 
-        // ------------------------------------------------------
+        // ----------------------------------------------------
         // CHECKOUT
-        // ------------------------------------------------------
+        // ----------------------------------------------------
 
-        '/checkout': (context) =>
-            CheckoutPage(),
+        '/checkout': (context) => CheckoutPage(),
 
         '/delivery-address': (context) =>
             DeliveryAddressPage(),
 
-        // ------------------------------------------------------
+        // ----------------------------------------------------
         // ORDERS
-        // ------------------------------------------------------
+        // ----------------------------------------------------
 
-        '/orders': (context) =>
-            OrdersPage(),
+        '/orders': (context) => OrdersPage(),
 
-        // ------------------------------------------------------
+        // ----------------------------------------------------
         // NOTIFICATIONS
-        // ------------------------------------------------------
+        // ----------------------------------------------------
 
         '/notifications': (context) =>
             NotificationsPage(),
 
-        // ------------------------------------------------------
+        // ----------------------------------------------------
         // SETTINGS
-        // ------------------------------------------------------
+        // ----------------------------------------------------
 
-        '/settings': (context) =>
-            SettingsPage(),
+        '/settings': (context) => SettingsPage(),
       },
 
-      // ========================================================
-      // ROUTES THAT REQUIRE ARGUMENTS
-      // ========================================================
+      // ======================================================
+      // GENERATED ROUTES
+      // ======================================================
 
-      onGenerateRoute:
-          (RouteSettings settings) {
-
-        // ======================================================
-        // PRODUCT DETAILS
-        // ======================================================
+      onGenerateRoute: (RouteSettings settings) {
+        // ====================================================
+        // PRODUCT DETAIL
+        // ====================================================
 
         if (settings.name == '/detail') {
-          final product =
-              settings.arguments;
+          final arguments = settings.arguments;
 
-          if (product is! Map) {
+          if (arguments is! Map) {
             return MaterialPageRoute(
-              builder: (context) =>
-                  const Scaffold(
+              builder: (context) => const Scaffold(
                 body: Center(
                   child: Text(
                     'Product information is missing.',
@@ -235,21 +191,16 @@ class PikkXApp extends StatelessWidget {
           }
 
           final productMap =
-              Map<String, dynamic>.from(
-            product,
-          );
+              Map<String, dynamic>.from(arguments);
 
           final productId =
-              productMap['productId']
-                      ?.toString() ??
-                  productMap['id']
-                      ?.toString() ??
+              productMap['productId']?.toString() ??
+                  productMap['id']?.toString() ??
                   '';
 
           if (productId.isEmpty) {
             return MaterialPageRoute(
-              builder: (context) =>
-                  const Scaffold(
+              builder: (context) => const Scaffold(
                 body: Center(
                   child: Text(
                     'Product ID is missing.',
@@ -260,31 +211,25 @@ class PikkXApp extends StatelessWidget {
           }
 
           return CustomRoute<bool>(
-            builder: (BuildContext context) =>
-                ProductDetailPage(
-              productId:
-                  productId,
-              product:
-                  productMap,
+            builder: (context) => ProductDetailPage(
+              productId: productId,
+              product: productMap,
             ),
             settings: settings,
           );
         }
 
-        // ======================================================
+        // ====================================================
         // ORDER DETAILS
-        // ======================================================
+        // ====================================================
 
-        if (settings.name ==
-            '/order-details') {
+        if (settings.name == '/order-details') {
           final orderId =
               settings.arguments?.toString();
 
-          if (orderId == null ||
-              orderId.isEmpty) {
+          if (orderId == null || orderId.isEmpty) {
             return MaterialPageRoute(
-              builder: (context) =>
-                  const Scaffold(
+              builder: (context) => const Scaffold(
                 body: Center(
                   child: Text(
                     'Order ID is missing.',
@@ -295,29 +240,24 @@ class PikkXApp extends StatelessWidget {
           }
 
           return CustomRoute<bool>(
-            builder: (BuildContext context) =>
-                OrderDetailsPage(
-              orderId:
-                  orderId,
+            builder: (context) => OrderDetailsPage(
+              orderId: orderId,
             ),
             settings: settings,
           );
         }
 
-        // ======================================================
+        // ====================================================
         // DISPATCH TRACKING
-        // ======================================================
+        // ====================================================
 
-        if (settings.name ==
-            '/dispatch-tracking') {
+        if (settings.name == '/dispatch-tracking') {
           final orderId =
               settings.arguments?.toString();
 
-          if (orderId == null ||
-              orderId.isEmpty) {
+          if (orderId == null || orderId.isEmpty) {
             return MaterialPageRoute(
-              builder: (context) =>
-                  const Scaffold(
+              builder: (context) => const Scaffold(
                 body: Center(
                   child: Text(
                     'Order ID is missing.',
@@ -328,44 +268,34 @@ class PikkXApp extends StatelessWidget {
           }
 
           return CustomRoute<bool>(
-            builder: (BuildContext context) =>
-                DispatchTrackingPage(
-              orderId:
-                  orderId,
+            builder: (context) => DispatchTrackingPage(
+              orderId: orderId,
             ),
             settings: settings,
           );
         }
 
-        // ======================================================
+        // ====================================================
         // CHAT
-        // ======================================================
+        // ====================================================
 
         if (settings.name == '/chat') {
-          final arguments =
-              settings.arguments;
+          final arguments = settings.arguments;
 
           String? chatId;
           String? otherUserName;
 
           if (arguments is Map) {
-            chatId =
-                arguments['chatId']
-                    ?.toString();
-
+            chatId = arguments['chatId']?.toString();
             otherUserName =
-                arguments['otherUserName']
-                    ?.toString();
+                arguments['otherUserName']?.toString();
           } else if (arguments != null) {
-            chatId =
-                arguments.toString();
+            chatId = arguments.toString();
           }
 
-          if (chatId == null ||
-              chatId.isEmpty) {
+          if (chatId == null || chatId.isEmpty) {
             return MaterialPageRoute(
-              builder: (context) =>
-                  const Scaffold(
+              builder: (context) => const Scaffold(
                 body: Center(
                   child: Text(
                     'Chat ID is missing.',
@@ -376,24 +306,20 @@ class PikkXApp extends StatelessWidget {
           }
 
           return CustomRoute<bool>(
-            builder: (BuildContext context) =>
-                ChatPage(
-              chatId:
-                  chatId!,
-              otherUserName:
-                  otherUserName,
+            builder: (context) => ChatPage(
+              chatId: chatId!,
+              otherUserName: otherUserName,
             ),
             settings: settings,
           );
         }
 
-        // ======================================================
-        // UNKNOWN ROUTE
-        // ======================================================
+        // ====================================================
+        // FALLBACK
+        // ====================================================
 
         return MaterialPageRoute(
-          builder: (context) =>
-              const Scaffold(
+          builder: (context) => const Scaffold(
             body: Center(
               child: Text(
                 'Page not found.',
@@ -403,10 +329,6 @@ class PikkXApp extends StatelessWidget {
         );
       },
 
-      // ========================================================
-      // START APP
-      // ========================================================
-
       initialRoute: '/',
     );
   }
@@ -415,16 +337,6 @@ class PikkXApp extends StatelessWidget {
 // ==========================================================
 // AUTH GATE
 // ==========================================================
-//
-// Firebase checks whether the user is already signed in.
-//
-// Signed in:
-//     → MainPage
-//
-// Not signed in:
-//     → LoginScreen
-//
-// ==========================================================
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -432,43 +344,37 @@ class AuthGate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
-      stream:
-          FirebaseAuth.instance
-              .authStateChanges(),
+      stream: FirebaseAuth.instance.authStateChanges(),
 
-      builder:
-          (context, snapshot) {
-
-        // ------------------------------------------------------
-        // CHECKING AUTH STATE
-        // ------------------------------------------------------
+      builder: (context, snapshot) {
+        // ----------------------------------------------------
+        // CHECKING
+        // ----------------------------------------------------
 
         if (snapshot.connectionState ==
             ConnectionState.waiting) {
-          return const Scaffold(
+          return Scaffold(
             backgroundColor:
                 AppTheme.lightBackground,
             body: Center(
-              child:
-                  CircularProgressIndicator(
-                color:
-                    AppTheme.pikkXBlack,
+              child: CircularProgressIndicator(
+                color: AppTheme.pikkXBlack,
               ),
             ),
           );
         }
 
-        // ------------------------------------------------------
-        // USER SIGNED IN
-        // ------------------------------------------------------
+        // ----------------------------------------------------
+        // SIGNED IN
+        // ----------------------------------------------------
 
         if (snapshot.hasData) {
-          return MainPage();
+          return const MainPage();
         }
 
-        // ------------------------------------------------------
-        // USER NOT SIGNED IN
-        // ------------------------------------------------------
+        // ----------------------------------------------------
+        // SIGNED OUT
+        // ----------------------------------------------------
 
         return const LoginScreen();
       },
