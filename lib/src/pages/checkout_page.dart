@@ -18,7 +18,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
   static const Color pikkXBlack = Color(0xFF050505);
   static const Color pikkXWhite = Color(0xFFFFFFFF);
-
   static const Color lightBackground = Color(0xFFF7F7F7);
   static const Color darkText = Color(0xFF111111);
   static const Color mutedText = Color(0xFF707070);
@@ -29,17 +28,18 @@ class _CheckoutPageState extends State<CheckoutPage> {
   // ============================================================
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
-
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
 
-  String? get userId => _auth.currentUser?.uid;
+  User? get currentUser => _auth.currentUser;
+
+  String? get userId => currentUser?.uid;
 
   CollectionReference<Map<String, dynamic>> get cartRef {
     final uid = userId;
 
     if (uid == null) {
-      return _firestore.collection('_invalid_cart');
+      throw StateError('User is not signed in.');
     }
 
     return _firestore
@@ -73,37 +73,45 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   // ============================================================
-  // LOAD CHECKOUT DATA
+  // LOAD EVERYTHING
   // ============================================================
 
   Future<void> _loadCheckoutData() async {
     if (userId == null) {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
+      if (!mounted) return;
+
+      setState(() {
+        isLoading = false;
+      });
+
       return;
     }
 
     try {
-      await Future.wait([
+      await Future.wait<void>([
         _loadCart(),
         _loadDefaultAddress(),
       ]);
-    } catch (e) {
-      debugPrint('Checkout loading error: $e');
+    } catch (e, stackTrace) {
+      debugPrint('PIKKX CHECKOUT LOAD ERROR: $e');
+      debugPrint(stackTrace.toString());
+
+      if (mounted) {
+        _showMessage(
+          'Could not load checkout information.',
+        );
+      }
     }
 
-    if (mounted) {
-      setState(() {
-        isLoading = false;
-      });
-    }
+    if (!mounted) return;
+
+    setState(() {
+      isLoading = false;
+    });
   }
 
   // ============================================================
-  // LOAD CART
+  // LOAD REAL CART
   // ============================================================
 
   Future<void> _loadCart() async {
@@ -111,31 +119,114 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
     final snapshot = await cartRef.get();
 
-    final loadedItems = snapshot.docs.map((doc) {
+    final loadedItems =
+        snapshot.docs.map((doc) {
       final data = doc.data();
 
       return <String, dynamic>{
+        // REAL FIRESTORE CART DOCUMENT ID
         'id': doc.id,
-        'productId': data['productId'] ?? doc.id,
-        'name': data['name'] ?? 'Product',
-        'price': _toDouble(data['price']),
-        'quantity': _toInt(data['quantity']),
-        'imageUrl': data['imageUrl'] ?? '',
-        'sellerId': data['sellerId'] ?? '',
-        'sellerName': data['sellerName'] ?? '',
-        'category': data['category'] ?? '',
-        'description': data['description'] ?? '',
-        'size': data['size'] ?? '',
-        'selectedColor': data['selectedColor'] ?? '',
-        'colorIndex': data['colorIndex'],
+
+        // REAL PRODUCT ID
+        'productId':
+            data['productId'] ?? doc.id,
+
+        // PRODUCT INFORMATION
+        'name':
+            _stringValue(
+          data['name'] ??
+              data['title'],
+        ),
+
+        'price':
+            _toDouble(
+          data['price'],
+        ),
+
+        'quantity':
+            _toInt(
+          data['quantity'],
+        ),
+
+        // IMAGE DATA
+        'imageUrl':
+            _stringValue(
+          data['imageUrl'],
+        ),
+
+        'image':
+            _stringValue(
+          data['image'],
+        ),
+
+        'images':
+            data['images'],
+
+        // SELLER
+        'sellerId':
+            _stringValue(
+          data['sellerId'],
+        ),
+
+        'sellerName':
+            _stringValue(
+          data['sellerName'],
+        ),
+
+        // PRODUCT DETAILS
+        'category':
+            _stringValue(
+          data['category'],
+        ),
+
+        'description':
+            _stringValue(
+          data['description'],
+        ),
+
+        'size':
+            _stringValue(
+          data['size'],
+        ),
+
+        'selectedColor':
+            _stringValue(
+          data['selectedColor'],
+        ),
+
+        'colorIndex':
+            data['colorIndex'],
+
+        'rating':
+            data['rating'],
+
+        'reviews':
+            data['reviews'],
+
+        'originalPrice':
+            data['originalPrice'],
+
+        'currency':
+            _stringValue(
+              data['currency'],
+            ),
       };
     }).toList();
 
-    cartItems = loadedItems;
+    if (!mounted) return;
+
+    setState(() {
+      cartItems = loadedItems;
+    });
+
+    debugPrint(
+      'PIKKX CHECKOUT CART: '
+      '${loadedItems.length} item(s) loaded.',
+    );
   }
 
   // ============================================================
-  // LOAD ADDRESS
+  // LOAD DEFAULT ADDRESS
   // ============================================================
 
   Future<void> _loadDefaultAddress() async {
@@ -147,19 +238,25 @@ class _CheckoutPageState extends State<CheckoutPage> {
         .collection('addresses');
 
     final defaultSnapshot = await addressCollection
-        .where('isDefault', isEqualTo: true)
+        .where(
+          'isDefault',
+          isEqualTo: true,
+        )
         .limit(1)
         .get();
 
     if (defaultSnapshot.docs.isNotEmpty) {
       final doc = defaultSnapshot.docs.first;
 
-      selectedAddressId = doc.id;
+      if (!mounted) return;
 
-      selectedAddress = {
-        'id': doc.id,
-        ...doc.data(),
-      };
+      setState(() {
+        selectedAddressId = doc.id;
+        selectedAddress = {
+          'id': doc.id,
+          ...doc.data(),
+        };
+      });
 
       return;
     }
@@ -170,17 +267,20 @@ class _CheckoutPageState extends State<CheckoutPage> {
     if (firstSnapshot.docs.isNotEmpty) {
       final doc = firstSnapshot.docs.first;
 
-      selectedAddressId = doc.id;
+      if (!mounted) return;
 
-      selectedAddress = {
-        'id': doc.id,
-        ...doc.data(),
-      };
+      setState(() {
+        selectedAddressId = doc.id;
+        selectedAddress = {
+          'id': doc.id,
+          ...doc.data(),
+        };
+      });
     }
   }
 
   // ============================================================
-  // PRICE CALCULATIONS
+  // PRICE
   // ============================================================
 
   double get subtotal {
@@ -195,7 +295,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   double get deliveryFee {
-    return cartItems.isEmpty ? 0 : 500;
+    if (cartItems.isEmpty) {
+      return 0;
+    }
+
+    // Keep your current checkout delivery rule.
+    return 500;
   }
 
   double get total {
@@ -203,16 +308,72 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   // ============================================================
+  // CURRENCY
+  // ============================================================
+
+  String get currencySymbol {
+    if (cartItems.isEmpty) {
+      return '₦';
+    }
+
+    final currency =
+        cartItems.first['currency']
+            ?.toString()
+            .toUpperCase();
+
+    switch (currency) {
+      case 'USD':
+        return '\$';
+
+      case 'EUR':
+        return '€';
+
+      case 'GBP':
+        return '£';
+
+      case 'GHS':
+        return 'GH₵';
+
+      case 'KES':
+        return 'KSh';
+
+      case 'ZAR':
+        return 'R';
+
+      case 'NGN':
+      default:
+        return '₦';
+    }
+  }
+
+  String _money(double value) {
+    return '$currencySymbol${value.toStringAsFixed(2)}';
+  }
+
+  // ============================================================
   // QUANTITY
   // ============================================================
 
   Future<void> _increaseQuantity(int index) async {
-    if (userId == null || isPlacingOrder) return;
+    if (userId == null ||
+        isPlacingOrder ||
+        index < 0 ||
+        index >= cartItems.length) {
+      return;
+    }
 
     final item = cartItems[index];
 
-    final productId =
-        item['productId'].toString();
+    final cartId =
+        item['id']?.toString();
+
+    if (cartId == null ||
+        cartId.isEmpty) {
+      _showMessage(
+        'Cart item could not be updated.',
+      );
+      return;
+    }
 
     final oldQuantity =
         _toInt(item['quantity']);
@@ -220,71 +381,93 @@ class _CheckoutPageState extends State<CheckoutPage> {
     final newQuantity =
         oldQuantity + 1;
 
+    // OPTIMISTIC UI UPDATE
     setState(() {
       item['quantity'] = newQuantity;
     });
 
     try {
-      await cartRef.doc(productId).update({
+      await cartRef.doc(cartId).update({
         'quantity': newQuantity,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt':
+            FieldValue.serverTimestamp(),
       });
     } catch (e) {
       debugPrint(
-        'Increase quantity error: $e',
+        'PIKKX INCREASE QUANTITY ERROR: $e',
       );
 
-      if (mounted) {
-        setState(() {
-          item['quantity'] = oldQuantity;
-        });
+      if (!mounted) return;
 
-        _showMessage(
-          'Unable to update quantity.',
-        );
-      }
+      setState(() {
+        item['quantity'] =
+            oldQuantity;
+      });
+
+      _showMessage(
+        'Unable to update quantity.',
+      );
     }
   }
 
   Future<void> _decreaseQuantity(int index) async {
-    if (userId == null || isPlacingOrder) return;
+    if (userId == null ||
+        isPlacingOrder ||
+        index < 0 ||
+        index >= cartItems.length) {
+      return;
+    }
 
     final item = cartItems[index];
 
-    final currentQuantity =
+    final oldQuantity =
         _toInt(item['quantity']);
 
-    if (currentQuantity <= 1) return;
+    if (oldQuantity <= 1) {
+      return;
+    }
 
-    final productId =
-        item['productId'].toString();
+    final cartId =
+        item['id']?.toString();
+
+    if (cartId == null ||
+        cartId.isEmpty) {
+      _showMessage(
+        'Cart item could not be updated.',
+      );
+      return;
+    }
 
     final newQuantity =
-        currentQuantity - 1;
+        oldQuantity - 1;
 
+    // OPTIMISTIC UI UPDATE
     setState(() {
-      item['quantity'] = newQuantity;
+      item['quantity'] =
+          newQuantity;
     });
 
     try {
-      await cartRef.doc(productId).update({
+      await cartRef.doc(cartId).update({
         'quantity': newQuantity,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt':
+            FieldValue.serverTimestamp(),
       });
     } catch (e) {
       debugPrint(
-        'Decrease quantity error: $e',
+        'PIKKX DECREASE QUANTITY ERROR: $e',
       );
 
-      if (mounted) {
-        setState(() {
-          item['quantity'] = currentQuantity;
-        });
+      if (!mounted) return;
 
-        _showMessage(
-          'Unable to update quantity.',
-        );
-      }
+      setState(() {
+        item['quantity'] =
+            oldQuantity;
+      });
+
+      _showMessage(
+        'Unable to update quantity.',
+      );
     }
   }
 
@@ -308,20 +491,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
       });
     } else {
       await _loadDefaultAddress();
-
-      if (mounted) {
-        setState(() {});
-      }
     }
   }
 
   // ============================================================
-  // PLACE ORDER
-  //
-  // REAL ORDER ID IS CREATED HERE.
-  //
-  // orders/{orderId}
-  // users/{userId}/orders/{orderId}
+  // PLACE REAL ORDER
   // ============================================================
 
   Future<void> _placeOrder() async {
@@ -346,32 +520,37 @@ class _CheckoutPageState extends State<CheckoutPage> {
       return;
     }
 
-    if (isPlacingOrder) return;
+    if (isPlacingOrder) {
+      return;
+    }
 
     setState(() {
       isPlacingOrder = true;
     });
 
     try {
-      // --------------------------------------------------------
-      // CREATE REAL UNIQUE ORDER ID
-      // --------------------------------------------------------
+      // ========================================================
+      // REAL UNIQUE ORDER ID
+      // ========================================================
 
       final orderReference =
-          _firestore.collection('orders').doc();
+          _firestore
+              .collection('orders')
+              .doc();
 
       final orderId =
           orderReference.id;
 
-      final userOrderReference = _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('orders')
-          .doc(orderId);
+      final userOrderReference =
+          _firestore
+              .collection('users')
+              .doc(userId)
+              .collection('orders')
+              .doc(orderId);
 
-      // --------------------------------------------------------
-      // ORDER ITEMS
-      // --------------------------------------------------------
+      // ========================================================
+      // COPY REAL CART PRODUCTS INTO ORDER
+      // ========================================================
 
       final orderItems =
           cartItems.map((item) {
@@ -383,13 +562,26 @@ class _CheckoutPageState extends State<CheckoutPage> {
               item['name'],
 
           'price':
-              _toDouble(item['price']),
+              _toDouble(
+                item['price'],
+              ),
 
           'quantity':
-              _toInt(item['quantity']),
+              _toInt(
+                item['quantity'],
+              ),
 
+          // IMPORTANT:
+          // Preserve image fields so order history,
+          // tracking and order details can display it.
           'imageUrl':
               item['imageUrl'] ?? '',
+
+          'image':
+              item['image'] ?? '',
+
+          'images':
+              item['images'],
 
           'sellerId':
               item['sellerId'] ?? '',
@@ -411,32 +603,47 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
           'colorIndex':
               item['colorIndex'],
+
+          'rating':
+              item['rating'],
+
+          'reviews':
+              item['reviews'],
+
+          'originalPrice':
+              item['originalPrice'],
         };
       }).toList();
 
-      // --------------------------------------------------------
+      // ========================================================
       // DELIVERY ADDRESS
-      // --------------------------------------------------------
+      // ========================================================
 
       final deliveryAddress =
           <String, dynamic>{
         'fullName':
-            selectedAddress?['fullName'] ?? '',
+            selectedAddress?['fullName'] ??
+                '',
 
         'phone':
-            selectedAddress?['phone'] ?? '',
+            selectedAddress?['phone'] ??
+                '',
 
         'addressLine':
-            selectedAddress?['addressLine'] ?? '',
+            selectedAddress?['addressLine'] ??
+                '',
 
         'city':
-            selectedAddress?['city'] ?? '',
+            selectedAddress?['city'] ??
+                '',
 
         'state':
-            selectedAddress?['state'] ?? '',
+            selectedAddress?['state'] ??
+                '',
 
         'country':
-            selectedAddress?['country'] ?? '',
+            selectedAddress?['country'] ??
+                '',
 
         'latitude':
             selectedAddress?['latitude'],
@@ -445,9 +652,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
             selectedAddress?['longitude'],
       };
 
-      // --------------------------------------------------------
-      // ORDER DATA
-      // --------------------------------------------------------
+      // ========================================================
+      // REAL ORDER DATA
+      // ========================================================
 
       final orderData =
           <String, dynamic>{
@@ -470,7 +677,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
             total,
 
         'currency':
-            'NGN',
+            _currencyCode(),
 
         'paymentMethod':
             selectedPayment,
@@ -478,6 +685,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
         'paymentStatus':
             'pending',
 
+        // IMPORTANT:
+        // These are the fields used by the tracking flow.
         'orderStatus':
             'pending',
 
@@ -497,9 +706,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
             FieldValue.serverTimestamp(),
       };
 
-      // --------------------------------------------------------
-      // ATOMIC FIRESTORE WRITE
-      // --------------------------------------------------------
+      // ========================================================
+      // ATOMIC FIRESTORE BATCH
+      // ========================================================
 
       final batch =
           _firestore.batch();
@@ -516,14 +725,17 @@ class _CheckoutPageState extends State<CheckoutPage> {
         orderData,
       );
 
-      // Remove purchased products from cart.
+      // Remove ONLY the actual cart documents.
       for (final item in cartItems) {
-        final productId =
-            item['productId'].toString();
+        final cartId =
+            item['id']?.toString();
 
-        batch.delete(
-          cartRef.doc(productId),
-        );
+        if (cartId != null &&
+            cartId.isNotEmpty) {
+          batch.delete(
+            cartRef.doc(cartId),
+          );
+        }
       }
 
       await batch.commit();
@@ -531,13 +743,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
       if (!mounted) return;
 
       setState(() {
-        cartItems.clear();
+        cartItems = [];
       });
 
       _showOrderSuccess(orderId);
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint(
-        'Place order error: $e',
+        'PIKKX PLACE ORDER ERROR: $e',
+      );
+      debugPrint(
+        stackTrace.toString(),
       );
 
       if (mounted) {
@@ -555,6 +770,28 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   // ============================================================
+  // CURRENCY CODE
+  // ============================================================
+
+  String _currencyCode() {
+    if (cartItems.isEmpty) {
+      return 'NGN';
+    }
+
+    final currency =
+        cartItems.first['currency']
+            ?.toString()
+            .toUpperCase();
+
+    if (currency == null ||
+        currency.isEmpty) {
+      return 'NGN';
+    }
+
+    return currency;
+  }
+
+  // ============================================================
   // SUCCESS DIALOG
   // ============================================================
 
@@ -568,54 +805,29 @@ class _CheckoutPageState extends State<CheckoutPage> {
         return Dialog(
           backgroundColor:
               Colors.transparent,
-
           insetPadding:
               const EdgeInsets.symmetric(
             horizontal: 24,
           ),
-
           child: _glass(
             radius: 28,
-
             child: Padding(
               padding:
                   const EdgeInsets.all(26),
-
               child: Column(
                 mainAxisSize:
                     MainAxisSize.min,
-
                 children: [
                   Container(
                     width: 68,
                     height: 68,
-
                     decoration:
-                        BoxDecoration(
+                        const BoxDecoration(
                       shape:
                           BoxShape.circle,
-
                       color:
                           pikkXBlack,
-
-                      boxShadow: [
-                        BoxShadow(
-                          color:
-                              pikkXBlack
-                                  .withOpacity(
-                            0.18,
-                          ),
-                          blurRadius:
-                              20,
-                          offset:
-                              const Offset(
-                            0,
-                            8,
-                          ),
-                        ),
-                      ],
                     ),
-
                     child: const Icon(
                       Icons.check_rounded,
                       color:
@@ -630,12 +842,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
                   const Text(
                     'Order Placed!',
-                    style:
-                        TextStyle(
+                    style: TextStyle(
                       color:
                           darkText,
-                      fontSize:
-                          22,
+                      fontSize: 22,
                       fontWeight:
                           FontWeight.w800,
                     ),
@@ -649,12 +859,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     'Your order has been successfully created.',
                     textAlign:
                         TextAlign.center,
-                    style:
-                        TextStyle(
+                    style: TextStyle(
                       color:
                           mutedText,
-                      height:
-                          1.4,
+                      height: 1.4,
                     ),
                   ),
 
@@ -665,14 +873,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   Container(
                     width:
                         double.infinity,
-
                     padding:
                         const EdgeInsets
                             .symmetric(
                       horizontal: 14,
                       vertical: 12,
                     ),
-
                     decoration:
                         BoxDecoration(
                       color:
@@ -681,11 +887,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
                         0.05,
                       ),
                       borderRadius:
-                          BorderRadius.circular(
+                          BorderRadius
+                              .circular(
                         14,
                       ),
                     ),
-
                     child: Column(
                       children: [
                         const Text(
@@ -731,7 +937,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     width:
                         double.infinity,
                     height: 52,
-
                     child:
                         ElevatedButton(
                       onPressed: () {
@@ -746,7 +951,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
                               orderId,
                         );
                       },
-
                       style:
                           ElevatedButton
                               .styleFrom(
@@ -765,13 +969,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
                           ),
                         ),
                       ),
-
                       child:
                           const Row(
                         mainAxisAlignment:
                             MainAxisAlignment
                                 .center,
-
                         children: [
                           Text(
                             'Track Order',
@@ -781,11 +983,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                   FontWeight.w700,
                             ),
                           ),
-
                           SizedBox(
                             width: 8,
                           ),
-
                           Icon(
                             Icons
                                 .arrow_forward_rounded,
@@ -819,19 +1019,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
       appBar: AppBar(
         backgroundColor:
             Colors.transparent,
-
         elevation: 0,
-
+        scrolledUnderElevation: 0,
         centerTitle: true,
 
         title: const Text(
           'Checkout',
-          style:
-              TextStyle(
+          style: TextStyle(
             color:
                 darkText,
-            fontSize:
-                21,
+            fontSize: 21,
             fontWeight:
                 FontWeight.w800,
           ),
@@ -926,6 +1123,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
                       ),
 
                       _buildPlaceOrderButton(),
+
+                      // Extra bottom clearance.
+                      const SizedBox(
+                        height: 12,
+                      ),
                     ],
                   ),
                 ),
@@ -939,20 +1141,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
   Widget _buildAddressCard() {
     return _glass(
       radius: 24,
-
       child: InkWell(
         borderRadius:
             BorderRadius.circular(
           24,
         ),
-
         onTap:
             _openAddressPage,
-
         child: Padding(
           padding:
               const EdgeInsets.all(18),
-
           child: Row(
             children: [
               _iconBox(
@@ -1086,7 +1284,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   // ============================================================
-  // CART ITEM
+  // CHECKOUT PRODUCT
   // ============================================================
 
   Widget _buildCartItem(
@@ -1096,44 +1294,47 @@ class _CheckoutPageState extends State<CheckoutPage> {
         cartItems[index];
 
     final name =
-        item['name']
-                ?.toString() ??
-            'Product';
+        _stringValue(
+          item['name'],
+        ).isEmpty
+            ? 'Product'
+            : _stringValue(
+                item['name'],
+              );
 
     final price =
         _toDouble(
-      item['price'],
-    );
+          item['price'],
+        );
 
     final quantity =
         _toInt(
-      item['quantity'],
-    );
+          item['quantity'],
+        );
 
-    final imageUrl =
-        item['imageUrl']
-                ?.toString() ??
-            '';
+    final image =
+        _getImage(item);
 
     final selectedColor =
-        item['selectedColor']
-            ?.toString();
+        _stringValue(
+          item['selectedColor'],
+        );
 
     final size =
-        item['size']
-            ?.toString();
+        _stringValue(
+          item['size'],
+        );
 
-    final details = <String>[];
+    final details =
+        <String>[];
 
-    if (selectedColor != null &&
-        selectedColor.trim().isNotEmpty) {
+    if (selectedColor.isNotEmpty) {
       details.add(
         selectedColor,
       );
     }
 
-    if (size != null &&
-        size.trim().isNotEmpty) {
+    if (size.isNotEmpty) {
       details.add(
         'Size $size',
       );
@@ -1141,19 +1342,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
     return _glass(
       radius: 24,
-
       child: Padding(
         padding:
             const EdgeInsets.all(14),
-
         child: Row(
           crossAxisAlignment:
               CrossAxisAlignment
                   .start,
-
           children: [
             _buildProductImage(
-              imageUrl,
+              image,
             ),
 
             const SizedBox(
@@ -1165,7 +1363,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 crossAxisAlignment:
                     CrossAxisAlignment
                         .start,
-
                 children: [
                   Text(
                     name,
@@ -1188,9 +1385,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     const SizedBox(
                       height: 5,
                     ),
-
                     Text(
-                      details.join(' • '),
+                      details.join(
+                        ' • ',
+                      ),
                       maxLines: 1,
                       overflow:
                           TextOverflow
@@ -1212,7 +1410,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   ),
 
                   Text(
-                    '₦${price.toStringAsFixed(2)}',
+                    _money(price),
                     style:
                         const TextStyle(
                       color:
@@ -1229,7 +1427,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   Row(
                     children: [
                       _quantityButton(
-                        Icons.remove,
+                        Icons
+                            .remove_rounded,
                         () =>
                             _decreaseQuantity(
                           index,
@@ -1255,7 +1454,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
                       ),
 
                       _quantityButton(
-                        Icons.add,
+                        Icons
+                            .add_rounded,
                         () =>
                             _increaseQuantity(
                           index,
@@ -1273,93 +1473,183 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   // ============================================================
+  // GET REAL IMAGE
+  // ============================================================
+
+  String _getImage(
+    Map<String, dynamic> item,
+  ) {
+    final imageUrl =
+        _stringValue(
+          item['imageUrl'],
+        );
+
+    if (imageUrl.isNotEmpty) {
+      return imageUrl;
+    }
+
+    final image =
+        _stringValue(
+          item['image'],
+        );
+
+    if (image.isNotEmpty) {
+      return image;
+    }
+
+    final images =
+        item['images'];
+
+    if (images is List &&
+        images.isNotEmpty) {
+      final first =
+          images.first?.toString().trim();
+
+      if (first != null &&
+          first.isNotEmpty) {
+        return first;
+      }
+    }
+
+    return '';
+  }
+
+  // ============================================================
   // PRODUCT IMAGE
   // ============================================================
 
   Widget _buildProductImage(
-    String imageUrl,
+    String image,
   ) {
     return Container(
-      width: 78,
-      height: 78,
-
+      width: 82,
+      height: 82,
       decoration:
           BoxDecoration(
         color:
             pikkXWhite.withOpacity(
-          0.55,
+          0.60,
         ),
-
         borderRadius:
             BorderRadius.circular(
           19,
         ),
-
         border:
             Border.all(
           color:
               pikkXWhite.withOpacity(
-            0.75,
+            0.80,
           ),
         ),
       ),
-
-      child: imageUrl.isEmpty
-          ? const Icon(
-              Icons
-                  .shopping_bag_outlined,
-              size: 30,
-              color:
-                  darkText,
-            )
+      child: image.isEmpty
+          ? _imageFallback()
           : ClipRRect(
               borderRadius:
                   BorderRadius.circular(
                 19,
               ),
-
               child:
-                  imageUrl.startsWith(
-                          'assets/')
-                      ? Image.asset(
-                          imageUrl,
-                          fit:
-                              BoxFit.cover,
-                          errorBuilder:
-                              (
-                            context,
-                            error,
-                            stackTrace,
-                          ) {
-                            return const Icon(
-                              Icons
-                                  .shopping_bag_outlined,
-                              size: 30,
-                              color:
-                                  darkText,
-                            );
-                          },
-                        )
-                      : Image.network(
-                          imageUrl,
-                          fit:
-                              BoxFit.cover,
-                          errorBuilder:
-                              (
-                            context,
-                            error,
-                            stackTrace,
-                          ) {
-                            return const Icon(
-                              Icons
-                                  .shopping_bag_outlined,
-                              size: 30,
-                              color:
-                                  darkText,
-                            );
-                          },
-                        ),
+                  _imageWidget(image),
             ),
+    );
+  }
+
+  Widget _imageWidget(
+    String image,
+  ) {
+    if (image.startsWith(
+      'assets/',
+    )) {
+      return Image.asset(
+        image,
+        fit: BoxFit.contain,
+        errorBuilder:
+            (
+          context,
+          error,
+          stackTrace,
+        ) {
+          debugPrint(
+            'PIKKX CHECKOUT ASSET ERROR: '
+            '$image',
+          );
+
+          return _imageFallback();
+        },
+      );
+    }
+
+    return Image.network(
+      image,
+      fit: BoxFit.contain,
+
+      // Keep network images from
+      // becoming a huge loading area.
+      cacheWidth: 300,
+      cacheHeight: 300,
+
+      loadingBuilder:
+          (
+        context,
+        child,
+        loadingProgress,
+      ) {
+        if (loadingProgress == null) {
+          return child;
+        }
+
+        return const Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child:
+                CircularProgressIndicator(
+              strokeWidth: 2,
+              color:
+                  pikkXBlack,
+            ),
+          ),
+        );
+      },
+
+      errorBuilder:
+          (
+        context,
+        error,
+        stackTrace,
+      ) {
+        debugPrint(
+          'PIKKX CHECKOUT NETWORK IMAGE ERROR: '
+          '$image',
+        );
+
+        return _imageFallback();
+      },
+    );
+  }
+
+  Widget _imageFallback() {
+    return Container(
+      decoration:
+          BoxDecoration(
+        color:
+            pikkXBlack.withOpacity(
+          0.035,
+        ),
+        borderRadius:
+            BorderRadius.circular(
+          19,
+        ),
+      ),
+      child: const Center(
+        child: Icon(
+          Icons.shopping_cart_outlined,
+          size: 30,
+          color:
+              darkText,
+        ),
+      ),
     );
   }
 
@@ -1374,20 +1664,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
     return Material(
       color:
           Colors.transparent,
-
       child: InkWell(
         borderRadius:
             BorderRadius.circular(
           10,
         ),
-
         onTap:
             onPressed,
-
         child: Container(
           width: 30,
           height: 30,
-
           decoration:
               BoxDecoration(
             color:
@@ -1395,13 +1681,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     .withOpacity(
               0.06,
             ),
-
             borderRadius:
                 BorderRadius.circular(
               10,
             ),
           ),
-
           child: Icon(
             icon,
             size: 17,
@@ -1420,7 +1704,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
   Widget _buildPaymentSection() {
     return _glass(
       radius: 24,
-
       child: Column(
         children: [
           _paymentOption(
@@ -1464,19 +1747,20 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
     return InkWell(
       onTap: () {
+        if (isPlacingOrder) return;
+
         setState(() {
           selectedPayment =
               value;
         });
       },
-
       child: Padding(
         padding:
-            const EdgeInsets.symmetric(
+            const EdgeInsets
+                .symmetric(
           horizontal: 16,
           vertical: 15,
         ),
-
         child: Row(
           children: [
             Icon(
@@ -1530,16 +1814,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
   Widget _buildOrderSummary() {
     return _glass(
       radius: 24,
-
       child: Padding(
         padding:
             const EdgeInsets.all(18),
-
         child: Column(
           children: [
             _summaryRow(
               'Subtotal',
-              '₦${subtotal.toStringAsFixed(2)}',
+              _money(subtotal),
             ),
 
             const SizedBox(
@@ -1548,7 +1830,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
             _summaryRow(
               'Delivery fee',
-              '₦${deliveryFee.toStringAsFixed(2)}',
+              _money(deliveryFee),
             ),
 
             const Padding(
@@ -1564,7 +1846,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
             _summaryRow(
               'Total',
-              '₦${total.toStringAsFixed(2)}',
+              _money(total),
               isTotal:
                   true,
             ),
@@ -1583,7 +1865,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
       mainAxisAlignment:
           MainAxisAlignment
               .spaceBetween,
-
       children: [
         Text(
           title,
@@ -1621,7 +1902,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   // ============================================================
-  // PLACE ORDER BUTTON
+  // PLACE ORDER
   // ============================================================
 
   Widget _buildPlaceOrderButton() {
@@ -1629,33 +1910,27 @@ class _CheckoutPageState extends State<CheckoutPage> {
       height: 58,
       width:
           double.infinity,
-
       child: Material(
         color:
             Colors.transparent,
-
         child: InkWell(
           borderRadius:
               BorderRadius.circular(
             20,
           ),
-
           onTap:
               isPlacingOrder
                   ? null
                   : _placeOrder,
-
           child: Ink(
             decoration:
                 BoxDecoration(
               color:
                   pikkXBlack,
-
               borderRadius:
                   BorderRadius.circular(
                 20,
               ),
-
               boxShadow: [
                 BoxShadow(
                   color:
@@ -1673,7 +1948,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 ),
               ],
             ),
-
             child: Center(
               child:
                   isPlacingOrder
@@ -1692,8 +1966,19 @@ class _CheckoutPageState extends State<CheckoutPage> {
                           mainAxisAlignment:
                               MainAxisAlignment
                                   .center,
-
                           children: [
+                            Icon(
+                              Icons
+                                  .shopping_cart_outlined,
+                              color:
+                                  pikkXWhite,
+                              size: 20,
+                            ),
+
+                            SizedBox(
+                              width: 9,
+                            ),
+
                             Text(
                               'Place Order',
                               style:
@@ -1705,17 +1990,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                 fontWeight:
                                     FontWeight.w800,
                               ),
-                            ),
-
-                            SizedBox(
-                              width: 9,
-                            ),
-
-                            Icon(
-                              Icons
-                                  .arrow_forward_rounded,
-                              color:
-                                  pikkXWhite,
                             ),
                           ],
                         ),
@@ -1734,19 +2008,19 @@ class _CheckoutPageState extends State<CheckoutPage> {
     return Center(
       child: Padding(
         padding:
-            const EdgeInsets.all(30),
-
+            const EdgeInsets.all(
+          30,
+        ),
         child: _glass(
           radius: 28,
-
           child: Padding(
             padding:
-                const EdgeInsets.all(30),
-
+                const EdgeInsets.all(
+              30,
+            ),
             child: Column(
               mainAxisSize:
                   MainAxisSize.min,
-
               children: [
                 _iconBox(
                   Icons
@@ -1796,7 +2070,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   width:
                       double.infinity,
                   height: 48,
-
                   child:
                       ElevatedButton(
                     onPressed: () {
@@ -1804,7 +2077,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
                         context,
                       );
                     },
-
                     style:
                         ElevatedButton
                             .styleFrom(
@@ -1823,7 +2095,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
                         ),
                       ),
                     ),
-
                     child:
                         const Text(
                       'Continue Shopping',
@@ -1856,7 +2127,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
         left: 4,
         bottom: 10,
       ),
-
       child: Text(
         title,
         style:
@@ -1873,7 +2143,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   // ============================================================
-  // GLASS COMPONENT
+  // GLASS
   // ============================================================
 
   Widget _glass({
@@ -1885,14 +2155,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
           BorderRadius.circular(
         radius,
       ),
-
       child: BackdropFilter(
         filter:
             ImageFilter.blur(
           sigmaX: 20,
           sigmaY: 20,
         ),
-
         child: Container(
           decoration:
               BoxDecoration(
@@ -1901,12 +2169,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     .withOpacity(
               0.62,
             ),
-
             borderRadius:
                 BorderRadius.circular(
               radius,
             ),
-
             border:
                 Border.all(
               color:
@@ -1916,7 +2182,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
               ),
               width: 1.1,
             ),
-
             boxShadow: [
               BoxShadow(
                 color:
@@ -1934,7 +2199,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
               ),
             ],
           ),
-
           child:
               child,
         ),
@@ -1953,7 +2217,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
     return Container(
       width: size,
       height: size,
-
       decoration:
           BoxDecoration(
         color:
@@ -1961,13 +2224,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 .withOpacity(
           0.07,
         ),
-
         borderRadius:
             BorderRadius.circular(
           size * 0.32,
         ),
       ),
-
       child: Icon(
         icon,
         color:
@@ -1981,6 +2242,18 @@ class _CheckoutPageState extends State<CheckoutPage> {
   // ============================================================
   // HELPERS
   // ============================================================
+
+  String _stringValue(
+    dynamic value,
+  ) {
+    if (value == null) {
+      return '';
+    }
+
+    return value
+        .toString()
+        .trim();
+  }
 
   double _toDouble(
     dynamic value,
@@ -2008,6 +2281,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
         1;
   }
 
+  // ============================================================
+  // MESSAGE
+  // ============================================================
+
   void _showMessage(
     String message,
   ) {
@@ -2015,26 +2292,35 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(
-      SnackBar(
-        content:
-            Text(message),
-
-        behavior:
-            SnackBarBehavior
-                .floating,
-
-        backgroundColor:
-            pikkXBlack,
-
-        shape:
-            RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.circular(
-            14,
+    )
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content:
+              Text(message),
+          behavior:
+              SnackBarBehavior
+                  .floating,
+          backgroundColor:
+              pikkXBlack,
+          elevation:
+              0,
+          margin:
+              const EdgeInsets
+                  .fromLTRB(
+            16,
+            0,
+            16,
+            18,
+          ),
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(
+              14,
+            ),
           ),
         ),
-      ),
-    );
+      );
   }
 }
