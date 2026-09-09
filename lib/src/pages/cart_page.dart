@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
+import 'product_detail_page.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({
@@ -37,8 +40,14 @@ class _CartPageState extends State<CartPage> {
   final FirebaseAuth _auth =
       FirebaseAuth.instance;
 
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+      _cartSubscription;
+
   bool _isLoading = true;
-  bool _isUpdating = false;
+  String? _cartError;
+
+  final Set<String> _updatingItems = <String>{};
+  final Set<String> _removingItems = <String>{};
 
   List<Map<String, dynamic>> _cartItems = [];
 
@@ -46,11 +55,11 @@ class _CartPageState extends State<CartPage> {
 
   String? get _userId => _currentUser?.uid;
 
-  CollectionReference<Map<String, dynamic>> get _cartRef {
+  CollectionReference<Map<String, dynamic>>? get _cartRef {
     final uid = _userId;
 
     if (uid == null) {
-      throw StateError('User is not signed in.');
+      return null;
     }
 
     return _firestore
@@ -59,18 +68,35 @@ class _CartPageState extends State<CartPage> {
         .collection('cart');
   }
 
+  // ============================================================
+  // LIFECYCLE
+  // ============================================================
+
   @override
   void initState() {
     super.initState();
-    _loadCart();
+    _startCartListener();
+  }
+
+  @override
+  void dispose() {
+    _cartSubscription?.cancel();
+    super.dispose();
   }
 
   // ============================================================
-  // FIREBASE CART
+  // REAL-TIME CART LISTENER
+  //
+  // This replaces repeated:
+  // Firebase write -> get() -> reload entire cart
+  //
+  // The UI stays synchronized with Firebase automatically.
   // ============================================================
 
-  Future<void> _loadCart() async {
-    if (_userId == null) {
+  void _startCartListener() {
+    final ref = _cartRef;
+
+    if (ref == null) {
       if (!mounted) return;
 
       setState(() {
@@ -81,8 +107,62 @@ class _CartPageState extends State<CartPage> {
       return;
     }
 
+    _cartSubscription?.cancel();
+
+    _cartSubscription = ref.snapshots().listen(
+      (snapshot) {
+        final items = snapshot.docs.map((doc) {
+          return <String, dynamic>{
+            'id': doc.id,
+            ...doc.data(),
+          };
+        }).toList();
+
+        if (!mounted) return;
+
+        setState(() {
+          _cartItems = items;
+          _isLoading = false;
+          _cartError = null;
+        });
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        debugPrint(
+          'PikkX CART STREAM ERROR: $error',
+        );
+
+        debugPrint(
+          stackTrace.toString(),
+        );
+
+        if (!mounted) return;
+
+        setState(() {
+          _isLoading = false;
+          _cartError =
+              'Could not load your cart.';
+        });
+
+        _showMessage(
+          'Could not load your cart.',
+        );
+      },
+    );
+  }
+
+  // ============================================================
+  // MANUAL REFRESH
+  // ============================================================
+
+  Future<void> _refreshCart() async {
+    final ref = _cartRef;
+
+    if (ref == null) {
+      return;
+    }
+
     try {
-      final snapshot = await _cartRef.get();
+      final snapshot = await ref.get();
 
       final items = snapshot.docs.map((doc) {
         return <String, dynamic>{
@@ -91,36 +171,32 @@ class _CartPageState extends State<CartPage> {
         };
       }).toList();
 
-      debugPrint(
-        'PikkX cart loaded: ${items.length} item(s)',
-      );
-
       if (!mounted) return;
 
       setState(() {
         _cartItems = items;
-        _isLoading = false;
+        _cartError = null;
       });
-    } catch (e, stackTrace) {
+    } catch (e) {
       debugPrint(
-        'PikkX CART LOAD ERROR: $e',
-      );
-      debugPrint(
-        stackTrace.toString(),
+        'PikkX CART REFRESH ERROR: $e',
       );
 
-      if (!mounted) return;
-
-      setState(() {
-        _isLoading = false;
-      });
-
-      _showMessage('Could not load your cart.');
+      if (mounted) {
+        _showMessage(
+          'Could not refresh your cart.',
+        );
+      }
     }
   }
 
   // ============================================================
   // UPDATE QUANTITY
+  //
+  // Optimistic UI:
+  // 1. Update screen immediately.
+  // 2. Write to Firebase.
+  // 3. Real-time listener keeps everything synchronized.
   // ============================================================
 
   Future<void> _updateQuantity(
@@ -128,55 +204,93 @@ class _CartPageState extends State<CartPage> {
     int newQuantity,
   ) async {
     if (_userId == null) {
-      _showMessage('Please sign in first.');
+      _showMessage(
+        'Please sign in first.',
+      );
       return;
     }
 
-    if (newQuantity < 1) return;
+    if (newQuantity < 1) {
+      return;
+    }
 
     final id = item['id']?.toString();
 
     if (id == null || id.isEmpty) {
-      debugPrint(
-        'PikkX quantity update blocked: missing cart document ID.',
+      _showMessage(
+        'This cart item is invalid.',
       );
       return;
     }
 
-    if (_isUpdating) return;
+    if (_updatingItems.contains(id)) {
+      return;
+    }
+
+    final ref = _cartRef;
+
+    if (ref == null) {
+      return;
+    }
+
+    final index = _cartItems.indexWhere(
+      (cartItem) => cartItem['id']?.toString() == id,
+    );
+
+    if (index == -1) {
+      return;
+    }
+
+    final oldQuantity =
+        _getQuantity(_cartItems[index]);
 
     setState(() {
-      _isUpdating = true;
+      _updatingItems.add(id);
+
+      _cartItems[index] = {
+        ..._cartItems[index],
+        'quantity': newQuantity,
+      };
     });
 
     try {
-      debugPrint(
-        'PikkX quantity update: '
-        'cartId=$id, '
-        'quantity=$newQuantity',
-      );
-
-      await _cartRef.doc(id).update({
+      await ref.doc(id).update({
         'quantity': newQuantity,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-
-      await _loadCart();
     } catch (e, stackTrace) {
       debugPrint(
         'PikkX QUANTITY UPDATE ERROR: $e',
       );
+
       debugPrint(
         stackTrace.toString(),
       );
 
-      if (mounted) {
-        _showMessage('Could not update quantity.');
+      if (!mounted) return;
+
+      // Restore old UI value if Firebase failed.
+      final currentIndex = _cartItems.indexWhere(
+        (cartItem) =>
+            cartItem['id']?.toString() == id,
+      );
+
+      if (currentIndex != -1) {
+        setState(() {
+          _cartItems[currentIndex] = {
+            ..._cartItems[currentIndex],
+            'quantity': oldQuantity,
+          };
+        });
       }
+
+      _showMessage(
+        'Could not update quantity.',
+      );
     } finally {
       if (mounted) {
         setState(() {
-          _isUpdating = false;
+          _updatingItems.remove(id);
         });
       }
     }
@@ -198,7 +312,9 @@ class _CartPageState extends State<CartPage> {
   ) async {
     final quantity = _getQuantity(item);
 
-    if (quantity <= 1) return;
+    if (quantity <= 1) {
+      return;
+    }
 
     await _updateQuantity(
       item,
@@ -208,49 +324,265 @@ class _CartPageState extends State<CartPage> {
 
   // ============================================================
   // REMOVE ITEM
+  //
+  // Optimistically removes it from the screen first.
+  // Firebase remains the source of truth through the listener.
   // ============================================================
 
   Future<void> _removeItem(
     Map<String, dynamic> item,
   ) async {
     if (_userId == null) {
-      _showMessage('Please sign in first.');
+      _showMessage(
+        'Please sign in first.',
+      );
       return;
     }
 
     final id = item['id']?.toString();
 
     if (id == null || id.isEmpty) {
-      debugPrint(
-        'PikkX remove blocked: missing cart document ID.',
+      _showMessage(
+        'This cart item is invalid.',
       );
       return;
     }
 
+    if (_removingItems.contains(id)) {
+      return;
+    }
+
+    final ref = _cartRef;
+
+    if (ref == null) {
+      return;
+    }
+
+    final removedIndex = _cartItems.indexWhere(
+      (cartItem) => cartItem['id']?.toString() == id,
+    );
+
+    if (removedIndex == -1) {
+      return;
+    }
+
+    final removedItem = Map<String, dynamic>.from(
+      _cartItems[removedIndex],
+    );
+
+    setState(() {
+      _removingItems.add(id);
+      _cartItems.removeAt(removedIndex);
+    });
+
     try {
-      debugPrint(
-        'PikkX removing cart item: $id',
-      );
-
-      await _cartRef.doc(id).delete();
-
-      await _loadCart();
+      await ref.doc(id).delete();
 
       if (mounted) {
-        _showMessage('Item removed from cart.');
+        _showMessage(
+          'Item removed from cart.',
+        );
       }
     } catch (e, stackTrace) {
       debugPrint(
         'PikkX REMOVE CART ERROR: $e',
       );
+
       debugPrint(
         stackTrace.toString(),
       );
 
+      if (!mounted) return;
+
+      // Restore item if Firebase deletion failed.
+      setState(() {
+        final alreadyExists = _cartItems.any(
+          (cartItem) =>
+              cartItem['id']?.toString() == id,
+        );
+
+        if (!alreadyExists) {
+          final safeIndex =
+              removedIndex.clamp(
+            0,
+            _cartItems.length,
+          );
+
+          _cartItems.insert(
+            safeIndex,
+            removedItem,
+          );
+        }
+      });
+
+      _showMessage(
+        'Could not remove item.',
+      );
+    } finally {
       if (mounted) {
-        _showMessage('Could not remove item.');
+        setState(() {
+          _removingItems.remove(id);
+        });
       }
     }
+  }
+
+  // ============================================================
+  // OPEN PRODUCT DETAIL
+  //
+  // Clicking the product image OR product information takes
+  // the user back to ProductDetailPage using the same product ID.
+  // ============================================================
+
+  void _openProductDetail(
+    Map<String, dynamic> item,
+  ) {
+    final productId =
+        item['productId']?.toString().trim().isNotEmpty == true
+            ? item['productId'].toString()
+            : item['id']?.toString();
+
+    if (productId == null || productId.isEmpty) {
+      _showMessage(
+        'Product details are unavailable.',
+      );
+      return;
+    }
+
+    final product = _buildProductForDetail(
+      item,
+    );
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProductDetailPage(
+          productId: productId,
+          product: product,
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // PRODUCT DETAIL DATA
+  //
+  // The Nike fallback means the cart can still reopen the Nike
+  // Product Detail screen even while Firebase products is empty.
+  // ============================================================
+
+  Map<String, dynamic> _buildProductForDetail(
+    Map<String, dynamic> item,
+  ) {
+    const nikeImages = [
+      'assets/images/blue_nike.jpg',
+      'assets/images/grey_nike.jpg',
+      'assets/images/purple_nike.jpg',
+    ];
+
+    final productId =
+        item['productId']?.toString() ??
+            item['id']?.toString() ??
+            '';
+
+    final isNike =
+        productId == 'pikkx-nike' ||
+        _getName(item).toLowerCase() == 'nike';
+
+    final storedImages = _readStringList(
+      item['images'],
+    );
+
+    final primaryImage =
+        _getImage(item);
+
+    final images = storedImages.isNotEmpty
+        ? storedImages
+        : primaryImage.isNotEmpty
+            ? <String>[
+                primaryImage,
+              ]
+            : isNike
+                ? nikeImages
+                : <String>[];
+
+    final name = _getName(item);
+
+    return {
+      if (isNike) ...{
+        'id': 'pikkx-nike',
+        'productId': 'pikkx-nike',
+        'name': 'Nike',
+        'title': 'Nike',
+        'category': 'Fashion',
+        'price': 45000.0,
+        'originalPrice': 55000.0,
+        'currency': 'NGN',
+        'image': nikeImages.first,
+        'imageUrl': nikeImages.first,
+        'images': nikeImages,
+        'colors': const [
+          'Blue',
+          'Grey',
+          'Purple',
+        ],
+        'sizes': const [
+          'US 6',
+          'US 7',
+          'US 8',
+          'US 9',
+        ],
+        'rating': 4.8,
+        'reviews': 124,
+        'deliveryTime': '25 min',
+        'deliveryEstimate':
+            'Arrives Sep 14–16',
+        'sellerId': 'pikkx_demo_seller',
+        'sellerName': 'PikkX Fashion',
+        'description':
+            'Premium Nike sneakers with a clean everyday design.',
+        'isFeatured': true,
+      },
+
+      // Real cart data overrides fallback values.
+      ...item,
+
+      // Ensure Product Detail has these useful fields.
+      'id': productId,
+      'productId': productId,
+      'name': name,
+      'title': item['title']?.toString() ?? name,
+      'images': images,
+      'image': primaryImage.isNotEmpty
+          ? primaryImage
+          : images.isNotEmpty
+              ? images.first
+              : '',
+      'imageUrl': primaryImage.isNotEmpty
+          ? primaryImage
+          : images.isNotEmpty
+              ? images.first
+              : '',
+      'quantity': _getQuantity(item),
+      'size': _getSize(item),
+      'selectedColor': _getColor(item),
+    };
+  }
+
+  List<String> _readStringList(
+    dynamic value,
+  ) {
+    if (value is! List) {
+      return [];
+    }
+
+    return value
+        .map(
+          (entry) => entry.toString().trim(),
+        )
+        .where(
+          (entry) => entry.isNotEmpty,
+        )
+        .toList();
   }
 
   // ============================================================
@@ -290,13 +622,21 @@ class _CartPageState extends State<CartPage> {
   String _getName(
     Map<String, dynamic> item,
   ) {
-    final name = item['name']?.toString().trim();
+    final name =
+        item['name']?.toString().trim();
 
-    if (name == null || name.isEmpty) {
-      return 'Product';
+    if (name != null && name.isNotEmpty) {
+      return name;
     }
 
-    return name;
+    final title =
+        item['title']?.toString().trim();
+
+    if (title != null && title.isNotEmpty) {
+      return title;
+    }
+
+    return 'Product';
   }
 
   String _getImage(
@@ -319,7 +659,12 @@ class _CartPageState extends State<CartPage> {
     final images = item['images'];
 
     if (images is List && images.isNotEmpty) {
-      return images.first.toString();
+      final first =
+          images.first?.toString().trim() ?? '';
+
+      if (first.isNotEmpty) {
+        return first;
+      }
     }
 
     return '';
@@ -328,18 +673,65 @@ class _CartPageState extends State<CartPage> {
   String _getSize(
     Map<String, dynamic> item,
   ) {
-    return item['size']?.toString().trim() ?? '';
+    final size =
+        item['size']?.toString().trim() ?? '';
+
+    return size;
   }
 
   String _getColor(
     Map<String, dynamic> item,
   ) {
-    return item['selectedColor']?.toString().trim() ?? '';
+    final selectedColor =
+        item['selectedColor']?.toString().trim() ?? '';
+
+    if (selectedColor.isNotEmpty) {
+      return selectedColor;
+    }
+
+    return item['color']?.toString().trim() ?? '';
   }
+
+  String _getCurrencySymbol(
+    Map<String, dynamic> item,
+  ) {
+    final currency =
+        item['currency']?.toString().trim().toUpperCase();
+
+    switch (currency) {
+      case 'USD':
+        return r'$';
+      case 'EUR':
+        return '€';
+      case 'GBP':
+        return '£';
+      case 'GHS':
+        return 'GH₵';
+      case 'KES':
+        return 'KSh';
+      case 'ZAR':
+        return 'R';
+      case 'NGN':
+      default:
+        return '₦';
+    }
+  }
+
+  String _formatMoney(
+    double amount,
+    Map<String, dynamic> item,
+  ) {
+    return '${_getCurrencySymbol(item)}'
+        '${amount.toStringAsFixed(2)}';
+  }
+
+  // ============================================================
+  // TOTALS
+  // ============================================================
 
   double get subtotal {
     return _cartItems.fold(
-      0,
+      0.0,
       (sum, item) {
         return sum +
             (_getPrice(item) *
@@ -348,13 +740,18 @@ class _CartPageState extends State<CartPage> {
     );
   }
 
-  double get deliveryFee {
-    if (_cartItems.isEmpty) {
-      return 0;
-    }
-
-    return 500;
+  int get totalItemCount {
+    return _cartItems.fold(
+      0,
+      (sum, item) {
+        return sum + _getQuantity(item);
+      },
+    );
   }
+
+  // Keep delivery at zero here until the actual delivery system
+  // supplies a real fee. No fake ₦500 charge.
+  double get deliveryFee => 0.0;
 
   double get total {
     return subtotal + deliveryFee;
@@ -404,10 +801,11 @@ class _CartPageState extends State<CartPage> {
             16,
             0,
             16,
-            18,
+            92,
           ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius:
+                BorderRadius.circular(16),
           ),
         ),
       );
@@ -421,41 +819,12 @@ class _CartPageState extends State<CartPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: pikkXBackground,
-      appBar: _buildAppBar(),
+
+      // IMPORTANT:
+      // No AppBar here.
+      //
+      // Cart is a MainPage tab and therefore has NO back arrow.
       body: _buildBody(),
-    );
-  }
-
-  // ============================================================
-  // APP BAR
-  // ============================================================
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      scrolledUnderElevation: 0,
-      centerTitle: true,
-
-      leading: IconButton(
-        onPressed: () {
-          Navigator.pop(context);
-        },
-        icon: const Icon(
-          Icons.arrow_back_ios_new_rounded,
-          size: 19,
-        ),
-        color: pikkXBlack,
-      ),
-
-      title: const Text(
-        'My Cart',
-        style: TextStyle(
-          color: pikkXBlack,
-          fontSize: 21,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
     );
   }
 
@@ -476,6 +845,11 @@ class _CartPageState extends State<CartPage> {
       return _buildSignInState();
     }
 
+    if (_cartError != null &&
+        _cartItems.isEmpty) {
+      return _buildErrorState();
+    }
+
     if (_cartItems.isEmpty) {
       return _buildEmptyCart();
     }
@@ -494,22 +868,35 @@ class _CartPageState extends State<CartPage> {
           child: RefreshIndicator(
             color: pikkXBlack,
             backgroundColor: pikkXWhite,
-            onRefresh: _loadCart,
+            onRefresh: _refreshCart,
             child: ListView(
               physics:
                   const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
+                parent:
+                    BouncingScrollPhysics(),
               ),
-              padding: const EdgeInsets.fromLTRB(
-                16,
-                2,
+
+              // Extra bottom space is intentional.
+              //
+              // MainPage places the floating navigation
+              // above this screen using Stack/Positioned.
+              //
+              // This prevents the final content and checkout
+              // area from being hidden underneath it.
+              padding:
+                  const EdgeInsets.fromLTRB(
                 16,
                 12,
+                16,
+                125,
               ),
-              children: [
-                _sectionTitle('Your Items'),
 
-                const SizedBox(height: 3),
+              children: [
+                _sectionTitle(
+                  'Your Items',
+                ),
+
+                const SizedBox(height: 6),
 
                 ..._cartItems.map(
                   (item) => Padding(
@@ -517,24 +904,29 @@ class _CartPageState extends State<CartPage> {
                         const EdgeInsets.only(
                       bottom: 9,
                     ),
-                    child: _buildCartItem(item),
+                    child:
+                        _buildCartItem(item),
                   ),
                 ),
 
-                const SizedBox(height: 5),
+                const SizedBox(height: 7),
 
-                _sectionTitle('Order Summary'),
+                _sectionTitle(
+                  'Order Summary',
+                ),
 
-                const SizedBox(height: 3),
+                const SizedBox(height: 6),
 
                 _buildSummary(),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 18),
               ],
             ),
           ),
         ),
 
+        // Checkout is inside the page but has enough
+        // clearance from MainPage's floating navigation.
         _buildCheckoutButton(),
       ],
     );
@@ -553,122 +945,188 @@ class _CartPageState extends State<CartPage> {
     final image = _getImage(item);
     final size = _getSize(item);
     final color = _getColor(item);
+    final id = item['id']?.toString() ?? '';
+
+    final isUpdating =
+        _updatingItems.contains(id);
+
+    final isRemoving =
+        _removingItems.contains(id);
 
     return _glass(
       radius: 21,
-      child: Padding(
-        padding: const EdgeInsets.all(11),
-        child: Row(
-          crossAxisAlignment:
-              CrossAxisAlignment.center,
-          children: [
-            _buildProductImage(image),
-
-            const SizedBox(width: 11),
-
-            Expanded(
-              child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    maxLines: 2,
-                    overflow:
-                        TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: pikkXBlack,
-                    ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isRemoving
+              ? null
+              : () => _openProductDetail(
+                    item,
                   ),
+          borderRadius:
+              BorderRadius.circular(21),
+          child: Padding(
+            padding:
+                const EdgeInsets.all(11),
+            child: Row(
+              crossAxisAlignment:
+                  CrossAxisAlignment.center,
+              children: [
+                // ------------------------------------------------
+                // PRODUCT IMAGE
+                //
+                // CLICKING IMAGE OPENS PRODUCT DETAIL.
+                // ------------------------------------------------
 
-                  if (size.isNotEmpty ||
-                      color.isNotEmpty) ...[
-                    const SizedBox(height: 5),
-
-                    Text(
-                      [
-                        if (color.isNotEmpty) color,
-                        if (size.isNotEmpty) size,
-                      ].join(' • '),
-                      maxLines: 1,
-                      overflow:
-                          TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: pikkXGrey,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-
-                  const SizedBox(height: 5),
-
-                  Text(
-                    '₦${price.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      color: pikkXBlack,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                    ),
+                GestureDetector(
+                  onTap: isRemoving
+                      ? null
+                      : () =>
+                          _openProductDetail(
+                            item,
+                          ),
+                  child:
+                      _buildProductImage(
+                    image,
+                    isLoading: isRemoving,
                   ),
+                ),
 
-                  const SizedBox(height: 8),
+                const SizedBox(width: 11),
 
-                  Row(
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
                     children: [
-                      _quantityButton(
-                        icon:
-                            Icons.remove_rounded,
-                        onPressed:
-                            _isUpdating
-                                ? null
-                                : () =>
-                                    _decreaseQuantity(
-                                      item,
-                                    ),
+                      Text(
+                        name,
+                        maxLines: 2,
+                        overflow:
+                            TextOverflow.ellipsis,
+                        style:
+                            const TextStyle(
+                          fontSize: 14,
+                          fontWeight:
+                              FontWeight.w800,
+                          color: pikkXBlack,
+                        ),
                       ),
 
-                      Padding(
-                        padding:
-                            const EdgeInsets
-                                .symmetric(
-                          horizontal: 11,
-                        ),
-                        child: Text(
-                          '$quantity',
+                      if (size.isNotEmpty ||
+                          color.isNotEmpty) ...[
+                        const SizedBox(height: 5),
+
+                        Text(
+                          [
+                            if (color.isNotEmpty)
+                              color,
+                            if (size.isNotEmpty)
+                              size,
+                          ].join(' • '),
+                          maxLines: 1,
+                          overflow:
+                              TextOverflow.ellipsis,
                           style:
                               const TextStyle(
-                            color: pikkXBlack,
-                            fontSize: 13,
+                            color: pikkXGrey,
+                            fontSize: 10,
                             fontWeight:
-                                FontWeight.w800,
+                                FontWeight.w600,
                           ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 5),
+
+                      Text(
+                        _formatMoney(
+                          price,
+                          item,
+                        ),
+                        style:
+                            const TextStyle(
+                          color: pikkXBlack,
+                          fontSize: 14,
+                          fontWeight:
+                              FontWeight.w900,
                         ),
                       ),
 
-                      _quantityButton(
-                        icon:
-                            Icons.add_rounded,
-                        onPressed:
-                            _isUpdating
-                                ? null
-                                : () =>
-                                    _increaseQuantity(
-                                      item,
-                                    ),
+                      const SizedBox(height: 8),
+
+                      Row(
+                        children: [
+                          _quantityButton(
+                            icon:
+                                Icons.remove_rounded,
+                            onPressed:
+                                isUpdating ||
+                                        isRemoving
+                                    ? null
+                                    : () =>
+                                        _decreaseQuantity(
+                                          item,
+                                        ),
+                          ),
+
+                          Padding(
+                            padding:
+                                const EdgeInsets
+                                    .symmetric(
+                              horizontal: 11,
+                            ),
+                            child: AnimatedSwitcher(
+                              duration:
+                                  const Duration(
+                                milliseconds: 150,
+                              ),
+                              child: Text(
+                                '$quantity',
+                                key: ValueKey(
+                                  quantity,
+                                ),
+                                style:
+                                    const TextStyle(
+                                  color:
+                                      pikkXBlack,
+                                  fontSize: 13,
+                                  fontWeight:
+                                      FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          _quantityButton(
+                            icon:
+                                Icons.add_rounded,
+                            onPressed:
+                                isUpdating ||
+                                        isRemoving
+                                    ? null
+                                    : () =>
+                                        _increaseQuantity(
+                                          item,
+                                        ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+
+                const SizedBox(width: 3),
+
+                _deleteButton(
+                  item,
+                  disabled:
+                      isUpdating ||
+                          isRemoving,
+                ),
+              ],
             ),
-
-            const SizedBox(width: 3),
-
-            _deleteButton(item),
-          ],
+          ),
         ),
       ),
     );
@@ -679,8 +1137,9 @@ class _CartPageState extends State<CartPage> {
   // ============================================================
 
   Widget _buildProductImage(
-    String image,
-  ) {
+    String image, {
+    bool isLoading = false,
+  }) {
     return Container(
       width: 82,
       height: 82,
@@ -692,27 +1151,38 @@ class _CartPageState extends State<CartPage> {
           color: pikkXBorder,
         ),
       ),
-      child: image.isEmpty
-          ? _imageFallback()
-          : ClipRRect(
-              borderRadius:
-                  BorderRadius.circular(18),
-              child: _imageWidget(image),
-            ),
+      child: isLoading
+          ? const Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child:
+                    CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: pikkXBlack,
+                ),
+              ),
+            )
+          : image.isEmpty
+              ? _imageFallback()
+              : ClipRRect(
+                  borderRadius:
+                      BorderRadius.circular(18),
+                  child:
+                      _imageWidget(image),
+                ),
     );
   }
 
   Widget _imageWidget(
     String image,
   ) {
-    // ----------------------------------------------------------
-    // LOCAL ASSET
-    // ----------------------------------------------------------
-
     if (image.startsWith('assets/')) {
       return Image.asset(
         image,
         fit: BoxFit.contain,
+        cacheWidth: 220,
+        cacheHeight: 220,
         errorBuilder: (
           context,
           error,
@@ -728,13 +1198,15 @@ class _CartPageState extends State<CartPage> {
       );
     }
 
-    // ----------------------------------------------------------
-    // NETWORK / FIREBASE URL
-    // ----------------------------------------------------------
-
     return Image.network(
       image,
       fit: BoxFit.contain,
+
+      // Keeps downloaded product images
+      // reasonably sized for this small cart card.
+      cacheWidth: 220,
+      cacheHeight: 220,
+
       loadingBuilder: (
         context,
         child,
@@ -748,13 +1220,15 @@ class _CartPageState extends State<CartPage> {
           child: SizedBox(
             width: 20,
             height: 20,
-            child: CircularProgressIndicator(
+            child:
+                CircularProgressIndicator(
               strokeWidth: 2,
               color: pikkXBlack,
             ),
           ),
         );
       },
+
       errorBuilder: (
         context,
         error,
@@ -771,7 +1245,7 @@ class _CartPageState extends State<CartPage> {
   }
 
   // ============================================================
-  // BRANDED IMAGE FALLBACK
+  // IMAGE FALLBACK
   // ============================================================
 
   Widget _imageFallback() {
@@ -779,24 +1253,16 @@ class _CartPageState extends State<CartPage> {
       width: double.infinity,
       height: double.infinity,
       decoration: BoxDecoration(
-        color: pikkXBlack.withOpacity(0.035),
+        color:
+            pikkXBlack.withOpacity(0.035),
         borderRadius:
             BorderRadius.circular(18),
       ),
-      child: Center(
-        child: Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: pikkXBlack,
-            borderRadius:
-                BorderRadius.circular(13),
-          ),
-          child: const Icon(
-            Icons.shopping_bag_outlined,
-            color: pikkXWhite,
-            size: 22,
-          ),
+      child: const Center(
+        child: Icon(
+          Icons.shopping_cart_outlined,
+          color: pikkXBlack,
+          size: 28,
         ),
       ),
     );
@@ -807,31 +1273,38 @@ class _CartPageState extends State<CartPage> {
   // ============================================================
 
   Widget _deleteButton(
-    Map<String, dynamic> item,
-  ) {
+    Map<String, dynamic> item, {
+    bool disabled = false,
+  }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => _removeItem(item),
+        onTap: disabled
+            ? null
+            : () => _removeItem(item),
         borderRadius:
             BorderRadius.circular(13),
-        child: Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color:
-                Colors.white.withOpacity(0.62),
-            borderRadius:
-                BorderRadius.circular(13),
-            border: Border.all(
+        child: AnimatedOpacity(
+          duration:
+              const Duration(milliseconds: 150),
+          opacity: disabled ? 0.45 : 1,
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
               color:
-                  pikkXBorder,
+                  Colors.white.withOpacity(0.62),
+              borderRadius:
+                  BorderRadius.circular(13),
+              border: Border.all(
+                color: pikkXBorder,
+              ),
             ),
-          ),
-          child: const Icon(
-            Icons.delete_outline_rounded,
-            size: 19,
-            color: pikkXBlack,
+            child: const Icon(
+              Icons.delete_outline_rounded,
+              size: 19,
+              color: pikkXBlack,
+            ),
           ),
         ),
       ),
@@ -881,22 +1354,43 @@ class _CartPageState extends State<CartPage> {
   // ============================================================
 
   Widget _buildSummary() {
+    final firstItem =
+        _cartItems.isNotEmpty
+            ? _cartItems.first
+            : <String, dynamic>{};
+
     return _glass(
       radius: 21,
       child: Padding(
-        padding: const EdgeInsets.all(15),
+        padding:
+            const EdgeInsets.all(15),
         child: Column(
           children: [
             _summaryRow(
+              'Items',
+              '$totalItemCount',
+            ),
+
+            const SizedBox(height: 9),
+
+            _summaryRow(
               'Subtotal',
-              '₦${subtotal.toStringAsFixed(2)}',
+              _formatMoney(
+                subtotal,
+                firstItem,
+              ),
             ),
 
             const SizedBox(height: 9),
 
             _summaryRow(
               'Delivery fee',
-              '₦${deliveryFee.toStringAsFixed(2)}',
+              deliveryFee == 0
+                  ? 'Calculated at checkout'
+                  : _formatMoney(
+                      deliveryFee,
+                      firstItem,
+                    ),
             ),
 
             Padding(
@@ -906,14 +1400,16 @@ class _CartPageState extends State<CartPage> {
               ),
               child: Container(
                 height: 1,
-                color:
-                    pikkXBorder,
+                color: pikkXBorder,
               ),
             ),
 
             _summaryRow(
               'Total',
-              '₦${total.toStringAsFixed(2)}',
+              _formatMoney(
+                total,
+                firstItem,
+              ),
               isTotal: true,
             ),
           ],
@@ -930,27 +1426,37 @@ class _CartPageState extends State<CartPage> {
     return Row(
       mainAxisAlignment:
           MainAxisAlignment.spaceBetween,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: TextStyle(
-            fontSize:
-                isTotal ? 16 : 13,
-            fontWeight:
-                isTotal
-                    ? FontWeight.w800
-                    : FontWeight.w500,
-            color: pikkXBlack,
+        Expanded(
+          child: Text(
+            title,
+            style: TextStyle(
+              fontSize:
+                  isTotal ? 16 : 13,
+              fontWeight:
+                  isTotal
+                      ? FontWeight.w800
+                      : FontWeight.w500,
+              color: pikkXBlack,
+            ),
           ),
         ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize:
-                isTotal ? 17 : 13,
-            fontWeight:
-                FontWeight.w800,
-            color: pikkXBlack,
+
+        const SizedBox(width: 12),
+
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontSize:
+                  isTotal ? 17 : 13,
+              fontWeight:
+                  FontWeight.w800,
+              color: pikkXBlack,
+            ),
           ),
         ),
       ],
@@ -959,6 +1465,9 @@ class _CartPageState extends State<CartPage> {
 
   // ============================================================
   // CHECKOUT
+  //
+  // Large bottom clearance is intentional because MainPage
+  // overlays the floating navigation using Positioned.
   // ============================================================
 
   Widget _buildCheckoutButton() {
@@ -970,7 +1479,7 @@ class _CartPageState extends State<CartPage> {
           16,
           6,
           16,
-          12,
+          96,
         ),
         child: _primaryButton(
           text: 'Proceed to Checkout',
@@ -1006,7 +1515,8 @@ class _CartPageState extends State<CartPage> {
             borderRadius:
                 BorderRadius.circular(19),
             border: Border.all(
-              color: pikkXWhite.withOpacity(0.15),
+              color:
+                  pikkXWhite.withOpacity(0.15),
             ),
             boxShadow: [
               BoxShadow(
@@ -1027,10 +1537,13 @@ class _CartPageState extends State<CartPage> {
                 style: const TextStyle(
                   color: pikkXWhite,
                   fontSize: 14,
-                  fontWeight: FontWeight.w800,
+                  fontWeight:
+                      FontWeight.w800,
                 ),
               ),
+
               const SizedBox(width: 8),
+
               Icon(
                 icon,
                 color: pikkXWhite,
@@ -1051,7 +1564,12 @@ class _CartPageState extends State<CartPage> {
     return Center(
       child: SingleChildScrollView(
         padding:
-            const EdgeInsets.all(22),
+            const EdgeInsets.fromLTRB(
+          22,
+          22,
+          22,
+          120,
+        ),
         child: _glass(
           radius: 27,
           child: Padding(
@@ -1129,9 +1647,14 @@ class _CartPageState extends State<CartPage> {
 
   Widget _buildSignInState() {
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding:
-            const EdgeInsets.all(22),
+            const EdgeInsets.fromLTRB(
+          22,
+          22,
+          22,
+          120,
+        ),
         child: _glass(
           radius: 27,
           child: Padding(
@@ -1193,6 +1716,93 @@ class _CartPageState extends State<CartPage> {
                       context,
                       '/sign-in',
                     );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // ERROR STATE
+  // ============================================================
+
+  Widget _buildErrorState() {
+    return Center(
+      child: SingleChildScrollView(
+        padding:
+            const EdgeInsets.fromLTRB(
+          22,
+          22,
+          22,
+          120,
+        ),
+        child: _glass(
+          radius: 27,
+          child: Padding(
+            padding:
+                const EdgeInsets.all(25),
+            child: Column(
+              mainAxisSize:
+                  MainAxisSize.min,
+              children: [
+                Container(
+                  width: 76,
+                  height: 76,
+                  decoration:
+                      BoxDecoration(
+                    color: pikkXBlack,
+                    borderRadius:
+                        BorderRadius.circular(23),
+                  ),
+                  child: const Icon(
+                    Icons.error_outline_rounded,
+                    size: 36,
+                    color: pikkXWhite,
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                const Text(
+                  'Something went wrong',
+                  textAlign:
+                      TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight:
+                        FontWeight.w800,
+                    color: pikkXBlack,
+                  ),
+                ),
+
+                const SizedBox(height: 7),
+
+                const Text(
+                  'We could not load your cart.',
+                  textAlign:
+                      TextAlign.center,
+                  style: TextStyle(
+                    color: pikkXGrey,
+                    fontSize: 12,
+                    height: 1.4,
+                  ),
+                ),
+
+                const SizedBox(height: 18),
+
+                _smallActionButton(
+                  text: 'Try Again',
+                  onPressed: () {
+                    setState(() {
+                      _isLoading = true;
+                      _cartError = null;
+                    });
+
+                    _startCartListener();
                   },
                 ),
               ],
