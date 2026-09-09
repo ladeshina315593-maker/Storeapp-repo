@@ -6,9 +6,21 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  /// These callbacks allow Profile to open the existing MainPage tabs
+  /// instead of pushing duplicate Cart/Favourite screens.
+  final VoidCallback? onOpenCart;
+  final VoidCallback? onOpenFavorites;
+  final VoidCallback? onOpenNotifications;
+
+  const ProfilePage({
+    super.key,
+    this.onOpenCart,
+    this.onOpenFavorites,
+    this.onOpenNotifications,
+  });
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -29,14 +41,9 @@ class _ProfilePageState extends State<ProfilePage> {
   // FIREBASE
   // ============================================================
 
-  final FirebaseFirestore _firestore =
-      FirebaseFirestore.instance;
-
-  final FirebaseAuth _auth =
-      FirebaseAuth.instance;
-
-  final ImagePicker _picker =
-      ImagePicker();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final ImagePicker _picker = ImagePicker();
 
   // ============================================================
   // PROFILE STATE
@@ -55,6 +62,9 @@ class _ProfilePageState extends State<ProfilePage> {
   int _cartCount = 0;
   int _followingCount = 0;
 
+  // Prevent repeated loads while the screen is already loading.
+  bool _loadingProfile = false;
+
   @override
   void initState() {
     super.initState();
@@ -62,142 +72,186 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // ============================================================
-  // LOAD PROFILE
+  // LOAD PROFILE — OPTIMIZED
   // ============================================================
 
   Future<void> _loadProfile() async {
+    if (_loadingProfile) return;
+
+    _loadingProfile = true;
+
     final user = _auth.currentUser;
 
     if (user == null) {
-      if (!mounted) return;
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _name = 'Guest';
+          _email = '';
+          _phone = '';
+          _photoUrl = '';
+          _ordersCount = 0;
+          _favouritesCount = 0;
+          _cartCount = 0;
+          _followingCount = 0;
+        });
+      }
 
-      setState(() {
-        _isLoading = false;
-        _name = 'Guest';
-        _email = '';
-        _phone = '';
-        _photoUrl = '';
-        _ordersCount = 0;
-        _favouritesCount = 0;
-        _cartCount = 0;
-        _followingCount = 0;
-      });
-
+      _loadingProfile = false;
       return;
     }
 
     try {
-      final userDoc = await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .get();
+      /*
+       * IMPORTANT PERFORMANCE CHANGE:
+       *
+       * The old version downloaded EVERY document in:
+       * orders
+       * favorites
+       * cart
+       * following
+       *
+       * just to find the number of documents.
+       *
+       * We use Firestore count() aggregation instead.
+       *
+       * This is much lighter for accounts with many records.
+       */
 
-      final data = userDoc.data();
+      final results = await Future.wait<dynamic>([
+        _firestore
+            .collection('users')
+            .doc(user.uid)
+            .get(),
 
-      // Load counts independently so one unavailable
-      // collection does not break the whole profile.
-      final results = await Future.wait([
         _getCollectionCount(
           'users/${user.uid}/orders',
         ),
+
         _getCollectionCount(
           'users/${user.uid}/favorites',
         ),
+
         _getCollectionCount(
           'users/${user.uid}/cart',
         ),
+
         _getCollectionCount(
           'users/${user.uid}/following',
         ),
       ]);
 
+      final userSnapshot =
+          results[0] as DocumentSnapshot<Map<String, dynamic>>;
+
+      final data = userSnapshot.data();
+
+      final ordersCount = results[1] as int;
+      final favouritesCount = results[2] as int;
+      final cartCount = results[3] as int;
+      final followingCount = results[4] as int;
+
       if (!mounted) return;
 
       setState(() {
         _name =
-            data?['name']?.toString() ??
-                user.displayName ??
-                'Your Name';
+            data?['name']?.toString().trim().isNotEmpty == true
+                ? data!['name'].toString()
+                : (user.displayName?.trim().isNotEmpty == true
+                    ? user.displayName!
+                    : 'Your Name');
 
         _email =
             data?['email']?.toString() ??
-                user.email ??
-                '';
+            user.email ??
+            '';
 
         _phone =
             data?['phone']?.toString() ??
-                user.phoneNumber ??
-                '';
+            user.phoneNumber ??
+            '';
 
+        /*
+         * Support the normal PikkX field plus common existing
+         * Firebase Auth data.
+         */
         _photoUrl =
             data?['photoUrl']?.toString() ??
-                user.photoURL ??
-                '';
+            data?['profilePicture']?.toString() ??
+            user.photoURL ??
+            '';
 
-        _ordersCount = results[0];
-        _favouritesCount = results[1];
-        _cartCount = results[2];
-        _followingCount = results[3];
+        _ordersCount = ordersCount;
+        _favouritesCount = favouritesCount;
+        _cartCount = cartCount;
+        _followingCount = followingCount;
 
         _isLoading = false;
       });
-    } catch (e) {
-      debugPrint(
-        'Profile loading error: $e',
-      );
+    } catch (e, stackTrace) {
+      debugPrint('Profile loading error: $e');
+      debugPrint('$stackTrace');
 
       if (!mounted) return;
 
+      /*
+       * Even if one Firebase query fails, don't leave the whole
+       * Profile screen stuck on a loading spinner.
+       */
       setState(() {
         _name =
-            user.displayName ??
-                'Your Name';
+            user.displayName?.trim().isNotEmpty == true
+                ? user.displayName!
+                : 'Your Name';
 
-        _email =
-            user.email ?? '';
-
-        _phone =
-            user.phoneNumber ?? '';
-
-        _photoUrl =
-            user.photoURL ?? '';
+        _email = user.email ?? '';
+        _phone = user.phoneNumber ?? '';
+        _photoUrl = user.photoURL ?? '';
 
         _isLoading = false;
       });
+    } finally {
+      _loadingProfile = false;
     }
   }
 
-  Future<int> _getCollectionCount(
-    String path,
-  ) async {
+  Future<int> _getCollectionCount(String path) async {
     try {
-      final snapshot =
-          await _firestore
-              .collection(path)
-              .get();
+      final aggregate = await _firestore
+          .collection(path)
+          .count()
+          .get();
 
-      return snapshot.size;
+      return aggregate.count ?? 0;
     } catch (e) {
-      debugPrint(
-        'Count loading error for $path: $e',
-      );
-      return 0;
+      /*
+       * Fallback for Firebase configurations where count()
+       * isn't available/usable.
+       */
+      debugPrint('Count error for $path: $e');
+
+      try {
+        final snapshot =
+            await _firestore.collection(path).limit(500).get();
+
+        return snapshot.size;
+      } catch (_) {
+        return 0;
+      }
     }
   }
 
   // ============================================================
-  // GLASS CONTAINER
+  // GLASS
   // ============================================================
 
   Widget _glassContainer({
     required Widget child,
-    EdgeInsetsGeometry padding =
-        const EdgeInsets.all(16),
+    EdgeInsetsGeometry padding = const EdgeInsets.all(16),
     double radius = 24,
   }) {
     return ClipRRect(
-      borderRadius:
-          BorderRadius.circular(radius),
+      borderRadius: BorderRadius.circular(radius),
       child: BackdropFilter(
         filter: ImageFilter.blur(
           sigmaX: 18,
@@ -206,24 +260,16 @@ class _ProfilePageState extends State<ProfilePage> {
         child: Container(
           padding: padding,
           decoration: BoxDecoration(
-            color:
-                Colors.white.withOpacity(0.70),
-            borderRadius:
-                BorderRadius.circular(radius),
+            color: Colors.white.withOpacity(0.70),
+            borderRadius: BorderRadius.circular(radius),
             border: Border.all(
-              color:
-                  Colors.white.withOpacity(0.95),
-              width: 1,
+              color: Colors.white.withOpacity(0.95),
             ),
             boxShadow: [
               BoxShadow(
-                color:
-                    Colors.black.withOpacity(
-                  0.045,
-                ),
+                color: Colors.black.withOpacity(0.045),
                 blurRadius: 22,
-                offset:
-                    const Offset(0, 9),
+                offset: const Offset(0, 9),
               ),
             ],
           ),
@@ -234,56 +280,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // ============================================================
-  // PAGE HEADER
-  // ============================================================
-
-  Widget _pageHeader() {
-    return Row(
-      children: [
-        const Expanded(
-          child: Text(
-            'Profile',
-            style: TextStyle(
-              color: pikkXBlack,
-              fontSize: 25,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.7,
-            ),
-          ),
-        ),
-
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: _openSettings,
-            borderRadius:
-                BorderRadius.circular(15),
-            child: Container(
-              height: 43,
-              width: 43,
-              decoration: BoxDecoration(
-                color:
-                    Colors.white.withOpacity(0.70),
-                borderRadius:
-                    BorderRadius.circular(15),
-                border: Border.all(
-                  color: Colors.white,
-                ),
-              ),
-              child: const Icon(
-                Icons.settings_outlined,
-                color: pikkXBlack,
-                size: 21,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ============================================================
-  // YOUR PROFILE CARD
+  // PROFILE CARD
   // ============================================================
 
   Widget _yourProfileCard() {
@@ -294,8 +291,7 @@ class _ProfilePageState extends State<ProfilePage> {
         color: Colors.transparent,
         child: InkWell(
           onTap: _openEditProfile,
-          borderRadius:
-              BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(18),
           child: Row(
             children: [
               _profileImage(),
@@ -304,16 +300,14 @@ class _ProfilePageState extends State<ProfilePage> {
 
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
                       'Your Profile',
                       style: TextStyle(
                         color: pikkXBlack,
                         fontSize: 11,
-                        fontWeight:
-                            FontWeight.w700,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
 
@@ -322,23 +316,25 @@ class _ProfilePageState extends State<ProfilePage> {
                     Text(
                       _name,
                       maxLines: 1,
-                      overflow:
-                          TextOverflow.ellipsis,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: pikkXBlack,
                         fontSize: 17,
-                        fontWeight:
-                            FontWeight.w900,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
 
                     const SizedBox(height: 3),
 
-                    const Text(
-                      'Manage your PikkX account',
-                      style: TextStyle(
+                    Text(
+                      _email.isNotEmpty
+                          ? _email
+                          : 'Manage your PikkX account',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
                         color: pikkXGrey,
-                        fontSize: 11,
+                        fontSize: 10,
                       ),
                     ),
                   ],
@@ -352,8 +348,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 width: 35,
                 decoration: BoxDecoration(
                   color: pikkXBlack,
-                  borderRadius:
-                      BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
                   Icons.arrow_forward_ios_rounded,
@@ -381,8 +376,7 @@ class _ProfilePageState extends State<ProfilePage> {
           Container(
             height: 72,
             width: 72,
-            padding:
-                const EdgeInsets.all(3),
+            padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: pikkXWhite,
@@ -392,13 +386,9 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               boxShadow: [
                 BoxShadow(
-                  color:
-                      Colors.black.withOpacity(
-                    0.08,
-                  ),
+                  color: Colors.black.withOpacity(0.08),
                   blurRadius: 16,
-                  offset:
-                      const Offset(0, 6),
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
@@ -406,10 +396,16 @@ class _ProfilePageState extends State<ProfilePage> {
               child: _photoUrl.isNotEmpty
                   ? Image.network(
                       _photoUrl,
-                      key: ValueKey(
-                        _photoUrl,
-                      ),
+                      key: ValueKey(_photoUrl),
                       fit: BoxFit.cover,
+
+                      /*
+                       * Keep the network image lightweight.
+                       * The PFP is displayed at roughly 66px.
+                       */
+                      cacheWidth: 220,
+                      cacheHeight: 220,
+
                       errorBuilder: (
                         context,
                         error,
@@ -438,10 +434,8 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               child: _isUploadingPhoto
                   ? const Padding(
-                      padding:
-                          EdgeInsets.all(7),
-                      child:
-                          CircularProgressIndicator(
+                      padding: EdgeInsets.all(7),
+                      child: CircularProgressIndicator(
                         strokeWidth: 2,
                         color: pikkXWhite,
                       ),
@@ -470,24 +464,22 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // ============================================================
-  // PROFILE PICTURE UPLOAD
+  // PROFILE PICTURE — REAL FIREBASE STORAGE
   // ============================================================
 
   Future<void> _changeProfilePicture() async {
     final user = _auth.currentUser;
 
-    if (user == null ||
-        _isUploadingPhoto) {
+    if (user == null || _isUploadingPhoto) {
       return;
     }
 
     try {
-      final XFile? pickedFile =
-          await _picker.pickImage(
+      final XFile? pickedFile = await _picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 88,
-        maxWidth: 1400,
-        maxHeight: 1400,
+        imageQuality: 82,
+        maxWidth: 900,
+        maxHeight: 900,
       );
 
       if (pickedFile == null) {
@@ -500,44 +492,44 @@ class _ProfilePageState extends State<ProfilePage> {
         _isUploadingPhoto = true;
       });
 
-      final file =
-          File(pickedFile.path);
+      final file = File(pickedFile.path);
 
-      // IMPORTANT:
-      // Use a unique filename so Firebase gives us
-      // a fresh URL instead of potentially reusing
-      // the previous cached image.
-      final timestamp =
-          DateTime.now()
-              .millisecondsSinceEpoch;
-
-      final storageRef =
-          FirebaseStorage.instance
-              .ref()
-              .child('profile_pictures')
-              .child(
-                '${user.uid}_$timestamp.jpg',
-              );
+      /*
+       * Use ONE stable Storage path for the user's profile picture.
+       *
+       * This is better than creating unlimited files:
+       * uid_123.jpg
+       * uid_456.jpg
+       * uid_789.jpg
+       *
+       * Every new picture replaces the user's current PFP.
+       */
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('profile_pictures')
+          .child('${user.uid}.jpg');
 
       await storageRef.putFile(
         file,
         SettableMetadata(
           contentType: 'image/jpeg',
+          cacheControl: 'public,max-age=300',
         ),
       );
 
       final downloadUrl =
           await storageRef.getDownloadURL();
 
-      // Update Firebase Auth.
-      await user.updatePhotoURL(
-        downloadUrl,
-      );
+      /*
+       * Save the URL to BOTH:
+       *
+       * Firebase Auth
+       * Firestore
+       *
+       * Firestore is the main PikkX profile source.
+       */
+      await user.updatePhotoURL(downloadUrl);
 
-      // Make the Auth profile refresh.
-      await user.reload();
-
-      // Save the SAME URL in Firestore.
       await _firestore
           .collection('users')
           .doc(user.uid)
@@ -545,32 +537,33 @@ class _ProfilePageState extends State<ProfilePage> {
         {
           'uid': user.uid,
           'photoUrl': downloadUrl,
-          'updatedAt':
-              FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
         },
         SetOptions(merge: true),
       );
 
+      /*
+       * Do NOT depend on user.reload() for the UI.
+       *
+       * We already have the verified Firebase Storage URL,
+       * so update the visible UI immediately.
+       */
       if (!mounted) return;
 
-      // Immediately update the visible profile.
       setState(() {
         _photoUrl = downloadUrl;
         _isUploadingPhoto = false;
       });
 
       _showMessage(
-        'Profile picture updated successfully.',
+        'Profile picture saved successfully.',
       );
-    } catch (e, stackTrace) {
+    } on FirebaseException catch (e, stackTrace) {
       debugPrint(
-        'Profile picture upload error: $e',
+        'Profile picture Firebase error: '
+        '${e.code} ${e.message}',
       );
-
-      debugPrint(
-        'Profile picture stack trace: '
-        '$stackTrace',
-      );
+      debugPrint('$stackTrace');
 
       if (!mounted) return;
 
@@ -579,7 +572,22 @@ class _ProfilePageState extends State<ProfilePage> {
       });
 
       _showMessage(
-        'Unable to update profile picture.',
+        e.code == 'permission-denied'
+            ? 'Firebase denied the profile picture upload.'
+            : 'Unable to save profile picture.',
+      );
+    } catch (e, stackTrace) {
+      debugPrint('Profile picture error: $e');
+      debugPrint('$stackTrace');
+
+      if (!mounted) return;
+
+      setState(() {
+        _isUploadingPhoto = false;
+      });
+
+      _showMessage(
+        'Unable to save profile picture.',
       );
     }
   }
@@ -588,12 +596,9 @@ class _ProfilePageState extends State<ProfilePage> {
   // SECTION TITLE
   // ============================================================
 
-  Widget _sectionTitle(
-    String title,
-  ) {
+  Widget _sectionTitle(String title) {
     return Padding(
-      padding:
-          const EdgeInsets.fromLTRB(
+      padding: const EdgeInsets.fromLTRB(
         4,
         2,
         4,
@@ -619,533 +624,47 @@ class _ProfilePageState extends State<ProfilePage> {
     required String title,
     required String subtitle,
     VoidCallback? onTap,
-    bool disabled = false,
     bool destructive = false,
   }) {
-    final titleColor =
-        destructive
-            ? const Color(0xFFD32F2F)
-            : pikkXBlack;
+    final titleColor = destructive
+        ? const Color(0xFFD32F2F)
+        : pikkXBlack;
 
-    final iconColor =
-        destructive
-            ? const Color(0xFFD32F2F)
-            : pikkXBlack;
+    final iconColor = destructive
+        ? const Color(0xFFD32F2F)
+        : pikkXBlack;
 
     return Padding(
-      padding:
-          const EdgeInsets.only(
-        bottom: 9,
-      ),
+      padding: const EdgeInsets.only(bottom: 9),
       child: _glassContainer(
-        padding:
-            EdgeInsets.zero,
+        padding: EdgeInsets.zero,
         radius: 20,
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: disabled
-                ? null
-                : onTap,
-            borderRadius:
-                BorderRadius.circular(20),
-            child: Opacity(
-              opacity:
-                  disabled ? 0.48 : 1,
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 11,
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      height: 43,
-                      width: 43,
-                      decoration:
-                          BoxDecoration(
-                        color: destructive
-                            ? const Color(
-                                0xFFFFF0F0,
-                              )
-                            : Colors.black
-                                .withOpacity(
-                                0.055,
-                              ),
-                        borderRadius:
-                            BorderRadius.circular(
-                          13,
-                        ),
-                      ),
-                      child: Icon(
-                        icon,
-                        color: iconColor,
-                        size: 20,
-                      ),
-                    ),
-
-                    const SizedBox(
-                      width: 12,
-                    ),
-
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment
-                                .start,
-                        children: [
-                          Text(
-                            title,
-                            style: TextStyle(
-                              color:
-                                  titleColor,
-                              fontSize: 13,
-                              fontWeight:
-                                  FontWeight.w800,
-                            ),
-                          ),
-
-                          const SizedBox(
-                            height: 3,
-                          ),
-
-                          Text(
-                            subtitle,
-                            maxLines: 1,
-                            overflow:
-                                TextOverflow
-                                    .ellipsis,
-                            style:
-                                const TextStyle(
-                              color:
-                                  pikkXGrey,
-                              fontSize: 10,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    if (disabled)
-                      const Padding(
-                        padding:
-                            EdgeInsets.only(
-                          right: 5,
-                        ),
-                        child: Text(
-                          'Coming later',
-                          style:
-                              TextStyle(
-                            color:
-                                pikkXGrey,
-                            fontSize: 8,
-                            fontWeight:
-                                FontWeight.w700,
-                          ),
-                        ),
-                      ),
-
-                    Icon(
-                      Icons
-                          .arrow_forward_ios_rounded,
-                      color: destructive
-                          ? const Color(
-                              0xFFD32F2F,
-                            )
-                          : pikkXGrey,
-                      size: 13,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // FOLLOWING MERCHANTS
-  // ============================================================
-
-  Widget _followingSection() {
-    final user = _auth.currentUser;
-
-    if (user == null) {
-      return _glassContainer(
-        radius: 23,
-        padding: const EdgeInsets.all(18),
-        child: const Text(
-          'Sign in to see the merchants you follow.',
-          style: TextStyle(
-            color: pikkXGrey,
-            fontSize: 11,
-          ),
-        ),
-      );
-    }
-
-    return StreamBuilder<
-        QuerySnapshot<
-            Map<String, dynamic>>>(
-      stream: _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('following')
-          .orderBy(
-            'createdAt',
-            descending: true,
-          )
-          .snapshots(),
-      builder: (
-        context,
-        snapshot,
-      ) {
-        if (snapshot.hasError) {
-          debugPrint(
-            'Following stream error: '
-            '${snapshot.error}',
-          );
-
-          return _followingEmptyCard(
-            'Following is unavailable right now.',
-          );
-        }
-
-        final following =
-            snapshot.data?.docs ?? [];
-
-        if (following.isEmpty) {
-          return _followingEmptyCard(
-            'You’re not following any merchants yet.',
-          );
-        }
-
-        return _glassContainer(
-          radius: 23,
-          padding:
-              const EdgeInsets.all(12),
-          child: Column(
-            children: [
-              for (
-                int i = 0;
-                i < following.length;
-                i++
-              )
-                _followingMerchantTile(
-                  following[i],
-                  isLast:
-                      i == following.length - 1,
-                ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _followingEmptyCard(
-    String message,
-  ) {
-    return _glassContainer(
-      radius: 23,
-      padding: const EdgeInsets.all(18),
-      child: Row(
-        children: [
-          Container(
-            height: 44,
-            width: 44,
-            decoration: BoxDecoration(
-              color:
-                  Colors.black.withOpacity(
-                0.055,
-              ),
-              borderRadius:
-                  BorderRadius.circular(13),
-            ),
-            child: const Icon(
-              Icons.storefront_outlined,
-              color: pikkXBlack,
-              size: 21,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(
-                color: pikkXGrey,
-                fontSize: 11,
-                height: 1.35,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _followingMerchantTile(
-    QueryDocumentSnapshot<
-            Map<String, dynamic>>
-        document, {
-    required bool isLast,
-  }) {
-    final data =
-        document.data();
-
-    final merchantName =
-        data['sellerName']?.toString() ??
-            data['merchantName']?.toString() ??
-            data['storeName']?.toString() ??
-            'Merchant';
-
-    final imageUrl =
-        data['photoUrl']?.toString() ??
-            data['merchantPhotoUrl']
-                ?.toString() ??
-            data['imageUrl']?.toString() ??
-            '';
-
-    return Column(
-      children: [
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () {
-              _openFollowingMerchant(
-                document.id,
-                data,
-              );
-            },
-            borderRadius:
-                BorderRadius.circular(16),
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(20),
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(
-                horizontal: 4,
-                vertical: 7,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 11,
               ),
               child: Row(
                 children: [
-                  _merchantAvatar(
-                    merchantName,
-                    imageUrl,
-                  ),
-
-                  const SizedBox(
-                    width: 11,
-                  ),
-
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment
-                              .start,
-                      children: [
-                        Text(
-                          merchantName,
-                          maxLines: 1,
-                          overflow:
-                              TextOverflow
-                                  .ellipsis,
-                          style:
-                              const TextStyle(
-                            color:
-                                pikkXBlack,
-                            fontSize: 13,
-                            fontWeight:
-                                FontWeight.w800,
-                          ),
-                        ),
-
-                        const SizedBox(
-                          height: 3,
-                        ),
-
-                        const Text(
-                          'Following',
-                          style:
-                              TextStyle(
-                            color:
-                                pikkXGrey,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
                   Container(
-                    height: 32,
-                    width: 32,
-                    decoration:
-                        BoxDecoration(
-                      color: pikkXBlack,
+                    height: 43,
+                    width: 43,
+                    decoration: BoxDecoration(
+                      color: destructive
+                          ? const Color(0xFFFFF0F0)
+                          : Colors.black.withOpacity(0.055),
                       borderRadius:
-                          BorderRadius.circular(
-                        11,
-                      ),
+                          BorderRadius.circular(13),
                     ),
-                    child: const Icon(
-                      Icons
-                          .arrow_forward_ios_rounded,
-                      color:
-                          pikkXWhite,
-                      size: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-
-        if (!isLast)
-          Divider(
-            height: 1,
-            color:
-                pikkXBorder.withOpacity(
-              0.75,
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _merchantAvatar(
-    String name,
-    String imageUrl,
-  ) {
-    return Container(
-      height: 47,
-      width: 47,
-      padding:
-          const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: pikkXWhite,
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: pikkXBorder,
-        ),
-      ),
-      child: ClipOval(
-        child: imageUrl.isNotEmpty
-            ? Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (
-                  context,
-                  error,
-                  stackTrace,
-                ) {
-                  return _merchantFallback(
-                    name,
-                  );
-                },
-              )
-            : _merchantFallback(
-                name,
-              ),
-      ),
-    );
-  }
-
-  Widget _merchantFallback(
-    String name,
-  ) {
-    return Container(
-      color: const Color(0xFFF0F0F0),
-      alignment: Alignment.center,
-      child: Text(
-        name.isNotEmpty
-            ? name[0].toUpperCase()
-            : 'M',
-        style: const TextStyle(
-          color: pikkXBlack,
-          fontSize: 17,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // MERCHANT ACTION
-  // ============================================================
-
-  void _openFollowingMerchant(
-    String documentId,
-    Map<String, dynamic> data,
-  ) {
-    // The following record itself is real and connected.
-    // There is no invented merchant route here.
-    //
-    // If PikkX later has a Merchant/Store page,
-    // this exact action can navigate to it.
-    //
-    // For now, show the stored merchant information
-    // instead of creating a dead navigation button.
-
-    final name =
-        data['sellerName']?.toString() ??
-            data['merchantName']?.toString() ??
-            data['storeName']?.toString() ??
-            'Merchant';
-
-    final sellerId =
-        data['sellerId']?.toString() ??
-            data['merchantId']?.toString() ??
-            documentId;
-
-    _showMerchantDetails(
-      name,
-      sellerId,
-    );
-  }
-
-  void _showMerchantDetails(
-    String name,
-    String sellerId,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return _glassContainer(
-          radius: 28,
-          padding:
-              const EdgeInsets.fromLTRB(
-            20,
-            20,
-            20,
-            28,
-          ),
-          child: Column(
-            mainAxisSize:
-                MainAxisSize.min,
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    height: 48,
-                    width: 48,
-                    decoration:
-                        BoxDecoration(
-                      color: pikkXBlack,
-                      borderRadius:
-                          BorderRadius.circular(
-                        15,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.storefront_outlined,
-                      color:
-                          pikkXWhite,
+                    child: Icon(
+                      icon,
+                      color: iconColor,
+                      size: 20,
                     ),
                   ),
 
@@ -1154,29 +673,246 @@ class _ProfilePageState extends State<ProfilePage> {
                   Expanded(
                     child: Column(
                       crossAxisAlignment:
-                          CrossAxisAlignment
-                              .start,
+                          CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            color: titleColor,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+
+                        const SizedBox(height: 3),
+
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: pikkXGrey,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    color: destructive
+                        ? const Color(0xFFD32F2F)
+                        : pikkXGrey,
+                    size: 13,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // SHOPPING
+  // ============================================================
+
+  void _openOrders() {
+    Navigator.pushNamed(
+      context,
+      '/orders',
+    );
+  }
+
+  void _openCart() {
+    /*
+     * IMPORTANT:
+     * If MainPage supplies the callback, Profile opens the
+     * EXISTING Cart tab rather than pushing a second Cart screen.
+     */
+    if (widget.onOpenCart != null) {
+      widget.onOpenCart!();
+      return;
+    }
+
+    /*
+     * Fallback only if Profile is being used somewhere outside
+     * MainPage.
+     */
+    Navigator.pushNamed(
+      context,
+      '/cart',
+    );
+  }
+
+  void _openFavorites() {
+    if (widget.onOpenFavorites != null) {
+      widget.onOpenFavorites!();
+      return;
+    }
+
+    Navigator.popUntil(
+      context,
+      (route) => route.isFirst,
+    );
+  }
+
+  void _openAddresses() {
+    Navigator.pushNamed(
+      context,
+      '/delivery-address',
+    );
+  }
+
+  void _openNotifications() {
+    /*
+     * Use the existing Notifications page/route.
+     */
+    if (widget.onOpenNotifications != null) {
+      widget.onOpenNotifications!();
+      return;
+    }
+
+    Navigator.pushNamed(
+      context,
+      '/notifications',
+    );
+  }
+
+  // ============================================================
+  // REWARDS & OFFERS — COUPON CODES ONLY
+  // ============================================================
+
+  Future<void> _openCoupons() async {
+    final user = _auth.currentUser;
+
+    if (user == null) {
+      _showMessage(
+        'Please sign in to view your coupons.',
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return _CouponsSheet(
+          firestore: _firestore,
+          userId: user.uid,
+        );
+      },
+    );
+  }
+
+  // ============================================================
+  // FOLLOWING — LOAD ONLY WHEN OPENED
+  // ============================================================
+
+  Future<void> _openFollowing() async {
+    final user = _auth.currentUser;
+
+    if (user == null) {
+      _showMessage(
+        'Please sign in to see who you follow.',
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return _FollowingSheet(
+          firestore: _firestore,
+          userId: user.uid,
+          onMerchantTap: (
+            documentId,
+            data,
+          ) {
+            _showMerchantDetails(
+              data,
+              documentId,
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showMerchantDetails(
+    Map<String, dynamic> data,
+    String documentId,
+  ) {
+    final name =
+        data['sellerName']?.toString() ??
+        data['merchantName']?.toString() ??
+        data['storeName']?.toString() ??
+        'Merchant';
+
+    final sellerId =
+        data['sellerId']?.toString() ??
+        data['merchantId']?.toString() ??
+        documentId;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return _glassContainer(
+          radius: 28,
+          padding: const EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            28,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    height: 48,
+                    width: 48,
+                    decoration: BoxDecoration(
+                      color: pikkXBlack,
+                      borderRadius:
+                          BorderRadius.circular(15),
+                    ),
+                    child: const Icon(
+                      Icons.storefront_outlined,
+                      color: pikkXWhite,
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
                       children: [
                         Text(
                           name,
-                          style:
-                              const TextStyle(
-                            color:
-                                pikkXBlack,
+                          style: const TextStyle(
+                            color: pikkXBlack,
                             fontSize: 16,
                             fontWeight:
                                 FontWeight.w900,
                           ),
                         ),
-                        const SizedBox(
-                          height: 3,
-                        ),
+                        const SizedBox(height: 3),
                         const Text(
                           'Merchant you follow',
-                          style:
-                              TextStyle(
-                            color:
-                                pikkXGrey,
+                          style: TextStyle(
+                            color: pikkXGrey,
                             fontSize: 10,
                           ),
                         ),
@@ -1190,8 +926,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
               Text(
                 'Merchant ID: $sellerId',
-                style:
-                    const TextStyle(
+                style: const TextStyle(
                   color: pikkXGrey,
                   fontSize: 10,
                 ),
@@ -1204,178 +939,64 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // ============================================================
-  // NAVIGATION
+  // HELP & SUPPORT — WHATSAPP
   // ============================================================
 
-  void _openOrders() {
-    Navigator.pushNamed(
-      context,
-      '/orders',
+  Future<void> _openHelpSupport() async {
+    /*
+     * WhatsApp number:
+     * +234 913 231 5593
+     *
+     * WhatsApp international format:
+     * 2349132315593
+     */
+    final uri = Uri.parse(
+      'https://wa.me/2349132315593?text=${Uri.encodeComponent(
+        'Hello PikkX Support, I need help with my PikkX account.',
+      )}',
     );
-  }
 
-  void _openCart() {
-    Navigator.pushNamed(
-      context,
-      '/cart',
-    );
-  }
+    try {
+      final opened = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
 
-  void _openAddresses() {
-    Navigator.pushNamed(
-      context,
-      '/delivery-address',
-    );
-  }
-
-  void _openNotifications() {
-    Navigator.pushNamed(
-      context,
-      '/notifications',
-    );
-  }
-
-  void _openSettings() {
-    Navigator.pushNamed(
-      context,
-      '/settings',
-    );
-  }
-
-  // ============================================================
-  // HELP & SUPPORT
-  // ============================================================
-
-  void _openHelpSupport() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor:
-          Colors.transparent,
-      builder: (context) {
-        return _glassContainer(
-          radius: 28,
-          padding:
-              const EdgeInsets.fromLTRB(
-            20,
-            20,
-            20,
-            28,
-          ),
-          child: Column(
-            mainAxisSize:
-                MainAxisSize.min,
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Help & Support',
-                style: TextStyle(
-                  color: pikkXBlack,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              const Text(
-                'Need help with your PikkX account, orders, delivery, or shopping?',
-                style: TextStyle(
-                  color: pikkXGrey,
-                  fontSize: 12,
-                  height: 1.45,
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              _supportRow(
-                Icons.help_outline_rounded,
-                'PikkX Help Center',
-              ),
-
-              _supportRow(
-                Icons.chat_bubble_outline_rounded,
-                'Contact Support',
-              ),
-
-              _supportRow(
-                Icons.receipt_long_outlined,
-                'Order Support',
-              ),
-            ],
-          ),
+      if (!opened && mounted) {
+        _showMessage(
+          'WhatsApp could not be opened.',
         );
-      },
-    );
-  }
+      }
+    } catch (e) {
+      debugPrint('WhatsApp launch error: $e');
 
-  Widget _supportRow(
-    IconData icon,
-    String title,
-  ) {
-    return Padding(
-      padding:
-          const EdgeInsets.only(
-        bottom: 8,
-      ),
-      child: Container(
-        padding:
-            const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color:
-              Colors.black.withOpacity(
-            0.045,
-          ),
-          borderRadius:
-              BorderRadius.circular(15),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              color: pikkXBlack,
-              size: 19,
-            ),
-            const SizedBox(width: 10),
-            Text(
-              title,
-              style:
-                  const TextStyle(
-                color: pikkXBlack,
-                fontSize: 12,
-                fontWeight:
-                    FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+      if (!mounted) return;
+
+      _showMessage(
+        'Unable to open WhatsApp.',
+      );
+    }
   }
 
   // ============================================================
-  // PRIVACY & SECURITY
+  // PRIVACY
   // ============================================================
 
   void _openPrivacySecurity() {
     showModalBottomSheet(
       context: context,
-      backgroundColor:
-          Colors.transparent,
+      backgroundColor: Colors.transparent,
       builder: (context) {
         return _glassContainer(
           radius: 28,
-          padding:
-              const EdgeInsets.fromLTRB(
+          padding: const EdgeInsets.fromLTRB(
             20,
             20,
             20,
             28,
           ),
           child: Column(
-            mainAxisSize:
-                MainAxisSize.min,
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment:
                 CrossAxisAlignment.start,
             children: [
@@ -1427,25 +1048,16 @@ class _ProfilePageState extends State<ProfilePage> {
     String title,
   ) {
     return Padding(
-      padding:
-          const EdgeInsets.only(
-        bottom: 9,
-      ),
+      padding: const EdgeInsets.only(bottom: 9),
       child: Row(
         children: [
           Container(
             height: 38,
             width: 38,
-            decoration:
-                BoxDecoration(
-              color:
-                  Colors.black.withOpacity(
-                0.055,
-              ),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.055),
               borderRadius:
-                  BorderRadius.circular(
-                12,
-              ),
+                  BorderRadius.circular(12),
             ),
             child: Icon(
               icon,
@@ -1456,12 +1068,10 @@ class _ProfilePageState extends State<ProfilePage> {
           const SizedBox(width: 10),
           Text(
             title,
-            style:
-                const TextStyle(
+            style: const TextStyle(
               color: pikkXBlack,
               fontSize: 12,
-              fontWeight:
-                  FontWeight.w700,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -1470,7 +1080,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // ============================================================
-  // DELETE ACCOUNT
+  // DELETE ACCOUNT — REAL FIREBASE AUTH DELETE
   // ============================================================
 
   Future<void> _deleteAccount() async {
@@ -1488,19 +1098,15 @@ class _ProfilePageState extends State<ProfilePage> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor:
-              pikkXWhite,
-          shape:
-              RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(23),
+          backgroundColor: pikkXWhite,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(23),
           ),
           title: const Text(
             'Delete Account?',
             style: TextStyle(
               color: pikkXBlack,
-              fontWeight:
-                  FontWeight.w900,
+              fontWeight: FontWeight.w900,
             ),
           ),
           content: const Text(
@@ -1522,8 +1128,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 'Cancel',
                 style: TextStyle(
                   color: pikkXBlack,
-                  fontWeight:
-                      FontWeight.w700,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -1534,28 +1139,20 @@ class _ProfilePageState extends State<ProfilePage> {
                   true,
                 );
               },
-              style:
-                  ElevatedButton.styleFrom(
+              style: ElevatedButton.styleFrom(
                 backgroundColor:
-                    const Color(
-                  0xFFD32F2F,
-                ),
-                foregroundColor:
-                    pikkXWhite,
+                    const Color(0xFFD32F2F),
+                foregroundColor: pikkXWhite,
                 elevation: 0,
-                shape:
-                    RoundedRectangleBorder(
+                shape: RoundedRectangleBorder(
                   borderRadius:
-                      BorderRadius.circular(
-                    13,
-                  ),
+                      BorderRadius.circular(13),
                 ),
               ),
               child: const Text(
                 'Delete',
                 style: TextStyle(
-                  fontWeight:
-                      FontWeight.w800,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
@@ -1569,19 +1166,47 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     try {
-      // Delete the Firestore user document.
+      /*
+       * Delete common user-owned subcollections first.
+       *
+       * This removes the profile's Firebase data.
+       */
+      await _deleteUserSubcollection(
+        user.uid,
+        'cart',
+      );
+
+      await _deleteUserSubcollection(
+        user.uid,
+        'favorites',
+      );
+
+      await _deleteUserSubcollection(
+        user.uid,
+        'following',
+      );
+
+      /*
+       * Orders are deliberately NOT blindly deleted here.
+       *
+       * If your business needs order history for records,
+       * those documents may need to be retained/anonymized.
+       */
+
       await _firestore
           .collection('users')
           .doc(user.uid)
           .delete();
 
-      // Delete Firebase Authentication account.
+      /*
+       * THIS is the actual authentication-account deletion.
+       */
       await user.delete();
 
       if (!mounted) return;
 
       _showMessage(
-        'Account deleted.',
+        'Your PikkX account has been deleted.',
       );
     } on FirebaseAuthException catch (e) {
       debugPrint(
@@ -1591,25 +1216,53 @@ class _ProfilePageState extends State<ProfilePage> {
 
       if (!mounted) return;
 
-      if (e.code ==
-          'requires-recent-login') {
+      if (e.code == 'requires-recent-login') {
         _showMessage(
-          'Please sign in again before deleting your account.',
+          'For security, please sign in again before deleting your account.',
         );
       } else {
         _showMessage(
           'Unable to delete your account.',
         );
       }
-    } catch (e) {
-      debugPrint(
-        'Delete account error: $e',
-      );
+    } catch (e, stackTrace) {
+      debugPrint('Delete account error: $e');
+      debugPrint('$stackTrace');
 
       if (!mounted) return;
 
       _showMessage(
         'Unable to delete your account.',
+      );
+    }
+  }
+
+  Future<void> _deleteUserSubcollection(
+    String uid,
+    String collectionName,
+  ) async {
+    try {
+      final ref = _firestore
+          .collection('users')
+          .doc(uid)
+          .collection(collectionName);
+
+      final snapshot = await ref.get();
+
+      if (snapshot.docs.isEmpty) {
+        return;
+      }
+
+      final batch = _firestore.batch();
+
+      for (final document in snapshot.docs) {
+        batch.delete(document.reference);
+      }
+
+      await batch.commit();
+    } catch (e) {
+      debugPrint(
+        'Unable to delete $collectionName: $e',
       );
     }
   }
@@ -1624,19 +1277,15 @@ class _ProfilePageState extends State<ProfilePage> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor:
-              pikkXWhite,
-          shape:
-              RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(23),
+          backgroundColor: pikkXWhite,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(23),
           ),
           title: const Text(
             'Log Out',
             style: TextStyle(
               color: pikkXBlack,
-              fontWeight:
-                  FontWeight.w900,
+              fontWeight: FontWeight.w900,
             ),
           ),
           content: const Text(
@@ -1657,8 +1306,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 'Cancel',
                 style: TextStyle(
                   color: pikkXBlack,
-                  fontWeight:
-                      FontWeight.w700,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -1669,26 +1317,19 @@ class _ProfilePageState extends State<ProfilePage> {
                   true,
                 );
               },
-              style:
-                  ElevatedButton.styleFrom(
-                backgroundColor:
-                    pikkXBlack,
-                foregroundColor:
-                    pikkXWhite,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: pikkXBlack,
+                foregroundColor: pikkXWhite,
                 elevation: 0,
-                shape:
-                    RoundedRectangleBorder(
+                shape: RoundedRectangleBorder(
                   borderRadius:
-                      BorderRadius.circular(
-                    13,
-                  ),
+                      BorderRadius.circular(13),
                 ),
               ),
               child: const Text(
                 'Log Out',
                 style: TextStyle(
-                  fontWeight:
-                      FontWeight.w800,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
@@ -1706,15 +1347,23 @@ class _ProfilePageState extends State<ProfilePage> {
 
       if (!mounted) return;
 
-      await _loadProfile();
+      setState(() {
+        _isLoading = false;
+        _name = 'Guest';
+        _email = '';
+        _phone = '';
+        _photoUrl = '';
+        _ordersCount = 0;
+        _favouritesCount = 0;
+        _cartCount = 0;
+        _followingCount = 0;
+      });
 
       _showMessage(
         'You have been logged out.',
       );
     } catch (e) {
-      debugPrint(
-        'Logout error: $e',
-      );
+      debugPrint('Logout error: $e');
 
       if (!mounted) return;
 
@@ -1731,26 +1380,21 @@ class _ProfilePageState extends State<ProfilePage> {
   void _openEditProfile() {
     showModalBottomSheet(
       context: context,
-      backgroundColor:
-          Colors.transparent,
+      backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) {
         return _EditProfileSheet(
           currentName: _name,
           currentPhotoUrl: _photoUrl,
           onSave: _saveProfile,
-          onChangePhoto:
-              _changeProfilePicture,
-          isUploadingPhoto:
-              _isUploadingPhoto,
+          onChangePhoto: _changeProfilePicture,
+          isUploadingPhoto: _isUploadingPhoto,
         );
       },
     );
   }
 
-  Future<void> _saveProfile(
-    String name,
-  ) async {
+  Future<void> _saveProfile(String name) async {
     final user = _auth.currentUser;
 
     if (user == null) {
@@ -1759,8 +1403,7 @@ class _ProfilePageState extends State<ProfilePage> {
       );
     }
 
-    final cleanName =
-        name.trim();
+    final cleanName = name.trim();
 
     if (cleanName.isEmpty) {
       throw Exception(
@@ -1775,13 +1418,10 @@ class _ProfilePageState extends State<ProfilePage> {
       {
         'uid': user.uid,
         'name': cleanName,
-        'email':
-            user.email ?? _email,
-        'phone':
-            user.phoneNumber ?? _phone,
+        'email': user.email ?? _email,
+        'phone': user.phoneNumber ?? _phone,
         'photoUrl': _photoUrl,
-        'updatedAt':
-            FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
     );
@@ -1806,59 +1446,49 @@ class _ProfilePageState extends State<ProfilePage> {
   // ============================================================
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Container(
-      decoration:
-          const BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [
             Color(0xFFF7F7F7),
             Color(0xFFFFFFFF),
             Color(0xFFF7F7F7),
           ],
-          begin:
-              Alignment.topCenter,
-          end:
-              Alignment.bottomCenter,
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
         ),
       ),
       child: Stack(
         children: [
-          // SOFT ORGANIC BACKGROUND
           Positioned(
             top: -70,
             right: -50,
-            child: _backgroundBlob(
-              190,
-            ),
+            child: _backgroundBlob(190),
           ),
 
           Positioned(
             top: 230,
             left: -100,
-            child: _backgroundBlob(
-              220,
-            ),
+            child: _backgroundBlob(220),
           ),
 
           SafeArea(
             child: _isLoading
                 ? const Center(
-                    child:
-                        CircularProgressIndicator(
+                    child: CircularProgressIndicator(
                       color: pikkXBlack,
                     ),
                   )
                 : RefreshIndicator(
-                    color:
-                        pikkXBlack,
-                    onRefresh:
-                        _loadProfile,
+                    color: pikkXBlack,
+                    onRefresh: _loadProfile,
                     child: ListView(
                       physics:
-                          const BouncingScrollPhysics(),
+                          const AlwaysScrollableScrollPhysics(
+                        parent:
+                            BouncingScrollPhysics(),
+                      ),
                       padding:
                           const EdgeInsets.fromLTRB(
                         18,
@@ -1867,249 +1497,147 @@ class _ProfilePageState extends State<ProfilePage> {
                         110,
                       ),
                       children: [
-                        _pageHeader(),
-
-                        const SizedBox(
-                          height: 16,
-                        ),
+                        /*
+                         * NO PROFILE HEADER HERE.
+                         *
+                         * MainPage already provides the Profile
+                         * header, so this removes the duplicate.
+                         */
 
                         _yourProfileCard(),
 
-                        const SizedBox(
-                          height: 20,
-                        ),
+                        const SizedBox(height: 20),
 
                         // ==================================================
                         // SHOPPING
                         // ==================================================
 
-                        _sectionTitle(
-                          'Shopping',
+                        _sectionTitle('Shopping'),
+
+                        _profileOption(
+                          icon:
+                              Icons.receipt_long_rounded,
+                          title: 'My Orders',
+                          subtitle:
+                              'Track and manage your orders ($_ordersCount)',
+                          onTap: _openOrders,
                         ),
 
                         _profileOption(
-                          icon: Icons
-                              .receipt_long_rounded,
-                          title:
-                              'My Orders',
+                          icon:
+                              Icons.favorite_outline_rounded,
+                          title: 'Favorites',
                           subtitle:
-                              'Track and manage your orders'
-                              ' ($_ordersCount)',
-                          onTap:
-                              _openOrders,
+                              'Your saved products ($_favouritesCount)',
+                          onTap: _openFavorites,
                         ),
 
                         _profileOption(
-                          icon: Icons
-                              .favorite_outline_rounded,
-                          title:
-                              'Favorites',
+                          icon:
+                              Icons.shopping_cart_outlined,
+                          title: 'My Cart',
                           subtitle:
-                              'Your saved products and services'
-                              ' ($_favouritesCount)',
-                          // No unknown route is invented.
-                          // Use the existing MainPage
-                          // bottom navigation through
-                          // this direct callback.
-                          onTap:
-                              _openFavoritesFromProfile,
+                              'Items waiting in your cart ($_cartCount)',
+                          onTap: _openCart,
                         ),
 
-                        _profileOption(
-                          icon: Icons
-                              .shopping_cart_outlined,
-                          title:
-                              'My Cart',
-                          subtitle:
-                              'Items waiting in your cart'
-                              ' ($_cartCount)',
-                          onTap:
-                              _openCart,
-                        ),
-
-                        const SizedBox(
-                          height: 8,
-                        ),
+                        const SizedBox(height: 8),
 
                         // ==================================================
                         // REWARDS & OFFERS
-                        // Intentionally inactive per user request.
                         // ==================================================
 
                         _sectionTitle(
                           'Rewards & Offers',
                         ),
 
+                        /*
+                         * ONLY COUPONS.
+                         *
+                         * Gift Cards and Redeem were removed.
+                         */
                         _profileOption(
                           icon: Icons
                               .confirmation_number_outlined,
-                          title:
-                              'Coupons',
+                          title: 'Coupon Codes',
                           subtitle:
-                              'View your available coupons',
-                          disabled: true,
+                              'View your available coupon codes',
+                          onTap: _openCoupons,
                         ),
 
-                        _profileOption(
-                          icon: Icons
-                              .card_giftcard_outlined,
-                          title:
-                              'Gift Cards',
-                          subtitle:
-                              'View and manage your gift cards',
-                          disabled: true,
-                        ),
-
-                        _profileOption(
-                          icon: Icons
-                              .redeem_outlined,
-                          title:
-                              'Redeem',
-                          subtitle:
-                              'Redeem a gift card or promotional code',
-                          disabled: true,
-                        ),
-
-                        const SizedBox(
-                          height: 8,
-                        ),
+                        const SizedBox(height: 8),
 
                         // ==================================================
                         // PIKKX
                         // ==================================================
 
-                        _sectionTitle(
-                          'PikkX',
-                        ),
+                        _sectionTitle('PikkX'),
 
-                        // INTENTIONALLY INACTIVE
                         _profileOption(
-                          icon: Icons
-                              .storefront_outlined,
+                          icon:
+                              Icons.storefront_outlined,
                           title:
                               'Become a Merchant',
                           subtitle:
                               'Sell products, food or services',
-                          disabled: true,
+                          onTap: () {
+                            _showMessage(
+                              'Merchant registration is coming soon.',
+                            );
+                          },
                         ),
 
-                        const SizedBox(
-                          height: 8,
-                        ),
+                        const SizedBox(height: 8),
 
                         // ==================================================
                         // FOLLOWING
                         // ==================================================
 
-                        Row(
-                          children: [
-                            Expanded(
-                              child:
-                                  _sectionTitle(
-                                'Following',
-                              ),
-                            ),
-                            if (_followingCount >
-                                0)
-                              Padding(
-                                padding:
-                                    const EdgeInsets.only(
-                                  right: 4,
-                                ),
-                                child:
-                                    Container(
-                                  padding:
-                                      const EdgeInsets.symmetric(
-                                    horizontal:
-                                        8,
-                                    vertical:
-                                        4,
-                                  ),
-                                  decoration:
-                                      BoxDecoration(
-                                    color:
-                                        pikkXBlack,
-                                    borderRadius:
-                                        BorderRadius.circular(
-                                      10,
-                                    ),
-                                  ),
-                                  child:
-                                      Text(
-                                    '$_followingCount',
-                                    style:
-                                        const TextStyle(
-                                      color:
-                                          pikkXWhite,
-                                      fontSize:
-                                          9,
-                                      fontWeight:
-                                          FontWeight.w800,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
+                        _profileOption(
+                          icon:
+                              Icons.people_outline_rounded,
+                          title: 'Following',
+                          subtitle:
+                              'See who you are following ($_followingCount)',
+                          onTap: _openFollowing,
                         ),
 
-                        _followingSection(),
-
-                        const SizedBox(
-                          height: 17,
-                        ),
+                        const SizedBox(height: 8),
 
                         // ==================================================
-                        // UNLABELED: ADDRESSES
+                        // OTHER
                         // ==================================================
 
                         _profileOption(
-                          icon: Icons
-                              .location_on_outlined,
-                          title:
-                              'Addresses',
+                          icon:
+                              Icons.location_on_outlined,
+                          title: 'Addresses',
                           subtitle:
                               'Manage your delivery addresses',
-                          onTap:
-                              _openAddresses,
+                          onTap: _openAddresses,
                         ),
 
                         _profileOption(
                           icon: Icons
                               .notifications_none_rounded,
-                          title:
-                              'Notifications',
+                          title: 'Notifications',
                           subtitle:
-                              'Manage your notifications',
-                          onTap:
-                              _openNotifications,
+                              'View your PikkX notifications',
+                          onTap: _openNotifications,
                         ),
 
-                        const SizedBox(
-                          height: 8,
-                        ),
+                        const SizedBox(height: 8),
 
                         // ==================================================
                         // ACCOUNT
+                        // NO "SETTINGS" HEADER / NO SETTINGS OPTION
                         // ==================================================
 
-                        _sectionTitle(
-                          'Account',
-                        ),
+                        _sectionTitle('Account'),
 
                         _profileOption(
-                          icon: Icons
-                              .settings_outlined,
-                          title:
-                              'Settings',
-                          subtitle:
-                              'Manage your app preferences',
-                          onTap:
-                              _openSettings,
-                        ),
-
-                        _profileOption(
-                          icon: Icons
-                              .shield_outlined,
+                          icon:
+                              Icons.shield_outlined,
                           title:
                               'Privacy & Security',
                           subtitle:
@@ -2119,38 +1647,35 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
 
                         _profileOption(
-                          icon: Icons
-                              .help_outline_rounded,
+                          icon:
+                              Icons.help_outline_rounded,
                           title:
                               'Help & Support',
                           subtitle:
-                              'Get help with PikkX',
+                              'Chat with PikkX Support on WhatsApp',
                           onTap:
                               _openHelpSupport,
                         ),
 
                         _profileOption(
-                          icon: Icons
-                              .logout_rounded,
-                          title:
-                              'Log Out',
+                          icon:
+                              Icons.logout_rounded,
+                          title: 'Log Out',
                           subtitle:
                               'Sign out of your account',
-                          onTap:
-                              _signOut,
+                          onTap: _signOut,
                         ),
 
                         _profileOption(
-                          icon: Icons
-                              .delete_outline_rounded,
+                          icon:
+                              Icons.delete_outline_rounded,
                           title:
                               'Delete Account',
                           subtitle:
                               'Permanently delete your PikkX account',
                           onTap:
                               _deleteAccount,
-                          destructive:
-                              true,
+                          destructive: true,
                         ),
                       ],
                     ),
@@ -2161,23 +1686,13 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // ============================================================
-  // SOFT ORGANIC BLOB
-  // ============================================================
-
-  Widget _backgroundBlob(
-    double size,
-  ) {
+  Widget _backgroundBlob(double size) {
     return IgnorePointer(
       child: Container(
         height: size,
         width: size,
-        decoration:
-            BoxDecoration(
-          color:
-              Colors.black.withOpacity(
-            0.025,
-          ),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.025),
           shape: BoxShape.circle,
         ),
       ),
@@ -2185,34 +1700,10 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // ============================================================
-  // FAVORITES
-  // ============================================================
-
-  void _openFavoritesFromProfile() {
-    // The profile page is embedded inside MainPage.
-    // Pop to the MainPage tab if possible.
-    //
-    // If the app has a dedicated favorites route later,
-    // this can be switched to that route.
-
-    Navigator.of(context).popUntil(
-      (route) => route.isFirst,
-    );
-
-    // The MainPage owns the Favourite tab, so
-    // we intentionally don't invent a /favourites route.
-    //
-    // If Profile is already the main tab, this keeps
-    // navigation safe rather than creating a dead route.
-  }
-
-  // ============================================================
   // MESSAGE
   // ============================================================
 
-  void _showMessage(
-    String message,
-  ) {
+  void _showMessage(String message) {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context)
@@ -2221,32 +1712,24 @@ class _ProfilePageState extends State<ProfilePage> {
         SnackBar(
           content: Text(
             message,
-            style:
-                const TextStyle(
+            style: const TextStyle(
               color: pikkXWhite,
               fontSize: 12,
-              fontWeight:
-                  FontWeight.w600,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          backgroundColor:
-              pikkXBlack,
-          behavior:
-              SnackBarBehavior.floating,
-          margin:
-              const EdgeInsets.fromLTRB(
+          backgroundColor: pikkXBlack,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.fromLTRB(
             16,
             0,
             16,
             16,
           ),
           elevation: 0,
-          shape:
-              RoundedRectangleBorder(
+          shape: RoundedRectangleBorder(
             borderRadius:
-                BorderRadius.circular(
-              14,
-            ),
+                BorderRadius.circular(14),
           ),
         ),
       );
@@ -2257,17 +1740,12 @@ class _ProfilePageState extends State<ProfilePage> {
 // EDIT PROFILE SHEET
 // ================================================================
 
-class _EditProfileSheet
-    extends StatefulWidget {
+class _EditProfileSheet extends StatefulWidget {
   final String currentName;
   final String currentPhotoUrl;
 
-  final Future<void> Function(
-    String name,
-  ) onSave;
-
-  final Future<void> Function()
-      onChangePhoto;
+  final Future<void> Function(String name) onSave;
+  final Future<void> Function() onChangePhoto;
 
   final bool isUploadingPhoto;
 
@@ -2280,9 +1758,8 @@ class _EditProfileSheet
   });
 
   @override
-  State<_EditProfileSheet>
-      createState() =>
-          _EditProfileSheetState();
+  State<_EditProfileSheet> createState() =>
+      _EditProfileSheetState();
 }
 
 class _EditProfileSheetState
@@ -2341,7 +1818,11 @@ class _EditProfileSheetState
       });
 
       _showMessage(
-        'Unable to update profile.',
+        e.toString().contains(
+              'Name cannot be empty',
+            )
+            ? 'Please enter your name.'
+            : 'Unable to update profile.',
       );
     }
   }
@@ -2381,6 +1862,8 @@ class _EditProfileSheetState
                                 .currentPhotoUrl,
                           ),
                           fit: BoxFit.cover,
+                          cacheWidth: 240,
+                          cacheHeight: 240,
                           errorBuilder: (
                             context,
                             error,
@@ -2411,11 +1894,25 @@ class _EditProfileSheetState
                   width: 2,
                 ),
               ),
-              child: const Icon(
-                Icons.edit_rounded,
-                color: Colors.white,
-                size: 14,
-              ),
+              child:
+                  widget.isUploadingPhoto
+                      ? const Padding(
+                          padding:
+                              EdgeInsets.all(
+                            7,
+                          ),
+                          child:
+                              CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color:
+                                Colors.white,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.edit_rounded,
+                          color: Colors.white,
+                          size: 14,
+                        ),
             ),
           ),
         ],
@@ -2436,9 +1933,7 @@ class _EditProfileSheetState
     );
   }
 
-  void _showMessage(
-    String message,
-  ) {
+  void _showMessage(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -2458,9 +1953,7 @@ class _EditProfileSheetState
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(
         bottom:
@@ -2689,6 +2182,568 @@ class _EditProfileSheetState
                           ),
                   ),
                 ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ================================================================
+// COUPONS SHEET
+// ================================================================
+
+class _CouponsSheet extends StatelessWidget {
+  final FirebaseFirestore firestore;
+  final String userId;
+
+  const _CouponsSheet({
+    required this.firestore,
+    required this.userId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final userRef =
+        firestore.collection('users').doc(userId);
+
+    return SafeArea(
+      child: _SimpleGlassSheet(
+        title: 'Coupon Codes',
+        child: FutureBuilder<
+            DocumentSnapshot<Map<String, dynamic>>>(
+          future: userRef.get(),
+          builder: (
+            context,
+            snapshot,
+          ) {
+            if (snapshot.connectionState ==
+                ConnectionState.waiting) {
+              return const Padding(
+                padding:
+                    EdgeInsets.all(30),
+                child: Center(
+                  child:
+                      CircularProgressIndicator(
+                    color:
+                        Color(0xFF050505),
+                  ),
+                ),
+              );
+            }
+
+            final data =
+                snapshot.data?.data();
+
+            final raw =
+                data?['couponCodes'];
+
+            final List<String> codes = [];
+
+            if (raw is List) {
+              for (final value in raw) {
+                final code =
+                    value.toString().trim();
+
+                if (code.isNotEmpty) {
+                  codes.add(code);
+                }
+              }
+            }
+
+            if (raw is String &&
+                raw.trim().isNotEmpty) {
+              codes.add(
+                raw.trim(),
+              );
+            }
+
+            if (codes.isEmpty) {
+              return const Padding(
+                padding:
+                    EdgeInsets.all(20),
+                child: Text(
+                  'No coupon codes available right now.',
+                  style: TextStyle(
+                    color:
+                        Color(0xFF777777),
+                    fontSize: 12,
+                  ),
+                ),
+              );
+            }
+
+            return Column(
+              children: [
+                for (final code in codes)
+                  Container(
+                    width:
+                        double.infinity,
+                    margin:
+                        const EdgeInsets.only(
+                      bottom: 9,
+                    ),
+                    padding:
+                        const EdgeInsets.all(
+                      14,
+                    ),
+                    decoration:
+                        BoxDecoration(
+                      color:
+                          Colors.black
+                              .withOpacity(
+                        0.045,
+                      ),
+                      borderRadius:
+                          BorderRadius.circular(
+                        15,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons
+                              .confirmation_number_outlined,
+                          color:
+                              Color(0xFF050505),
+                          size: 20,
+                        ),
+                        const SizedBox(
+                          width: 10,
+                        ),
+                        Expanded(
+                          child: Text(
+                            code,
+                            style:
+                                const TextStyle(
+                              color:
+                                  Color(
+                                0xFF050505,
+                              ),
+                              fontSize:
+                                  14,
+                              fontWeight:
+                                  FontWeight.w900,
+                              letterSpacing:
+                                  0.5,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+// ================================================================
+// FOLLOWING SHEET
+// ================================================================
+
+class _FollowingSheet extends StatelessWidget {
+  final FirebaseFirestore firestore;
+  final String userId;
+
+  final void Function(
+    String documentId,
+    Map<String, dynamic> data,
+  ) onMerchantTap;
+
+  const _FollowingSheet({
+    required this.firestore,
+    required this.userId,
+    required this.onMerchantTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final query = firestore
+        .collection('users')
+        .doc(userId)
+        .collection('following')
+        .orderBy(
+          'createdAt',
+          descending: true,
+        );
+
+    return SafeArea(
+      child: _SimpleGlassSheet(
+        title: 'Following',
+        child: StreamBuilder<
+            QuerySnapshot<
+                Map<String, dynamic>>>(
+          stream: query.snapshots(),
+          builder: (
+            context,
+            snapshot,
+          ) {
+            if (snapshot.hasError) {
+              return const Padding(
+                padding:
+                    EdgeInsets.all(20),
+                child: Text(
+                  'Unable to load your following list.',
+                  style: TextStyle(
+                    color:
+                        Color(0xFF777777),
+                    fontSize: 12,
+                  ),
+                ),
+              );
+            }
+
+            if (snapshot.connectionState ==
+                    ConnectionState.waiting &&
+                !snapshot.hasData) {
+              return const Padding(
+                padding:
+                    EdgeInsets.all(30),
+                child: Center(
+                  child:
+                      CircularProgressIndicator(
+                    color:
+                        Color(0xFF050505),
+                  ),
+                ),
+              );
+            }
+
+            final docs =
+                snapshot.data?.docs ?? [];
+
+            if (docs.isEmpty) {
+              return const Padding(
+                padding:
+                    EdgeInsets.all(20),
+                child: Text(
+                  'You are not following anyone yet.',
+                  style: TextStyle(
+                    color:
+                        Color(0xFF777777),
+                    fontSize: 12,
+                  ),
+                ),
+              );
+            }
+
+            return ListView.builder(
+              shrinkWrap: true,
+              physics:
+                  const NeverScrollableScrollPhysics(),
+              itemCount:
+                  docs.length,
+              itemBuilder: (
+                context,
+                index,
+              ) {
+                final doc =
+                    docs[index];
+
+                final data =
+                    doc.data();
+
+                final name =
+                    data['sellerName']
+                            ?.toString() ??
+                        data['merchantName']
+                            ?.toString() ??
+                        data['storeName']
+                            ?.toString() ??
+                        'Merchant';
+
+                final imageUrl =
+                    data['photoUrl']
+                            ?.toString() ??
+                        data['merchantPhotoUrl']
+                            ?.toString() ??
+                        data['imageUrl']
+                            ?.toString() ??
+                        '';
+
+                return Padding(
+                  padding:
+                      const EdgeInsets.only(
+                    bottom: 8,
+                  ),
+                  child: Material(
+                    color:
+                        Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        onMerchantTap(
+                          doc.id,
+                          data,
+                        );
+                      },
+                      borderRadius:
+                          BorderRadius.circular(
+                        16,
+                      ),
+                      child: Padding(
+                        padding:
+                            const EdgeInsets.all(
+                          7,
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              height: 47,
+                              width: 47,
+                              padding:
+                                  const EdgeInsets
+                                      .all(
+                                2,
+                              ),
+                              decoration:
+                                  BoxDecoration(
+                                color:
+                                    Colors.white,
+                                shape:
+                                    BoxShape.circle,
+                                border:
+                                    Border.all(
+                                  color:
+                                      const Color(
+                                    0xFFE8E8E8,
+                                  ),
+                                ),
+                              ),
+                              child:
+                                  ClipOval(
+                                child: imageUrl
+                                        .isNotEmpty
+                                    ? Image.network(
+                                        imageUrl,
+                                        fit:
+                                            BoxFit.cover,
+                                        cacheWidth:
+                                            180,
+                                        cacheHeight:
+                                            180,
+                                        errorBuilder:
+                                            (
+                                          context,
+                                          error,
+                                          stackTrace,
+                                        ) {
+                                          return _avatarFallback(
+                                            name,
+                                          );
+                                        },
+                                      )
+                                    : _avatarFallback(
+                                        name,
+                                      ),
+                              ),
+                            ),
+
+                            const SizedBox(
+                              width: 11,
+                            ),
+
+                            Expanded(
+                              child:
+                                  Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment
+                                        .start,
+                                children: [
+                                  Text(
+                                    name,
+                                    maxLines:
+                                        1,
+                                    overflow:
+                                        TextOverflow
+                                            .ellipsis,
+                                    style:
+                                        const TextStyle(
+                                      color:
+                                          Color(
+                                        0xFF050505,
+                                      ),
+                                      fontSize:
+                                          13,
+                                      fontWeight:
+                                          FontWeight
+                                              .w800,
+                                    ),
+                                  ),
+                                  const SizedBox(
+                                    height: 3,
+                                  ),
+                                  const Text(
+                                    'Following',
+                                    style:
+                                        TextStyle(
+                                      color:
+                                          Color(
+                                        0xFF777777,
+                                      ),
+                                      fontSize:
+                                          10,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const Icon(
+                              Icons
+                                  .arrow_forward_ios_rounded,
+                              color:
+                                  Color(
+                                0xFF777777,
+                              ),
+                              size: 13,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _avatarFallback(
+    String name,
+  ) {
+    return Container(
+      color:
+          const Color(0xFFF0F0F0),
+      alignment:
+          Alignment.center,
+      child: Text(
+        name.isNotEmpty
+            ? name[0].toUpperCase()
+            : 'M',
+        style:
+            const TextStyle(
+          color:
+              Color(0xFF050505),
+          fontSize: 17,
+          fontWeight:
+              FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+// ================================================================
+// SIMPLE GLASS SHEET
+// ================================================================
+
+class _SimpleGlassSheet
+    extends StatelessWidget {
+  final String title;
+  final Widget child;
+
+  const _SimpleGlassSheet({
+    required this.title,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius:
+          const BorderRadius.vertical(
+        top: Radius.circular(30),
+      ),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: 20,
+          sigmaY: 20,
+        ),
+        child: Container(
+          constraints:
+              const BoxConstraints(
+            maxHeight: 620,
+          ),
+          padding:
+              const EdgeInsets.fromLTRB(
+            20,
+            14,
+            20,
+            25,
+          ),
+          decoration:
+              BoxDecoration(
+            color:
+                Colors.white.withOpacity(
+              0.96,
+            ),
+            borderRadius:
+                const BorderRadius.vertical(
+              top:
+                  Radius.circular(30),
+            ),
+            border: Border.all(
+              color:
+                  Colors.white,
+            ),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize:
+                  MainAxisSize.min,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    height: 5,
+                    width: 45,
+                    decoration:
+                        BoxDecoration(
+                      color:
+                          Colors.black
+                              .withOpacity(
+                        0.12,
+                      ),
+                      borderRadius:
+                          BorderRadius.circular(
+                        10,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(
+                  height: 18,
+                ),
+
+                Text(
+                  title,
+                  style:
+                      const TextStyle(
+                    color:
+                        Color(0xFF050505),
+                    fontSize:
+                        21,
+                    fontWeight:
+                        FontWeight.w900,
+                  ),
+                ),
+
+                const SizedBox(
+                  height: 16,
+                ),
+
+                child,
               ],
             ),
           ),
