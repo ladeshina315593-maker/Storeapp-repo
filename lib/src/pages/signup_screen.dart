@@ -1,3 +1,4 @@
+import 'package:pikkx/src/utils/pikkx_currency.dart';
 import 'dart:ui';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -76,7 +77,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     e164Key: '234',
   );
 
-  String _selectedCurrency = 'NGN';
+  String _selectedCurrency = 'USD';
 
   // ============================================================
   // STATE
@@ -91,113 +92,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   // ============================================================
 
   String _currencyForCountry(String countryCode) {
-    const Map<String, String> currencies = {
-      // Africa
-      'NG': 'NGN',
-      'GH': 'GHS',
-      'KE': 'KES',
-      'ZA': 'ZAR',
-      'UG': 'UGX',
-      'TZ': 'TZS',
-      'RW': 'RWF',
-      'ET': 'ETB',
-      'EG': 'EGP',
-      'MA': 'MAD',
-      'DZ': 'DZD',
-      'TN': 'TND',
-      'LY': 'LYD',
-      'ZM': 'ZMW',
-      'ZW': 'ZWL',
-      'BW': 'BWP',
-      'NA': 'NAD',
-      'MU': 'MUR',
-      'SC': 'SCR',
-
-      // North America
-      'US': 'USD',
-      'CA': 'CAD',
-      'MX': 'MXN',
-
-      // Europe
-      'GB': 'GBP',
-      'IE': 'EUR',
-      'FR': 'EUR',
-      'DE': 'EUR',
-      'ES': 'EUR',
-      'IT': 'EUR',
-      'PT': 'EUR',
-      'NL': 'EUR',
-      'BE': 'EUR',
-      'AT': 'EUR',
-      'FI': 'EUR',
-      'GR': 'EUR',
-      'LU': 'EUR',
-      'CY': 'EUR',
-      'MT': 'EUR',
-      'SK': 'EUR',
-      'SI': 'EUR',
-      'EE': 'EUR',
-      'LV': 'EUR',
-      'LT': 'EUR',
-      'HR': 'EUR',
-      'CH': 'CHF',
-      'NO': 'NOK',
-      'SE': 'SEK',
-      'DK': 'DKK',
-      'PL': 'PLN',
-      'CZ': 'CZK',
-      'HU': 'HUF',
-      'RO': 'RON',
-      'BG': 'BGN',
-      'UA': 'UAH',
-      'IS': 'ISK',
-
-      // Middle East
-      'AE': 'AED',
-      'SA': 'SAR',
-      'QA': 'QAR',
-      'KW': 'KWD',
-      'BH': 'BHD',
-      'OM': 'OMR',
-      'IL': 'ILS',
-      'JO': 'JOD',
-      'TR': 'TRY',
-
-      // Asia
-      'IN': 'INR',
-      'PK': 'PKR',
-      'BD': 'BDT',
-      'LK': 'LKR',
-      'NP': 'NPR',
-      'CN': 'CNY',
-      'JP': 'JPY',
-      'KR': 'KRW',
-      'SG': 'SGD',
-      'MY': 'MYR',
-      'ID': 'IDR',
-      'TH': 'THB',
-      'PH': 'PHP',
-      'VN': 'VND',
-      'HK': 'HKD',
-      'TW': 'TWD',
-
-      // Oceania
-      'AU': 'AUD',
-      'NZ': 'NZD',
-
-      // South America
-      'BR': 'BRL',
-      'AR': 'ARS',
-      'CL': 'CLP',
-      'CO': 'COP',
-      'PE': 'PEN',
-      'UY': 'UYU',
-      'BO': 'BOB',
-      'PY': 'PYG',
-      'EC': 'USD',
-    };
-
-    return currencies[countryCode] ?? 'USD';
+    return PikkXCurrency.currencyForCountry(countryCode);
   }
 
   // ============================================================
