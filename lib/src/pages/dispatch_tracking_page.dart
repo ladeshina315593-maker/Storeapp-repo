@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -21,14 +22,52 @@ class DispatchTrackingPage extends StatefulWidget {
 class _DispatchTrackingPageState
     extends State<DispatchTrackingPage> {
   // ============================================================
-  // PIKKX COLORS
+  // PIKKX
   // ============================================================
 
-  static const Color pikkXBlack = Color(0xFF050505);
-  static const Color pikkXWhite = Color(0xFFFFFFFF);
-  static const Color background = Color(0xFFF7F7F7);
-  static const Color lightGrey = Color(0xFFE8E8E8);
-  static const Color muted = Color(0xFF777777);
+  static const Color pikkXBlack =
+      Color(0xFF050505);
+
+  static const Color pikkXWhite =
+      Color(0xFFFFFFFF);
+
+  static const Color background =
+      Color(0xFFF7F7F7);
+
+  static const Color lightGrey =
+      Color(0xFFE8E8E8);
+
+  static const Color muted =
+      Color(0xFF777777);
+
+  // ============================================================
+  // TEST MODE
+  // ============================================================
+  //
+  // This is ONLY for testing the tracking UI before real rider
+  // GPS data exists.
+  //
+  // Abuja -> Lagos
+  //
+  // Once Firebase contains real locations, real data is used.
+  // ============================================================
+
+  static const bool _enableTestTracking = true;
+
+  static const LatLng _testAbuja =
+      LatLng(9.0765, 7.3986);
+
+  static const LatLng _testLagos =
+      LatLng(6.5244, 3.3792);
+
+  LatLng _fakeRiderLocation =
+      _testAbuja;
+
+  Timer? _simulationTimer;
+
+  int _simulationStep = 0;
+
+  static const int _simulationSteps = 120;
 
   // ============================================================
   // FIREBASE
@@ -41,25 +80,19 @@ class _DispatchTrackingPageState
       FirebaseAuth.instance;
 
   // ============================================================
-  // GOOGLE MAP
+  // MAP
   // ============================================================
 
   GoogleMapController? _mapController;
 
-  LatLng? _currentRiderLocation;
-  LatLng? _currentDestinationLocation;
-
   bool _mapReady = false;
 
-  // Abuja fallback only.
-  // This is NOT treated as the customer's actual location.
-  static const LatLng _defaultLocation = LatLng(
-    9.0765,
-    7.3986,
-  );
+  LatLng? _realRiderLocation;
+
+  LatLng? _realDestinationLocation;
 
   // ============================================================
-  // FIRESTORE ORDER STREAM
+  // FIRESTORE
   // ============================================================
 
   Stream<DocumentSnapshot<Map<String, dynamic>>>
@@ -71,24 +104,19 @@ class _DispatchTrackingPageState
   }
 
   // ============================================================
-  // BASIC HELPERS
+  // LIFECYCLE
   // ============================================================
 
-  String _stringValue(
-    Map<String, dynamic> data,
-    String key, {
-    String fallback = '',
-  }) {
-    final value = data[key];
-
-    if (value == null) {
-      return fallback;
-    }
-
-    final text = value.toString().trim();
-
-    return text.isEmpty ? fallback : text;
+  @override
+  void dispose() {
+    _simulationTimer?.cancel();
+    _mapController?.dispose();
+    super.dispose();
   }
+
+  // ============================================================
+  // NUMBER HELPERS
+  // ============================================================
 
   double? _numberToDouble(dynamic value) {
     if (value == null) {
@@ -106,38 +134,37 @@ class _DispatchTrackingPageState
     return null;
   }
 
-  double? _doubleValue(
-    Map<String, dynamic> data,
-    String key,
+  bool _validCoordinates(
+    double latitude,
+    double longitude,
   ) {
-    return _numberToDouble(data[key]);
+    return latitude >= -90 &&
+        latitude <= 90 &&
+        longitude >= -180 &&
+        longitude <= 180;
   }
 
-  // ============================================================
-  // SAFE COORDINATE READER
-  //
-  // Supports:
-  // latitude / longitude
-  // GeoPoint
-  // Map latitude/longitude
-  // ============================================================
-
-  LatLng? _latLngFromValue(
-    dynamic value,
-  ) {
+  LatLng? _latLngFromValue(dynamic value) {
     if (value is GeoPoint) {
-      return LatLng(
+      if (_validCoordinates(
         value.latitude,
         value.longitude,
-      );
+      )) {
+        return LatLng(
+          value.latitude,
+          value.longitude,
+        );
+      }
+
+      return null;
     }
 
     if (value is Map) {
-      final map = Map<String, dynamic>.from(value);
+      final map =
+          Map<String, dynamic>.from(value);
 
       final latitude = _numberToDouble(
-        map['latitude'] ??
-            map['lat'],
+        map['latitude'] ?? map['lat'],
       );
 
       final longitude = _numberToDouble(
@@ -162,48 +189,61 @@ class _DispatchTrackingPageState
     return null;
   }
 
-  bool _validCoordinates(
-    double latitude,
-    double longitude,
-  ) {
-    return latitude >= -90 &&
-        latitude <= 90 &&
-        longitude >= -180 &&
-        longitude <= 180;
+  // ============================================================
+  // STRING
+  // ============================================================
+
+  String _stringValue(
+    Map<String, dynamic> data,
+    String key, {
+    String fallback = '',
+  }) {
+    final value = data[key];
+
+    if (value == null) {
+      return fallback;
+    }
+
+    final result =
+        value.toString().trim();
+
+    return result.isEmpty
+        ? fallback
+        : result;
   }
 
   // ============================================================
-  // RIDER LOCATION
-  //
-  // Supports several safe Firebase formats.
+  // REAL RIDER LOCATION
   // ============================================================
 
-  LatLng? _getRiderLocation(
+  LatLng? _getRealRiderLocation(
     Map<String, dynamic> data,
   ) {
-    final directLocation =
+    final direct =
         _latLngFromValue(
       data['riderLocation'],
     );
 
-    if (directLocation != null) {
-      return directLocation;
+    if (direct != null) {
+      return direct;
     }
 
-    final geoLocation =
+    final geo =
         _latLngFromValue(
       data['riderGeoPoint'],
     );
 
-    if (geoLocation != null) {
-      return geoLocation;
+    if (geo != null) {
+      return geo;
     }
 
-    final latitude = _numberToDouble(
+    final latitude =
+        _numberToDouble(
       data['riderLatitude'],
     );
 
-    final longitude = _numberToDouble(
+    final longitude =
+        _numberToDouble(
       data['riderLongitude'],
     );
 
@@ -223,20 +263,10 @@ class _DispatchTrackingPageState
   }
 
   // ============================================================
-  // DESTINATION LOCATION
-  //
-  // Supports:
-  // destinationLocation
-  // destinationGeoPoint
-  // deliveryLocation
-  // deliveryGeoPoint
-  // deliveryLatitude / deliveryLongitude
-  // destinationLatitude / destinationLongitude
-  // latitude / longitude
-  // inside deliveryAddress
+  // DESTINATION
   // ============================================================
 
-  LatLng? _getDestinationLocation(
+  LatLng? _getRealDestination(
     Map<String, dynamic> data,
   ) {
     final possibleValues = [
@@ -255,27 +285,27 @@ class _DispatchTrackingPageState
       }
     }
 
-    final coordinatePairs = [
-      (
+    final pairs = [
+      [
         data['destinationLatitude'],
         data['destinationLongitude'],
-      ),
-      (
+      ],
+      [
         data['deliveryLatitude'],
         data['deliveryLongitude'],
-      ),
-      (
+      ],
+      [
         data['latitude'],
         data['longitude'],
-      ),
+      ],
     ];
 
-    for (final pair in coordinatePairs) {
+    for (final pair in pairs) {
       final latitude =
-          _numberToDouble(pair.$1);
+          _numberToDouble(pair[0]);
 
       final longitude =
-          _numberToDouble(pair.$2);
+          _numberToDouble(pair[1]);
 
       if (latitude != null &&
           longitude != null &&
@@ -291,23 +321,130 @@ class _DispatchTrackingPageState
     }
 
     final address =
-        data['deliveryAddress'];
+        _latLngFromValue(
+      data['deliveryAddress'],
+    );
 
-    final addressLocation =
-        _latLngFromValue(address);
-
-    if (addressLocation != null) {
-      return addressLocation;
-    }
-
-    return null;
+    return address;
   }
 
   // ============================================================
-  // ORDER STATUS
+  // TEST LOCATION
   // ============================================================
 
-  String _getOrderStatus(
+  LatLng _getRiderLocation(
+    Map<String, dynamic> data,
+  ) {
+    final real =
+        _getRealRiderLocation(data);
+
+    if (real != null) {
+      return real;
+    }
+
+    return _fakeRiderLocation;
+  }
+
+  LatLng _getDestination(
+    Map<String, dynamic> data,
+  ) {
+    final real =
+        _getRealDestination(data);
+
+    if (real != null) {
+      return real;
+    }
+
+    return _testLagos;
+  }
+
+  bool _usingTestLocation(
+    Map<String, dynamic> data,
+  ) {
+    return _getRealRiderLocation(data) ==
+            null &&
+        _enableTestTracking;
+  }
+
+  // ============================================================
+  // START TEST SIMULATION
+  // ============================================================
+
+  void _startTestSimulation(
+    Map<String, dynamic> data,
+  ) {
+    if (!_enableTestTracking) {
+      return;
+    }
+
+    if (_getRealRiderLocation(data) != null) {
+      _simulationTimer?.cancel();
+      return;
+    }
+
+    if (_simulationTimer != null) {
+      return;
+    }
+
+    _simulationTimer = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) {
+        if (!mounted) {
+          return;
+        }
+
+        if (_getRealRiderLocation(data) != null) {
+          _simulationTimer?.cancel();
+          _simulationTimer = null;
+          return;
+        }
+
+        if (_simulationStep >=
+            _simulationSteps) {
+          _simulationTimer?.cancel();
+          _simulationTimer = null;
+          return;
+        }
+
+        _simulationStep++;
+
+        final progress =
+            _simulationStep /
+                _simulationSteps;
+
+        final latitude =
+            _testAbuja.latitude +
+                ((_testLagos.latitude -
+                        _testAbuja.latitude) *
+                    progress);
+
+        final longitude =
+            _testAbuja.longitude +
+                ((_testLagos.longitude -
+                        _testAbuja.longitude) *
+                    progress);
+
+        setState(() {
+          _fakeRiderLocation =
+              LatLng(
+            latitude,
+            longitude,
+          );
+        });
+
+        _animateTo(
+          _fakeRiderLocation,
+          zoom: 7.5,
+        );
+      },
+    );
+  }
+
+  // ============================================================
+  // STATUS
+  // ============================================================
+
+  String _getStatus(
     Map<String, dynamic> data,
   ) {
     final values = [
@@ -336,28 +473,21 @@ class _DispatchTrackingPageState
     String status,
   ) {
     final clean =
-        status.trim();
+        status
+            .replaceAll('_', ' ')
+            .replaceAll('-', ' ')
+            .trim();
 
     if (clean.isEmpty) {
       return 'Order placed';
     }
 
-    final formatted = clean
-        .replaceAll('_', ' ')
-        .replaceAll('-', ' ')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-
-    if (formatted.isEmpty) {
-      return 'Order placed';
-    }
-
-    return formatted
-        .split(' ')
+    return clean
+        .split(RegExp(r'\s+'))
         .map(
           (word) {
             if (word.isEmpty) {
-              return word;
+              return '';
             }
 
             return word[0].toUpperCase() +
@@ -367,49 +497,11 @@ class _DispatchTrackingPageState
         .join(' ');
   }
 
-  int _statusIndex(
-    String status,
-  ) {
-    final value =
-        status.toLowerCase().trim();
-
-    switch (value) {
-      case 'placed':
-      case 'order placed':
-      case 'order_placed':
-      case 'pending':
-        return 0;
-
-      case 'confirmed':
-      case 'accepted':
-      case 'preparing':
-      case 'processing':
-        return 1;
-
-      case 'dispatched':
-      case 'out for delivery':
-      case 'out_for_delivery':
-      case 'out-for-delivery':
-        return 2;
-
-      case 'delivered':
-      case 'completed':
-        return 3;
-
-      case 'cancelled':
-      case 'canceled':
-        return 0;
-
-      default:
-        return 0;
-    }
-  }
-
   // ============================================================
   // DELIVERY ADDRESS
   // ============================================================
 
-  String _formatDeliveryAddress(
+  String _formatAddress(
     dynamic value,
   ) {
     if (value == null) {
@@ -417,12 +509,9 @@ class _DispatchTrackingPageState
     }
 
     if (value is String) {
-      final text =
-          value.trim();
-
-      return text.isEmpty
+      return value.trim().isEmpty
           ? 'Delivery address not available'
-          : text;
+          : value.trim();
     }
 
     if (value is Map) {
@@ -431,9 +520,7 @@ class _DispatchTrackingPageState
 
       final parts = <String>[];
 
-      void addValue(
-        dynamic value,
-      ) {
+      void add(dynamic value) {
         if (value == null) {
           return;
         }
@@ -447,39 +534,29 @@ class _DispatchTrackingPageState
         }
       }
 
-      addValue(
+      add(
         address['fullName'] ??
             address['name'],
       );
 
-      addValue(
+      add(
         address['address'] ??
             address['street'] ??
             address['addressLine'] ??
             address['addressLine1'],
       );
 
-      addValue(
-        address['addressLine2'],
-      );
+      add(address['addressLine2']);
+      add(address['city']);
+      add(address['state']);
 
-      addValue(
-        address['city'],
-      );
-
-      addValue(
-        address['state'],
-      );
-
-      addValue(
+      add(
         address['postalCode'] ??
             address['zipCode'] ??
             address['zip'],
       );
 
-      addValue(
-        address['country'],
-      );
+      add(address['country']);
 
       if (parts.isNotEmpty) {
         return parts.join(', ');
@@ -493,111 +570,78 @@ class _DispatchTrackingPageState
   // MAP MARKERS
   // ============================================================
 
-  Set<Marker> _buildMarkers(
+  Set<Marker> _markers(
     Map<String, dynamic> data,
   ) {
-    final markers = <Marker>{};
-
     final rider =
         _getRiderLocation(data);
 
     final destination =
-        _getDestinationLocation(data);
+        _getDestination(data);
 
-    if (rider != null) {
-      markers.add(
-        Marker(
-          markerId:
-              const MarkerId('dispatch_rider'),
-          position: rider,
-          infoWindow:
-              const InfoWindow(
-            title: 'Dispatch rider',
-            snippet:
-                'Your order is being delivered',
-          ),
+    return {
+      Marker(
+        markerId:
+            const MarkerId('pikkx_rider'),
+        position: rider,
+        infoWindow:
+            const InfoWindow(
+          title: 'Dispatch rider',
+          snippet:
+              'Current delivery location',
         ),
-      );
-    }
-
-    if (destination != null) {
-      markers.add(
-        Marker(
-          markerId:
-              const MarkerId('delivery_destination'),
-          position: destination,
-          infoWindow:
-              const InfoWindow(
-            title: 'Delivery destination',
-            snippet:
-                'Your order will be delivered here',
-          ),
+      ),
+      Marker(
+        markerId:
+            const MarkerId('pikkx_destination'),
+        position: destination,
+        infoWindow:
+            const InfoWindow(
+          title: 'Delivery destination',
+          snippet:
+              'Your order destination',
         ),
-      );
-    }
-
-    return markers;
+      ),
+    };
   }
 
   // ============================================================
-  // MAP INITIAL POSITION
+  // ROUTE LINE
   // ============================================================
 
-  LatLng _getInitialMapPosition(
+  Set<Polyline> _polylines(
     Map<String, dynamic> data,
   ) {
     final rider =
         _getRiderLocation(data);
 
-    if (rider != null) {
-      return rider;
-    }
-
     final destination =
-        _getDestinationLocation(data);
+        _getDestination(data);
 
-    if (destination != null) {
-      return destination;
-    }
-
-    return _defaultLocation;
+    return {
+      Polyline(
+        polylineId:
+            const PolylineId(
+          'pikkx_delivery_route',
+        ),
+        points: [
+          rider,
+          destination,
+        ],
+        width: 5,
+        color: pikkXBlack,
+        geodesic: true,
+      ),
+    };
   }
 
   // ============================================================
   // MAP CAMERA
   // ============================================================
 
-  Future<void> _moveToRider() async {
-    final location =
-        _currentRiderLocation;
-
-    if (location == null) {
-      return;
-    }
-
-    await _moveCamera(
-      location,
-      zoom: 16,
-    );
-  }
-
-  Future<void> _moveToDestination() async {
-    final location =
-        _currentDestinationLocation;
-
-    if (location == null) {
-      return;
-    }
-
-    await _moveCamera(
-      location,
-      zoom: 15,
-    );
-  }
-
-  Future<void> _moveCamera(
+  Future<void> _animateTo(
     LatLng location, {
-    double zoom = 15,
+    double zoom = 14,
   }) async {
     final controller =
         _mapController;
@@ -616,12 +660,12 @@ class _DispatchTrackingPageState
           ),
         ),
       );
-    } catch (_) {
-      // Camera errors must never crash tracking.
-    }
+    } catch (_) {}
   }
 
-  Future<void> _fitBothLocations() async {
+  Future<void> _fitRoute(
+    Map<String, dynamic> data,
+  ) async {
     final controller =
         _mapController;
 
@@ -631,60 +675,47 @@ class _DispatchTrackingPageState
     }
 
     final rider =
-        _currentRiderLocation;
+        _getRiderLocation(data);
 
     final destination =
-        _currentDestinationLocation;
+        _getDestination(data);
 
-    if (rider == null &&
-        destination == null) {
-      return;
-    }
-
-    if (rider != null &&
-        destination != null) {
-      final southWest = LatLng(
-        rider.latitude < destination.latitude
-            ? rider.latitude
-            : destination.latitude,
-        rider.longitude < destination.longitude
-            ? rider.longitude
-            : destination.longitude,
-      );
-
-      final northEast = LatLng(
-        rider.latitude > destination.latitude
-            ? rider.latitude
-            : destination.latitude,
-        rider.longitude > destination.longitude
-            ? rider.longitude
-            : destination.longitude,
-      );
-
-      try {
-        await controller.animateCamera(
-          CameraUpdate.newLatLngBounds(
-            LatLngBounds(
-              southwest: southWest,
-              northeast: northEast,
-            ),
-            60,
-          ),
-        );
-      } catch (_) {
-        await _moveCamera(
-          rider,
-          zoom: 13,
-        );
-      }
-
-      return;
-    }
-
-    await _moveCamera(
-      rider ?? destination!,
-      zoom: rider != null ? 16 : 15,
+    final southwest =
+        LatLng(
+      rider.latitude < destination.latitude
+          ? rider.latitude
+          : destination.latitude,
+      rider.longitude < destination.longitude
+          ? rider.longitude
+          : destination.longitude,
     );
+
+    final northeast =
+        LatLng(
+      rider.latitude > destination.latitude
+          ? rider.latitude
+          : destination.latitude,
+      rider.longitude > destination.longitude
+          ? rider.longitude
+          : destination.longitude,
+    );
+
+    try {
+      await controller.animateCamera(
+        CameraUpdate.newLatLngBounds(
+          LatLngBounds(
+            southwest: southwest,
+            northeast: northeast,
+          ),
+          55,
+        ),
+      );
+    } catch (_) {
+      await _animateTo(
+        rider,
+        zoom: 7,
+      );
+    }
   }
 
   // ============================================================
@@ -693,7 +724,8 @@ class _DispatchTrackingPageState
 
   Widget _appBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
+      padding:
+          const EdgeInsets.fromLTRB(
         20,
         12,
         20,
@@ -701,12 +733,9 @@ class _DispatchTrackingPageState
       ),
       child: Row(
         children: [
-          _glassIconButton(
-            icon:
-                Icons.arrow_back_ios_new_rounded,
-            onTap: () {
-              Navigator.pop(context);
-            },
+          _glassButton(
+            Icons.arrow_back_ios_new_rounded,
+            () => Navigator.pop(context),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -719,7 +748,8 @@ class _DispatchTrackingPageState
                   style: TextStyle(
                     color: pikkXBlack,
                     fontSize: 21,
-                    fontWeight: FontWeight.w800,
+                    fontWeight:
+                        FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -728,30 +758,24 @@ class _DispatchTrackingPageState
                   maxLines: 1,
                   overflow:
                       TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style:
+                      const TextStyle(
                     color: muted,
-                    fontSize: 11,
-                    fontWeight:
-                        FontWeight.w500,
+                    fontSize: 10,
                   ),
                 ),
               ],
             ),
-          ),
-          _glassIconButton(
-            icon:
-                Icons.my_location_rounded,
-            onTap: _moveToRider,
           ),
         ],
       ),
     );
   }
 
-  Widget _glassIconButton({
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
+  Widget _glassButton(
+    IconData icon,
+    VoidCallback onTap,
+  ) {
     return ClipRRect(
       borderRadius:
           BorderRadius.circular(15),
@@ -772,22 +796,13 @@ class _DispatchTrackingPageState
               decoration:
                   BoxDecoration(
                 color:
-                    pikkXWhite.withOpacity(0.68),
+                    pikkXWhite.withOpacity(.75),
                 borderRadius:
                     BorderRadius.circular(15),
                 border: Border.all(
                   color:
-                      pikkXWhite.withOpacity(0.90),
+                      pikkXWhite.withOpacity(.9),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color:
-                        pikkXBlack.withOpacity(0.055),
-                    blurRadius: 16,
-                    offset:
-                        const Offset(0, 6),
-                  ),
-                ],
               ),
               child: Icon(
                 icon,
@@ -802,6 +817,48 @@ class _DispatchTrackingPageState
   }
 
   // ============================================================
+  // TEST MODE CARD
+  // ============================================================
+
+  Widget _testModeCard() {
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(
+        horizontal: 13,
+        vertical: 10,
+      ),
+      decoration:
+          BoxDecoration(
+        color:
+            pikkXBlack.withOpacity(.94),
+        borderRadius:
+            BorderRadius.circular(16),
+      ),
+      child: const Row(
+        children: [
+          Icon(
+            Icons.science_outlined,
+            color: pikkXWhite,
+            size: 18,
+          ),
+          SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              'TEST TRACKING • Abuja → Lagos',
+              style: TextStyle(
+                color: pikkXWhite,
+                fontSize: 10,
+                fontWeight:
+                    FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
   // STATUS CARD
   // ============================================================
 
@@ -809,21 +866,18 @@ class _DispatchTrackingPageState
     Map<String, dynamic> data,
   ) {
     final status =
-        _getOrderStatus(data);
+        _getStatus(data);
 
     return _glass(
-      padding:
-          const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment:
             CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              _blackCircleIcon(
+              _blackIcon(
                 Icons.local_shipping_rounded,
                 size: 48,
-                iconSize: 23,
               ),
               const SizedBox(width: 13),
               Expanded(
@@ -835,15 +889,14 @@ class _DispatchTrackingPageState
                       'Delivery status',
                       style: TextStyle(
                         color: muted,
-                        fontSize: 11,
-                        fontWeight:
-                            FontWeight.w500,
+                        fontSize: 10,
                       ),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       _formatStatus(status),
-                      style: const TextStyle(
+                      style:
+                          const TextStyle(
                         color: pikkXBlack,
                         fontSize: 18,
                         fontWeight:
@@ -853,179 +906,79 @@ class _DispatchTrackingPageState
                   ],
                 ),
               ),
-              _blackPill(
-                text: 'LIVE',
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(
+                  horizontal: 9,
+                  vertical: 7,
+                ),
+                decoration:
+                    BoxDecoration(
+                  color: pikkXBlack,
+                  borderRadius:
+                      BorderRadius.circular(11),
+                ),
+                child:
+                    const Text(
+                  'LIVE',
+                  style: TextStyle(
+                    color: pikkXWhite,
+                    fontSize: 9,
+                    fontWeight:
+                        FontWeight.w800,
+                  ),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          _deliveryProgress(status),
         ],
       ),
     );
   }
 
   // ============================================================
-  // DELIVERY PROGRESS
+  // MAP CARD
   // ============================================================
 
-  Widget _deliveryProgress(
-    String status,
-  ) {
-    final current =
-        _statusIndex(status);
-
-    final steps = [
-      (
-        'Order placed',
-        Icons.receipt_long_rounded,
-      ),
-      (
-        'Order confirmed',
-        Icons.check_circle_outline_rounded,
-      ),
-      (
-        'Dispatched',
-        Icons.local_shipping_outlined,
-      ),
-      (
-        'Delivered',
-        Icons.home_outlined,
-      ),
-    ];
-
-    return Column(
-      children: List.generate(
-        steps.length,
-        (index) {
-          final completed =
-              index <= current;
-
-          final last =
-              index == steps.length - 1;
-
-          return Row(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              Column(
-                children: [
-                  AnimatedContainer(
-                    duration:
-                        const Duration(
-                      milliseconds: 250,
-                    ),
-                    width: 34,
-                    height: 34,
-                    decoration:
-                        BoxDecoration(
-                      color: completed
-                          ? pikkXBlack
-                          : lightGrey,
-                      shape:
-                          BoxShape.circle,
-                    ),
-                    child: Icon(
-                      completed
-                          ? Icons.check_rounded
-                          : steps[index].$2,
-                      color: completed
-                          ? pikkXWhite
-                          : muted,
-                      size: 17,
-                    ),
-                  ),
-                  if (!last)
-                    Container(
-                      width: 2,
-                      height: 28,
-                      color: index < current
-                          ? pikkXBlack
-                          : lightGrey,
-                    ),
-                ],
-              ),
-              const SizedBox(width: 12),
-              Padding(
-                padding:
-                    const EdgeInsets.only(
-                  top: 7,
-                ),
-                child: Text(
-                  steps[index].$1,
-                  style: TextStyle(
-                    color: completed
-                        ? pikkXBlack
-                        : muted,
-                    fontSize: 12,
-                    fontWeight: completed
-                        ? FontWeight.w700
-                        : FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  // ============================================================
-  // LOCATION CARD
-  // ============================================================
-
-  Widget _locationCard(
+  Widget _mapCard(
     Map<String, dynamic> data,
   ) {
     final rider =
         _getRiderLocation(data);
 
     final destination =
-        _getDestinationLocation(data);
+        _getDestination(data);
 
-    // Keep these fields available to the buttons.
-    _currentRiderLocation = rider;
-    _currentDestinationLocation =
-        destination;
-
-    final hasRider =
-        rider != null;
-
-    final hasDestination =
-        destination != null;
-
-    final initialPosition =
-        _getInitialMapPosition(data);
+    final testMode =
+        _usingTestLocation(data);
 
     final markers =
-        _buildMarkers(data);
+        _markers(data);
+
+    final polylines =
+        _polylines(data);
 
     return _glass(
       padding: EdgeInsets.zero,
       child: Column(
         children: [
-          ClipRRect(
-            borderRadius:
-                const BorderRadius.vertical(
-              top: Radius.circular(24),
-            ),
-            child: SizedBox(
-              height: 230,
-              width: double.infinity,
+          SizedBox(
+            height: 340,
+            child: ClipRRect(
+              borderRadius:
+                  const BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
               child: Stack(
                 children: [
                   GoogleMap(
                     initialCameraPosition:
                         CameraPosition(
-                      target: initialPosition,
-                      zoom:
-                          hasRider ||
-                                  hasDestination
-                              ? 14
-                              : 11,
+                      target: rider,
+                      zoom: testMode ? 7 : 14,
                     ),
                     markers: markers,
+                    polylines: polylines,
                     myLocationButtonEnabled:
                         false,
                     zoomControlsEnabled:
@@ -1048,78 +1001,57 @@ class _DispatchTrackingPageState
                         (controller) {
                       _mapController =
                           controller;
+
                       _mapReady = true;
 
                       WidgetsBinding
                           .instance
                           .addPostFrameCallback(
                         (_) {
-                          if (!mounted) {
-                            return;
-                          }
-
-                          if (rider != null &&
-                              destination != null) {
-                            _fitBothLocations();
-                          } else if (rider != null) {
-                            _moveCamera(
-                              rider,
-                              zoom: 16,
-                            );
-                          } else if (destination != null) {
-                            _moveCamera(
-                              destination,
-                              zoom: 15,
-                            );
+                          if (mounted) {
+                            _fitRoute(data);
                           }
                         },
                       );
                     },
                   ),
 
-                  // ==================================================
-                  // MAP STATUS
-                  // ==================================================
-
                   Positioned(
                     top: 14,
                     left: 14,
-                    child: _mapStatusPill(
-                      hasRider:
-                          hasRider,
-                      hasDestination:
-                          hasDestination,
-                    ),
+                    child: testMode
+                        ? _testModeCard()
+                        : _mapPill(
+                            'LIVE TRACKING',
+                          ),
                   ),
-
-                  // ==================================================
-                  // MAP CONTROLS
-                  // ==================================================
 
                   Positioned(
                     right: 14,
                     bottom: 14,
-                    child: Row(
+                    child: Column(
                       children: [
-                        if (hasDestination)
-                          _mapControlButton(
-                            icon:
-                                Icons.home_outlined,
-                            onTap:
-                                _moveToDestination,
+                        _mapControl(
+                          Icons.local_shipping_rounded,
+                          () => _animateTo(
+                            rider,
+                            zoom: testMode
+                                ? 7.5
+                                : 16,
                           ),
-                        if (hasDestination &&
-                            hasRider)
-                          const SizedBox(
-                            width: 8,
+                        ),
+                        const SizedBox(
+                          height: 8,
+                        ),
+                        _mapControl(
+                          Icons.home_outlined,
+                          () => _animateTo(
+                            destination,
+                            zoom: testMode
+                                ? 7
+                                : 15,
                           ),
-                        if (hasRider)
-                          _mapControlButton(
-                            icon:
-                                Icons.my_location_rounded,
-                            onTap:
-                                _moveToRider,
-                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -1128,103 +1060,28 @@ class _DispatchTrackingPageState
             ),
           ),
 
-          // ========================================================
-          // LOCATION INFORMATION
-          // ========================================================
-
           Padding(
             padding:
                 const EdgeInsets.all(17),
             child: Column(
               children: [
-                Row(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                  children: [
-                    _smallBlackIcon(
-                      Icons.location_on_outlined,
-                    ),
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Delivery destination',
-                            style: TextStyle(
-                              color:
-                                  pikkXBlack,
-                              fontSize: 12,
-                              fontWeight:
-                                  FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(
-                            height: 3,
-                          ),
-                          Text(
-                            _formatDeliveryAddress(
-                              data[
-                                  'deliveryAddress'],
-                            ),
-                            style:
-                                const TextStyle(
-                              color: muted,
-                              fontSize: 10,
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                _locationRow(
+                  Icons.local_shipping_outlined,
+                  'Dispatch rider',
+                  testMode
+                      ? 'Testing from Abuja'
+                      : '${rider.latitude.toStringAsFixed(5)}, '
+                          '${rider.longitude.toStringAsFixed(5)}',
                 ),
-
                 const SizedBox(height: 14),
-
-                Row(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                  children: [
-                    _smallBlackIcon(
-                      Icons.local_shipping_outlined,
-                    ),
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Current dispatch location',
-                            style: TextStyle(
-                              color:
-                                  pikkXBlack,
-                              fontSize: 12,
-                              fontWeight:
-                                  FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(
-                            height: 3,
-                          ),
-                          Text(
-                            hasRider
-                                ? '${rider!.latitude.toStringAsFixed(5)}, '
-                                    '${rider.longitude.toStringAsFixed(5)}'
-                                : 'Waiting for dispatch location.',
-                            style:
-                                const TextStyle(
-                              color: muted,
-                              fontSize: 10,
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                _locationRow(
+                  Icons.location_on_outlined,
+                  'Destination',
+                  testMode
+                      ? 'Testing destination: Lagos'
+                      : _formatAddress(
+                          data['deliveryAddress'],
+                        ),
                 ),
               ],
             ),
@@ -1235,79 +1092,49 @@ class _DispatchTrackingPageState
   }
 
   // ============================================================
-  // MAP STATUS PILL
+  // MAP PILL
   // ============================================================
 
-  Widget _mapStatusPill({
-    required bool hasRider,
-    required bool hasDestination,
-  }) {
-    String text;
-
-    if (hasRider &&
-        hasDestination) {
-      text = 'Tracking active';
-    } else if (hasRider) {
-      text = 'Rider location active';
-    } else if (hasDestination) {
-      text = 'Destination saved';
-    } else {
-      text = 'Waiting for location';
-    }
-
-    return ClipRRect(
-      borderRadius:
-          BorderRadius.circular(12),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 10,
-          sigmaY: 10,
-        ),
-        child: Container(
-          padding:
-              const EdgeInsets.symmetric(
-            horizontal: 10,
-            vertical: 7,
-          ),
-          decoration:
-              BoxDecoration(
-            color:
-                pikkXWhite.withOpacity(0.88),
-            borderRadius:
-                BorderRadius.circular(12),
-            border: Border.all(
-              color:
-                  pikkXWhite.withOpacity(0.95),
+  Widget _mapPill(String text) {
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(
+        horizontal: 11,
+        vertical: 8,
+      ),
+      decoration:
+          BoxDecoration(
+        color:
+            pikkXWhite.withOpacity(.9),
+        borderRadius:
+            BorderRadius.circular(13),
+      ),
+      child: Row(
+        mainAxisSize:
+            MainAxisSize.min,
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration:
+                const BoxDecoration(
+              color: pikkXBlack,
+              shape:
+                  BoxShape.circle,
             ),
           ),
-          child: Row(
-            mainAxisSize:
-                MainAxisSize.min,
-            children: [
-              Container(
-                width: 7,
-                height: 7,
-                decoration:
-                    const BoxDecoration(
-                  color: pikkXBlack,
-                  shape:
-                      BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                text,
-                style:
-                    const TextStyle(
-                  color: pikkXBlack,
-                  fontSize: 10,
-                  fontWeight:
-                      FontWeight.w700,
-                ),
-              ),
-            ],
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style:
+                const TextStyle(
+              color: pikkXBlack,
+              fontSize: 9,
+              fontWeight:
+                  FontWeight.w800,
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -1316,54 +1143,99 @@ class _DispatchTrackingPageState
   // MAP CONTROL
   // ============================================================
 
-  Widget _mapControlButton({
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return ClipRRect(
-      borderRadius:
-          BorderRadius.circular(14),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 12,
-          sigmaY: 12,
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
+  Widget _mapControl(
+    IconData icon,
+    VoidCallback onTap,
+  ) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius:
+            BorderRadius.circular(14),
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration:
+              BoxDecoration(
+            color:
+                pikkXWhite.withOpacity(.92),
             borderRadius:
                 BorderRadius.circular(14),
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration:
-                  BoxDecoration(
-                color:
-                    pikkXWhite.withOpacity(0.90),
-                borderRadius:
-                    BorderRadius.circular(14),
-                border: Border.all(
-                  color:
-                      pikkXWhite.withOpacity(0.95),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color:
-                        pikkXBlack.withOpacity(0.08),
-                    blurRadius: 15,
-                  ),
-                ],
-              ),
-              child: Icon(
-                icon,
-                color: pikkXBlack,
-                size: 19,
-              ),
+            border: Border.all(
+              color:
+                  pikkXWhite,
             ),
+          ),
+          child: Icon(
+            icon,
+            color: pikkXBlack,
+            size: 19,
           ),
         ),
       ),
+    );
+  }
+
+  // ============================================================
+  // LOCATION ROW
+  // ============================================================
+
+  Widget _locationRow(
+    IconData icon,
+    String title,
+    String value,
+  ) {
+    return Row(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 31,
+          height: 31,
+          decoration:
+              BoxDecoration(
+            color:
+                pikkXBlack.withOpacity(.06),
+            shape:
+                BoxShape.circle,
+          ),
+          child: Icon(
+            icon,
+            color: pikkXBlack,
+            size: 16,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style:
+                    const TextStyle(
+                  color: pikkXBlack,
+                  fontSize: 11,
+                  fontWeight:
+                      FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                value,
+                style:
+                    const TextStyle(
+                  color: muted,
+                  fontSize: 10,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -1374,31 +1246,28 @@ class _DispatchTrackingPageState
   Widget _riderCard(
     Map<String, dynamic> data,
   ) {
-    final riderName =
+    final name =
         _stringValue(
       data,
       'riderName',
       fallback: 'Dispatch rider',
     );
 
-    final riderPhone =
+    final phone =
         _stringValue(
       data,
       'riderPhone',
     );
 
-    final riderLocation =
-        _getRiderLocation(data);
+    final testMode =
+        _usingTestLocation(data);
 
     return _glass(
-      padding:
-          const EdgeInsets.all(17),
       child: Row(
         children: [
-          _blackCircleIcon(
+          _blackIcon(
             Icons.person_rounded,
             size: 52,
-            iconSize: 26,
           ),
           const SizedBox(width: 13),
           Expanded(
@@ -1408,14 +1277,17 @@ class _DispatchTrackingPageState
               children: [
                 const Text(
                   'Your dispatcher',
-                  style: TextStyle(
+                  style:
+                      TextStyle(
                     color: muted,
                     fontSize: 10,
                   ),
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  riderName,
+                  testMode
+                      ? 'Test Dispatch Rider'
+                      : name,
                   style:
                       const TextStyle(
                     color: pikkXBlack,
@@ -1424,214 +1296,64 @@ class _DispatchTrackingPageState
                         FontWeight.w800,
                   ),
                 ),
-                if (riderPhone.isNotEmpty) ...[
-                  const SizedBox(height: 3),
-                  Text(
-                    riderPhone,
-                    style:
-                        const TextStyle(
-                      color: muted,
-                      fontSize: 10,
-                    ),
+                const SizedBox(height: 3),
+                Text(
+                  testMode
+                      ? 'Simulated location'
+                      : phone.isEmpty
+                          ? 'Live location not available yet'
+                          : phone,
+                  style:
+                      const TextStyle(
+                    color: muted,
+                    fontSize: 10,
                   ),
-                ],
-                if (riderLocation == null) ...[
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Live location not available yet',
-                    style: TextStyle(
-                      color: muted,
-                      fontSize: 9,
-                    ),
-                  ),
-                ],
+                ),
               ],
             ),
-          ),
-          _circleAction(
-            icon: Icons.phone_outlined,
-            onTap: riderPhone.isEmpty
-                ? null
-                : () {
-                    // Phone calling can be connected later.
-                  },
           ),
         ],
       ),
     );
   }
 
-  Widget _circleAction({
-    required IconData icon,
-    VoidCallback? onTap,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius:
-            BorderRadius.circular(15),
-        child: Container(
-          width: 43,
-          height: 43,
-          decoration:
-              BoxDecoration(
-            color: onTap == null
-                ? lightGrey
-                : pikkXBlack
-                    .withOpacity(0.06),
-            shape:
-                BoxShape.circle,
-            border: Border.all(
-              color:
-                  pikkXBlack.withOpacity(0.06),
-            ),
-          ),
-          child: Icon(
-            icon,
-            color: onTap == null
-                ? const Color(0xFFAAAAAA)
-                : pikkXBlack,
-            size: 19,
-          ),
-        ),
-      ),
-    );
-  }
-
   // ============================================================
-  // ETA CARD
-  // ============================================================
-
-  Widget _etaCard(
-    Map<String, dynamic> data,
-  ) {
-    final eta =
-        _stringValue(
-      data,
-      'estimatedArrival',
-      fallback: 'Calculating...',
-    );
-
-    return ClipRRect(
-      borderRadius:
-          BorderRadius.circular(23),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 15,
-          sigmaY: 15,
-        ),
-        child: Container(
-          padding:
-              const EdgeInsets.all(18),
-          decoration:
-              BoxDecoration(
-            color:
-                pikkXBlack.withOpacity(0.94),
-            borderRadius:
-                BorderRadius.circular(23),
-            border: Border.all(
-              color:
-                  pikkXWhite.withOpacity(0.10),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color:
-                    pikkXBlack.withOpacity(0.14),
-                blurRadius: 22,
-                offset:
-                    const Offset(0, 9),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration:
-                    BoxDecoration(
-                  color:
-                      pikkXWhite.withOpacity(0.10),
-                  shape:
-                      BoxShape.circle,
-                ),
-                child:
-                    const Icon(
-                  Icons.access_time_rounded,
-                  color: pikkXWhite,
-                  size: 21,
-                ),
-              ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Estimated arrival',
-                      style: TextStyle(
-                        color:
-                            Color(0xFFBDBDBD),
-                        fontSize: 10,
-                        fontWeight:
-                            FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      eta,
-                      style:
-                          const TextStyle(
-                        color:
-                            pikkXWhite,
-                        fontSize: 17,
-                        fontWeight:
-                            FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.arrow_forward_ios_rounded,
-                color:
-                    Color(0xFFBDBDBD),
-                size: 14,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // ORDER INFORMATION
+  // ORDER INFO
   // ============================================================
 
   Widget _orderInfo(
     Map<String, dynamic> data,
   ) {
     final total =
-        _formatOrderTotal(data);
+        data['total'];
 
-    final address =
-        _formatDeliveryAddress(
-      data['deliveryAddress'],
+    final currency =
+        _stringValue(
+      data,
+      'currency',
+      fallback: 'NGN',
     );
 
+    String totalText = '--';
+
+    final number =
+        _numberToDouble(total);
+
+    if (number != null) {
+      totalText =
+          '${_currencySymbol(currency)}'
+          '${number.toStringAsFixed(2)}';
+    }
+
     return _glass(
-      padding:
-          const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment:
             CrossAxisAlignment.start,
         children: [
           const Text(
             'Order information',
-            style: TextStyle(
+            style:
+                TextStyle(
               color: pikkXBlack,
               fontSize: 15,
               fontWeight:
@@ -1648,66 +1370,19 @@ class _DispatchTrackingPageState
           _infoRow(
             Icons.payments_outlined,
             'Total',
-            total,
+            totalText,
           ),
           const SizedBox(height: 12),
           _infoRow(
             Icons.location_on_outlined,
-            'Delivery address',
-            address,
+            'Address',
+            _formatAddress(
+              data['deliveryAddress'],
+            ),
           ),
         ],
       ),
     );
-  }
-
-  String _formatOrderTotal(
-    Map<String, dynamic> data,
-  ) {
-    final total =
-        data['total'];
-
-    if (total == null) {
-      return '--';
-    }
-
-    final currency =
-        _stringValue(
-      data,
-      'currency',
-      fallback: 'NGN',
-    );
-
-    final numeric =
-        _numberToDouble(total);
-
-    if (numeric != null) {
-      return '${_currencySymbol(currency)}'
-          '${numeric.toStringAsFixed(2)}';
-    }
-
-    return total.toString();
-  }
-
-  String _currencySymbol(
-    String currency,
-  ) {
-    switch (currency.toUpperCase()) {
-      case 'USD':
-      case '\$':
-        return '\$';
-
-      case 'GBP':
-        return '£';
-
-      case 'EUR':
-        return '€';
-
-      case 'NGN':
-      case '₦':
-      default:
-        return '₦';
-    }
   }
 
   Widget _infoRow(
@@ -1719,7 +1394,11 @@ class _DispatchTrackingPageState
       crossAxisAlignment:
           CrossAxisAlignment.start,
       children: [
-        _smallBlackIcon(icon),
+        Icon(
+          icon,
+          color: pikkXBlack,
+          size: 19,
+        ),
         const SizedBox(width: 10),
         Expanded(
           child: Column(
@@ -1753,13 +1432,95 @@ class _DispatchTrackingPageState
   }
 
   // ============================================================
-  // BLACK CIRCLE ICON
+  // ETA
   // ============================================================
 
-  Widget _blackCircleIcon(
+  Widget _etaCard(
+    Map<String, dynamic> data,
+  ) {
+    final testMode =
+        _usingTestLocation(data);
+
+    final eta =
+        _stringValue(
+      data,
+      'estimatedArrival',
+      fallback:
+          testMode
+              ? 'Test route: Abuja → Lagos'
+              : 'Calculating...',
+    );
+
+    return Container(
+      padding:
+          const EdgeInsets.all(18),
+      decoration:
+          BoxDecoration(
+        color:
+            pikkXBlack,
+        borderRadius:
+            BorderRadius.circular(23),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration:
+                BoxDecoration(
+              color:
+                  pikkXWhite.withOpacity(.10),
+              shape:
+                  BoxShape.circle,
+            ),
+            child:
+                const Icon(
+              Icons.access_time_rounded,
+              color: pikkXWhite,
+              size: 21,
+            ),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Estimated arrival',
+                  style:
+                      TextStyle(
+                    color:
+                        Color(0xFFBDBDBD),
+                    fontSize: 10,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  eta,
+                  style:
+                      const TextStyle(
+                    color: pikkXWhite,
+                    fontSize: 14,
+                    fontWeight:
+                        FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // BLACK ICON
+  // ============================================================
+
+  Widget _blackIcon(
     IconData icon, {
     double size = 48,
-    double iconSize = 23,
   }) {
     return Container(
       width: size,
@@ -1773,81 +1534,19 @@ class _DispatchTrackingPageState
       child: Icon(
         icon,
         color: pikkXWhite,
-        size: iconSize,
+        size: size * .47,
       ),
     );
   }
 
   // ============================================================
-  // SMALL BLACK ICON
-  // ============================================================
-
-  Widget _smallBlackIcon(
-    IconData icon,
-  ) {
-    return Container(
-      width: 30,
-      height: 30,
-      decoration:
-          BoxDecoration(
-        color:
-            pikkXBlack.withOpacity(0.06),
-        shape:
-            BoxShape.circle,
-        border: Border.all(
-          color:
-              pikkXBlack.withOpacity(0.06),
-        ),
-      ),
-      child: Icon(
-        icon,
-        color: pikkXBlack,
-        size: 16,
-      ),
-    );
-  }
-
-  // ============================================================
-  // BLACK PILL
-  // ============================================================
-
-  Widget _blackPill({
-    required String text,
-  }) {
-    return Container(
-      padding:
-          const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 7,
-      ),
-      decoration:
-          BoxDecoration(
-        color: pikkXBlack,
-        borderRadius:
-            BorderRadius.circular(12),
-      ),
-      child: Text(
-        text,
-        style:
-            const TextStyle(
-          color: pikkXWhite,
-          fontSize: 9,
-          fontWeight:
-              FontWeight.w800,
-          letterSpacing: 0.7,
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // GLASS CONTAINER
+  // GLASS
   // ============================================================
 
   Widget _glass({
     required Widget child,
     EdgeInsetsGeometry padding =
-        const EdgeInsets.all(16),
+        const EdgeInsets.all(17),
   }) {
     return ClipRRect(
       borderRadius:
@@ -1863,18 +1562,17 @@ class _DispatchTrackingPageState
           decoration:
               BoxDecoration(
             color:
-                pikkXWhite.withOpacity(0.70),
+                pikkXWhite.withOpacity(.70),
             borderRadius:
                 BorderRadius.circular(24),
             border: Border.all(
               color:
-                  pikkXWhite.withOpacity(0.90),
-              width: 1,
+                  pikkXWhite.withOpacity(.9),
             ),
             boxShadow: [
               BoxShadow(
                 color:
-                    pikkXBlack.withOpacity(0.055),
+                    pikkXBlack.withOpacity(.055),
                 blurRadius: 20,
                 offset:
                     const Offset(0, 8),
@@ -1888,7 +1586,7 @@ class _DispatchTrackingPageState
   }
 
   // ============================================================
-  // ERROR STATE
+  // ERROR
   // ============================================================
 
   Widget _errorState(
@@ -1903,24 +1601,24 @@ class _DispatchTrackingPageState
             mainAxisSize:
                 MainAxisSize.min,
             children: [
-              _blackCircleIcon(
+              _blackIcon(
                 Icons.error_outline_rounded,
                 size: 58,
-                iconSize: 30,
               ),
               const SizedBox(height: 13),
               const Text(
                 'Unable to load tracking',
                 textAlign:
                     TextAlign.center,
-                style: TextStyle(
+                style:
+                    TextStyle(
                   color: pikkXBlack,
                   fontSize: 16,
                   fontWeight:
                       FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 7),
               Text(
                 message,
                 textAlign:
@@ -1928,24 +1626,7 @@ class _DispatchTrackingPageState
                 style:
                     const TextStyle(
                   color: muted,
-                  fontSize: 11,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 15),
-              TextButton(
-                onPressed: () {
-                  setState(() {});
-                },
-                child:
-                    const Text(
-                  'Try again',
-                  style:
-                      TextStyle(
-                    color: pikkXBlack,
-                    fontWeight:
-                        FontWeight.w800,
-                  ),
+                  fontSize: 10,
                 ),
               ),
             ],
@@ -1969,44 +1650,41 @@ class _DispatchTrackingPageState
             mainAxisSize:
                 MainAxisSize.min,
             children: [
-              _blackCircleIcon(
+              _blackIcon(
                 Icons.inventory_2_outlined,
                 size: 58,
-                iconSize: 30,
               ),
               const SizedBox(height: 13),
               const Text(
                 'Order not found',
                 textAlign:
                     TextAlign.center,
-                style: TextStyle(
+                style:
+                    TextStyle(
                   color: pikkXBlack,
                   fontSize: 17,
                   fontWeight:
                       FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 7),
               Text(
-                'We could not find order '
-                '#${widget.orderId} '
-                'in your account.',
+                'Order #${widget.orderId} '
+                'does not exist yet.',
                 textAlign:
                     TextAlign.center,
                 style:
                     const TextStyle(
                   color: muted,
-                  fontSize: 11,
-                  height: 1.4,
+                  fontSize: 10,
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               TextButton(
-                onPressed: () {
-                  Navigator.pop(
-                    context,
-                  );
-                },
+                onPressed:
+                    () => Navigator.pop(
+                  context,
+                ),
                 child:
                     const Text(
                   'Go back',
@@ -2033,186 +1711,141 @@ class _DispatchTrackingPageState
   Widget build(
     BuildContext context,
   ) {
-    final currentUser =
+    final user =
         _auth.currentUser;
 
     return Scaffold(
       backgroundColor:
           background,
       body: SafeArea(
-        child: Stack(
+        child: Column(
           children: [
-            Positioned(
-              top: -80,
-              right: -90,
-              child:
-                  _backgroundGlow(
-                size: 220,
-                opacity: 0.025,
-              ),
-            ),
-            Positioned(
-              bottom: -100,
-              left: -100,
-              child:
-                  _backgroundGlow(
-                size: 240,
-                opacity: 0.02,
-              ),
-            ),
+            _appBar(),
 
-            Column(
-              children: [
-                _appBar(),
-
-                Expanded(
-                  child: StreamBuilder<
+            Expanded(
+              child:
+                  StreamBuilder<
                       DocumentSnapshot<
                           Map<String, dynamic>>>(
-                    stream:
-                        _orderStream,
-                    builder:
-                        (
-                      context,
-                      snapshot,
-                    ) {
-                      if (snapshot
-                              .connectionState ==
-                          ConnectionState.waiting) {
-                        return const Center(
-                          child:
-                              SizedBox(
-                            width: 28,
-                            height: 28,
-                            child:
-                                CircularProgressIndicator(
-                              strokeWidth:
-                                  2.5,
-                              color:
-                                  pikkXBlack,
-                            ),
-                          ),
-                        );
-                      }
-
-                      if (snapshot
-                          .hasError) {
-                        return _errorState(
-                          snapshot.error
-                              .toString(),
-                        );
-                      }
-
-                      final order =
-                          snapshot.data;
-
-                      if (order == null ||
-                          !order.exists) {
-                        return _notFound();
-                      }
-
-                      final data =
-                          order.data() ??
-                              <String,
-                                  dynamic>{};
-
-                      // ==================================================
-                      // SECURITY
-                      // ==================================================
-
-                      if (currentUser ==
-                          null) {
-                        return _errorState(
-                          'Please sign in to view this order.',
-                        );
-                      }
-
-                      final orderUserId =
-                          _stringValue(
-                        data,
-                        'userId',
-                      );
-
-                      if (orderUserId
-                              .isNotEmpty &&
-                          orderUserId !=
-                              currentUser.uid) {
-                        return _notFound();
-                      }
-
-                      // ==================================================
-                      // CONTENT
-                      // ==================================================
-
-                      return RefreshIndicator(
+                stream:
+                    _orderStream,
+                builder:
+                    (context, snapshot) {
+                  if (snapshot
+                          .connectionState ==
+                      ConnectionState.waiting) {
+                    return const Center(
+                      child:
+                          CircularProgressIndicator(
+                        strokeWidth: 2.5,
                         color:
                             pikkXBlack,
-                        backgroundColor:
-                            pikkXWhite,
-                        onRefresh:
-                            () async {
-                          // The StreamBuilder is already live.
-                          // No extra Firestore read is necessary.
-                          await Future<void>.delayed(
-                            const Duration(
-                              milliseconds: 150,
-                            ),
-                          );
-                        },
-                        child:
-                            ListView(
-                          physics:
-                              const BouncingScrollPhysics(),
-                          padding:
-                              const EdgeInsets.fromLTRB(
-                            20,
-                            5,
-                            20,
-                            35,
-                          ),
-                          children: [
-                            _statusCard(
-                              data,
-                            ),
+                      ),
+                    );
+                  }
 
-                            const SizedBox(
-                              height: 15,
-                            ),
+                  if (snapshot.hasError) {
+                    return _errorState(
+                      snapshot.error
+                          .toString(),
+                    );
+                  }
 
-                            _locationCard(
-                              data,
-                            ),
+                  final document =
+                      snapshot.data;
 
-                            const SizedBox(
-                              height: 15,
-                            ),
+                  if (document == null ||
+                      !document.exists) {
+                    return _notFound();
+                  }
 
-                            _riderCard(
-                              data,
-                            ),
+                  final data =
+                      document.data() ??
+                          <String, dynamic>{};
 
-                            const SizedBox(
-                              height: 15,
-                            ),
+                  if (user == null) {
+                    return _errorState(
+                      'Please sign in to view this order.',
+                    );
+                  }
 
-                            _etaCard(
-                              data,
-                            ),
+                  final orderUserId =
+                      _stringValue(
+                    data,
+                    'userId',
+                  );
 
-                            const SizedBox(
-                              height: 15,
-                            ),
+                  if (orderUserId.isNotEmpty &&
+                      orderUserId !=
+                          user.uid) {
+                    return _notFound();
+                  }
 
-                            _orderInfo(
-                              data,
-                            ),
-                          ],
+                  // Start fake movement only when
+                  // real rider coordinates are absent.
+                  _startTestSimulation(data);
+
+                  return RefreshIndicator(
+                    color: pikkXBlack,
+                    backgroundColor:
+                        pikkXWhite,
+                    onRefresh: () async {
+                      await Future<void>.delayed(
+                        const Duration(
+                          milliseconds: 200,
                         ),
                       );
                     },
-                  ),
-                ),
-              ],
+                    child: ListView(
+                      physics:
+                          const BouncingScrollPhysics(),
+                      padding:
+                          const EdgeInsets.fromLTRB(
+                        20,
+                        5,
+                        20,
+                        35,
+                      ),
+                      children: [
+                        if (_usingTestLocation(
+                          data,
+                        )) ...[
+                          _testModeCard(),
+                          const SizedBox(
+                            height: 12,
+                          ),
+                        ],
+
+                        _statusCard(data),
+
+                        const SizedBox(
+                          height: 14,
+                        ),
+
+                        _mapCard(data),
+
+                        const SizedBox(
+                          height: 14,
+                        ),
+
+                        _riderCard(data),
+
+                        const SizedBox(
+                          height: 14,
+                        ),
+
+                        _etaCard(data),
+
+                        const SizedBox(
+                          height: 14,
+                        ),
+
+                        _orderInfo(data),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -2221,35 +1854,27 @@ class _DispatchTrackingPageState
   }
 
   // ============================================================
-  // BACKGROUND GLOW
+  // CURRENCY
   // ============================================================
 
-  Widget _backgroundGlow({
-    required double size,
-    required double opacity,
-  }) {
-    return Container(
-      width: size,
-      height: size,
-      decoration:
-          BoxDecoration(
-        shape:
-            BoxShape.circle,
-        color:
-            pikkXBlack.withOpacity(
-          opacity,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color:
-                pikkXBlack.withOpacity(
-              opacity,
-            ),
-            blurRadius: 70,
-            spreadRadius: 20,
-          ),
-        ],
-      ),
-    );
+  String _currencySymbol(
+    String currency,
+  ) {
+    switch (currency.toUpperCase()) {
+      case 'USD':
+      case r'$':
+        return r'$';
+
+      case 'GBP':
+        return '£';
+
+      case 'EUR':
+        return '€';
+
+      case 'NGN':
+      case '₦':
+      default:
+        return '₦';
+    }
   }
 }
