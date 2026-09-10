@@ -1175,7 +1175,7 @@ class _ChatPageState extends State<ChatPage> {
         _asMap(message['replyTo']);
 
     final reactions =
-        _asMap(message['reactions']);
+        _asMap(message['reactions']) ?? <String, dynamic>{};
 
     return GestureDetector(
       onLongPress: isDeleted
@@ -1915,7 +1915,7 @@ class _ChatPageState extends State<ChatPage> {
 
           final currentReactions =
               <String, dynamic>{
-            ..._asMap(
+            ...?_asMap(
               data['reactions'],
             ),
           };

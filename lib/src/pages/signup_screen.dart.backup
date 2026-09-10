@@ -1125,253 +1125,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     const SizedBox(height: 24),
 
                     // ------------------------------------------------
-                    // PASSWORD
-                    // ------------------------------------------------
-
-                    _glassField(
-                      controller:
-                          _passwordController,
-                      hint: 'Password',
-                      icon:
-                          Icons.lock_outline_rounded,
-                      obscureText:
-                          _obscurePassword,
-                      suffix: IconButton(
-                        onPressed: _isLoading
-                            ? null
-                            : () {
-                                setState(() {
-                                  _obscurePassword =
-                                      !_obscurePassword;
-                                });
-                              },
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons
-                                  .visibility_off_outlined
-                              : Icons
-                                  .visibility_outlined,
-                          color: pikkXBlack,
-                          size: 20,
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null ||
-                            value.isEmpty) {
-                          return 'Create a password.';
-                        }
-
-                        if (value.length < 8) {
-                          return 'Use at least 8 characters.';
-                        }
-
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 13),
-
-                    // ------------------------------------------------
-                    
-                    // ------------------------------------------------
-                    // PASSWORD RECOVERY NOTE
-                    // ------------------------------------------------
-
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        left: 4,
-                        right: 4,
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(
-                            Icons.info_outline_rounded,
-                            color: pikkXGrey,
-                            size: 14,
-                          ),
-                          const SizedBox(width: 6),
-                          const Expanded(
-                            child: Text(
-                              'Forgot your password? You can securely reset it using your email.',
-                              style: TextStyle(
-                                color: pikkXGrey,
-                                fontSize: 10.5,
-                                height: 1.35,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-// RECOVERY EMAIL
-                    // ------------------------------------------------
-
-                    _glassField(
-                      controller:
-                          _recoveryEmailController,
-                      hint: 'Recovery email',
-                      icon:
-                          Icons.mark_email_read_outlined,
-                      keyboardType:
-                          TextInputType.emailAddress,
-                      validator: (value) {
-                        if (value == null ||
-                            value.trim().isEmpty) {
-                          return 'Enter a recovery email.';
-                        }
-
-                        final recovery =
-                            value.trim();
-
-                        if (!recovery.contains('@') ||
-                            !recovery.contains('.')) {
-                          return 'Enter a valid recovery email.';
-                        }
-
-                        if (recovery.toLowerCase() ==
-                            _emailController.text
-                                .trim()
-                                .toLowerCase()) {
-                          return 'Use a different email.';
-                        }
-
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 9),
-
-                    const Padding(
-                      padding:
-                          EdgeInsets.only(left: 4),
-                      child: Text(
-                        'Use an email you can access if you ever need account recovery.',
-                        style: TextStyle(
-                          color: pikkXGrey,
-                          fontSize: 10.5,
-                          height: 1.35,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // ------------------------------------------------
-                    // RECOVERY CARD
-                    // ------------------------------------------------
-
-                    _recoveryCard(),
-
-                    const SizedBox(height: 17),
-
-                    // ------------------------------------------------
-                    // NAME
-                    // ------------------------------------------------
-
-                    _glassField(
-                      controller:
-                          _nameController,
-                      hint: 'Full name',
-                      icon: Icons
-                          .person_outline_rounded,
-                      keyboardType:
-                          TextInputType.name,
-                      validator: (value) {
-                        if (value == null ||
-                            value.trim().isEmpty) {
-                          return 'Enter your name.';
-                        }
-
-                        if (value.trim().length <
-                            2) {
-                          return 'Enter your full name.';
-                        }
-
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 13),
-
-                    // ------------------------------------------------
-                    // CONFIRM PASSWORD
-                    // ------------------------------------------------
-
-                    _glassField(
-                      controller:
-                          _confirmPasswordController,
-                      hint: 'Confirm password',
-                      icon:
-                          Icons.lock_outline_rounded,
-                      obscureText:
-                          _obscureConfirmPassword,
-                      suffix: IconButton(
-                        onPressed: _isLoading
-                            ? null
-                            : () {
-                                setState(() {
-                                  _obscureConfirmPassword =
-                                      !_obscureConfirmPassword;
-                                });
-                              },
-                        icon: Icon(
-                          _obscureConfirmPassword
-                              ? Icons
-                                  .visibility_off_outlined
-                              : Icons
-                                  .visibility_outlined,
-                          color: pikkXBlack,
-                          size: 20,
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null ||
-                            value.isEmpty) {
-                          return 'Confirm your password.';
-                        }
-
-                        if (value !=
-                            _passwordController.text) {
-                          return 'Passwords do not match.';
-                        }
-
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    const Padding(
-                      padding:
-                          EdgeInsets.only(left: 4),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.lock_outline_rounded,
-                            color: pikkXBlack,
-                            size: 13,
-                          ),
-                          SizedBox(width: 5),
-                          Expanded(
-                            child: Text(
-                              'Your password is protected by Firebase Authentication.',
-                              style: TextStyle(
-                                color: pikkXGrey,
-                                fontSize: 10.5,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 21),
-
-                    // ------------------------------------------------
                     // NAME
                     // ------------------------------------------------
 
@@ -1462,6 +1215,189 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     _currencyPreview(),
 
                     const SizedBox(height: 16),
+
+                    // ------------------------------------------------
+                    // RECOVERY EMAIL
+                    // ------------------------------------------------
+
+                    _glassField(
+                      controller:
+                          _recoveryEmailController,
+                      hint: 'Recovery email',
+                      icon:
+                          Icons.mark_email_read_outlined,
+                      keyboardType:
+                          TextInputType.emailAddress,
+                      validator: (value) {
+                        if (value == null ||
+                            value.trim().isEmpty) {
+                          return 'Enter a recovery email.';
+                        }
+
+                        final recovery =
+                            value.trim();
+
+                        if (!recovery.contains('@') ||
+                            !recovery.contains('.')) {
+                          return 'Enter a valid recovery email.';
+                        }
+
+                        if (recovery.toLowerCase() ==
+                            _emailController.text
+                                .trim()
+                                .toLowerCase()) {
+                          return 'Use a different email.';
+                        }
+
+                        return null;
+                      },
+                    ),
+
+                    const SizedBox(height: 9),
+
+                    const Padding(
+                      padding:
+                          EdgeInsets.only(left: 4),
+                      child: Text(
+                        'Use an email you can access if you ever need account recovery.',
+                        style: TextStyle(
+                          color: pikkXGrey,
+                          fontSize: 10.5,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // ------------------------------------------------
+                    // RECOVERY CARD
+                    // ------------------------------------------------
+
+                    _recoveryCard(),
+
+                    const SizedBox(height: 17),
+
+                    // ------------------------------------------------
+                    // PASSWORD
+                    // ------------------------------------------------
+
+                    _glassField(
+                      controller:
+                          _passwordController,
+                      hint: 'Password',
+                      icon:
+                          Icons.lock_outline_rounded,
+                      obscureText:
+                          _obscurePassword,
+                      suffix: IconButton(
+                        onPressed: _isLoading
+                            ? null
+                            : () {
+                                setState(() {
+                                  _obscurePassword =
+                                      !_obscurePassword;
+                                });
+                              },
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons
+                                  .visibility_off_outlined
+                              : Icons
+                                  .visibility_outlined,
+                          color: pikkXBlack,
+                          size: 20,
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null ||
+                            value.isEmpty) {
+                          return 'Create a password.';
+                        }
+
+                        if (value.length < 8) {
+                          return 'Use at least 8 characters.';
+                        }
+
+                        return null;
+                      },
+                    ),
+
+                    const SizedBox(height: 13),
+
+                    // ------------------------------------------------
+                    // CONFIRM PASSWORD
+                    // ------------------------------------------------
+
+                    _glassField(
+                      controller:
+                          _confirmPasswordController,
+                      hint: 'Confirm password',
+                      icon:
+                          Icons.lock_outline_rounded,
+                      obscureText:
+                          _obscureConfirmPassword,
+                      suffix: IconButton(
+                        onPressed: _isLoading
+                            ? null
+                            : () {
+                                setState(() {
+                                  _obscureConfirmPassword =
+                                      !_obscureConfirmPassword;
+                                });
+                              },
+                        icon: Icon(
+                          _obscureConfirmPassword
+                              ? Icons
+                                  .visibility_off_outlined
+                              : Icons
+                                  .visibility_outlined,
+                          color: pikkXBlack,
+                          size: 20,
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null ||
+                            value.isEmpty) {
+                          return 'Confirm your password.';
+                        }
+
+                        if (value !=
+                            _passwordController.text) {
+                          return 'Passwords do not match.';
+                        }
+
+                        return null;
+                      },
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    const Padding(
+                      padding:
+                          EdgeInsets.only(left: 4),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.lock_outline_rounded,
+                            color: pikkXBlack,
+                            size: 13,
+                          ),
+                          SizedBox(width: 5),
+                          Expanded(
+                            child: Text(
+                              'Your password is protected by Firebase Authentication.',
+                              style: TextStyle(
+                                color: pikkXGrey,
+                                fontSize: 10.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 21),
 
                     // ------------------------------------------------
                     // CREATE ACCOUNT
