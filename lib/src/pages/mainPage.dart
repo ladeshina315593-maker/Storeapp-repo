@@ -89,7 +89,13 @@ class _MainPageState extends State<MainPage> {
         return const FavouritePage();
 
       case 4:
-        return const ProfilePage();
+        return ProfilePage(
+          onOpenCart: () {
+            setState(() {
+              _selectedIndex = 1;
+            });
+          },
+        );
 
       default:
         return const MyHomePage();
