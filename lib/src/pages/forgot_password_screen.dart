@@ -1,7 +1,5 @@
-import 'dart:ui';
-
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -20,6 +18,31 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   static const _white = Color(0xFFFFFFFF);
   static const _background = Color(0xFFF7F7F7);
   static const _grey = Color(0xFF777777);
+
+  Future<void> _openWhatsApp() async {
+    final uri = Uri.parse(
+      'https://wa.me/2349132315593?text=Hello%20PikkX%20Support,%20I%20forgot%20my%20password.',
+    );
+
+    try {
+      final opened = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!opened && mounted) {
+        _showMessage(
+          'Unable to open WhatsApp. Please call 09132315593.',
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        _showMessage(
+          'Unable to open WhatsApp. Please call 09132315593.',
+        );
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -158,120 +181,154 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         foregroundColor: _black,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: _loading
-              ? null
-              : () => Navigator.pushNamedAndRemoveUntil(
+          onPressed: () => Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/login',
+            (route) => false,
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Image.asset(
+                  'assets/images/pikkx_icon (1).png',
+                  width: 76,
+                  height: 76,
+                ),
+              ),
+              const SizedBox(height: 28),
+              const Text(
+                'Forgot your password?',
+                style: TextStyle(
+                  color: _black,
+                  fontSize: 30,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'No worries. Contact PikkX Support and we’ll guide you through the account recovery process.',
+                style: TextStyle(
+                  color: _grey,
+                  fontSize: 15,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 28),
+
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: _white.withValues(alpha: 0.72),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: _black.withValues(alpha: 0.08),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _black.withValues(alpha: 0.05),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.support_agent_rounded,
+                      color: _black,
+                      size: 30,
+                    ),
+                    SizedBox(height: 14),
+                    Text(
+                      'Contact PikkX Support',
+                      style: TextStyle(
+                        color: _black,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'When you contact support, provide your account email, full name, and tell us that you forgot your password.',
+                      style: TextStyle(
+                        color: _grey,
+                        fontSize: 14,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 22),
+
+              SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: ElevatedButton.icon(
+                  onPressed: _openWhatsApp,
+                  icon: const Icon(Icons.chat_rounded),
+                  label: const Text(
+                    'Contact PikkX Support',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _black,
+                    foregroundColor: _white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 18),
+
+              Center(
+                child: TextButton(
+                  onPressed: () => Navigator.pushNamedAndRemoveUntil(
                     context,
                     '/login',
                     (route) => false,
                   ),
-        ),
-      ),
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-              child: const SizedBox(),
-            ),
-          ),
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Image.asset(
-                      'assets/images/pikkx_icon.jpg',
-                      width: 76,
-                      height: 76,
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-                  const Text(
-                    'Reset your password',
+                  child: const Text(
+                    'Back to Login',
                     style: TextStyle(
                       color: _black,
-                      fontSize: 30,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Enter your account email and we’ll send you a secure password reset link.',
-                    style: TextStyle(
-                      color: _grey,
-                      fontSize: 15,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-                  TextField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.done,
-                    enabled: !_loading,
-                    onSubmitted: (_) => _resetPassword(),
-                    decoration: _fieldDecoration(),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton(
-                      onPressed: _loading ? null : _resetPassword,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _black,
-                        foregroundColor: _white,
-                        disabledBackgroundColor: _black.withValues(alpha: 0.45),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                      ),
-                      child: _loading
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                color: _white,
-                              ),
-                            )
-                          : const Text(
-                              'Send Reset Link',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Center(
-                    child: TextButton(
-                      onPressed: _loading
-                          ? null
-                          : () => Navigator.pushNamedAndRemoveUntil(
-                                context,
-                                '/login',
-                                (route) => false,
-                              ),
-                      child: const Text(
-                        'Back to Login',
-                        style: TextStyle(
-                          color: _black,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
+
+              const SizedBox(height: 10),
+
+              const Center(
+                child: Text(
+                  'PikkX Support • 09132315593',
+                  style: TextStyle(
+                    color: _grey,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
+
 }

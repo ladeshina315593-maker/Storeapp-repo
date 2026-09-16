@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:pikkx/src/pages/mainPage.dart';
-import 'package:pikkx/src/pages/shopping_cart_page.dart';
+import 'package:pikkx/src/pages/cart_page.dart';
 import 'package:pikkx/src/pages/checkout_page.dart';
 import 'package:pikkx/src/pages/delivery_address_page.dart';
 import 'package:pikkx/src/pages/orders_page.dart';
@@ -29,7 +29,7 @@ class Routes {
       // SHOPPING
       // ==============================
 
-      '/cart': (_) => ShoppingCartPage(),
+      '/cart': (_) => CartPage(),
 
       '/checkout': (_) => CheckoutPage(),
 

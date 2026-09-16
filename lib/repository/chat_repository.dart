@@ -261,7 +261,8 @@ class ChatRepository {
         'senderId': _userId,
         'text': message,
         'type': 'text',
-        'isRead': false,
+        'delivered': false,
+        'read': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -290,7 +291,9 @@ class ChatRepository {
       await _verifyChatAccess(chatId);
 
       await _messages(chatId).doc(messageId).update({
-        'isRead': true,
+        'delivered': true,
+        'read': true,
+        'deliveredAt': FieldValue.serverTimestamp(),
         'readAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
@@ -310,7 +313,7 @@ class ChatRepository {
       final QuerySnapshot<Map<String, dynamic>> snapshot =
           await _messages(chatId)
               .where(
-                'isRead',
+                'read',
                 isEqualTo: false,
               )
               .get();
@@ -326,7 +329,9 @@ class ChatRepository {
 
         if (data['senderId'] != _userId) {
           batch.update(doc.reference, {
-            'isRead': true,
+            'delivered': true,
+            'read': true,
+            'deliveredAt': FieldValue.serverTimestamp(),
             'readAt': FieldValue.serverTimestamp(),
           });
         }
@@ -387,7 +392,7 @@ class ChatRepository {
       final QuerySnapshot<Map<String, dynamic>> snapshot =
           await _messages(chatId)
               .where(
-                'isRead',
+                'read',
                 isEqualTo: false,
               )
               .get();

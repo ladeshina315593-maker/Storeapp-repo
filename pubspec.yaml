@@ -45,6 +45,7 @@ dependencies:
   # Currency / User Preferences
   shared_preferences: ^2.5.3
   url_launcher: ^6.3.2
+  mapbox_maps_flutter: ^2.30.1
 
 dev_dependencies:
   flutter_test:

@@ -114,8 +114,7 @@ class _CustomBottomNavigationBarState
     required int index,
     required double iconSize,
   }) {
-    final bool isSelected =
-        widget.selectedIndex == index;
+    final bool isSelected = widget.selectedIndex == index;
 
     return Expanded(
       child: Semantics(
@@ -128,57 +127,55 @@ class _CustomBottomNavigationBarState
           highlightColor: Colors.transparent,
           hoverColor: Colors.transparent,
           focusColor: Colors.transparent,
-          borderRadius: BorderRadius.zero,
-          child: AnimatedBuilder(
-            animation: _selectionController,
-            builder: (
-              context,
-              child,
-            ) {
-              final double t =
-                  Curves.easeOutCubic.transform(
-                _selectionController.value,
-              );
-
-              /*
-               * Selected icons become slightly larger and settle
-               * smoothly without receiving their own container.
-               */
-              final double scale = isSelected
-                  ? 0.94 + (0.10 * t)
-                  : 1.0;
-
-              final double selectedOpacity =
-                  isSelected
-                      ? 0.72 + (0.28 * t)
-                      : 1.0;
-
-              return Center(
-                child: Transform.translate(
-                  offset: isSelected
-                      ? Offset(
-                          0,
-                          -2.0 * t,
-                        )
-                      : Offset.zero,
-                  child: Transform.scale(
-                    scale: scale,
-                    child: Opacity(
-                      opacity: selectedOpacity,
-                      child: Icon(
-                        _icons[index],
-                        size: isSelected
-                            ? iconSize + 1
-                            : iconSize,
-                        color: isSelected
-                            ? pikkXBlack
-                            : pikkXGrey,
+          borderRadius: BorderRadius.circular(22),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            margin: const EdgeInsets.symmetric(
+              horizontal: 3,
+              vertical: 7,
+            ),
+            padding: EdgeInsets.symmetric(
+              horizontal: isSelected ? 12 : 7,
+              vertical: 8,
+            ),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? pikkXBlack
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  _icons[index],
+                  size: index == 2
+                      ? iconSize + 1
+                      : iconSize,
+                  color: isSelected
+                      ? pikkXWhite
+                      : pikkXBlack.withOpacity(0.68),
+                ),
+                if (isSelected) ...[
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      _labels[index],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: pikkXWhite,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.1,
                       ),
                     ),
                   ),
-                ),
-              );
-            },
+                ],
+              ],
+            ),
           ),
         ),
       ),

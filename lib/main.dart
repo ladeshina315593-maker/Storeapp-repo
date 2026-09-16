@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:pikkx/src/pages/profile_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 import 'package:pikkx/src/pages/mainPage.dart';
 import 'package:pikkx/src/pages/login_screen.dart';
@@ -34,6 +36,11 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  const accessToken = String.fromEnvironment('ACCESS_TOKEN');
+  if (accessToken.isNotEmpty) {
+    MapboxOptions.setAccessToken(accessToken);
+  }
 
   runApp(const PikkXApp());
 }
@@ -121,6 +128,9 @@ class PikkXApp extends StatelessWidget {
         '/': (context) => const AuthGate(),
 
         '/home': (context) => const MainPage(),
+
+        '/profile': (context) => const ProfilePage(),
+
 
         '/MainPage': (context) => const MainPage(),
 

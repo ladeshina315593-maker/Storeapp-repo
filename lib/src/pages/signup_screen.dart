@@ -954,10 +954,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
       body: SafeArea(
         child: Stack(
           children: [
-            // ----------------------------------------------------
-            // BACKGROUND GLOW
-            // ----------------------------------------------------
-
             Positioned(
               top: -100,
               right: -75,
@@ -966,8 +962,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 height: 240,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color:
-                      pikkXBlack.withOpacity(0.025),
+                  color: pikkXBlack.withOpacity(0.025),
                 ),
               ),
             ),
@@ -980,19 +975,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 height: 250,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color:
-                      pikkXBlack.withOpacity(0.035),
+                  color: pikkXBlack.withOpacity(0.035),
                 ),
               ),
             ),
 
-            // ----------------------------------------------------
-            // CONTENT
-            // ----------------------------------------------------
-
             SingleChildScrollView(
-              physics:
-                  const BouncingScrollPhysics(),
+              physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(
                 24,
                 22,
@@ -1002,76 +991,50 @@ class _SignUpScreenState extends State<SignUpScreen> {
               child: Form(
                 key: _formKey,
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ------------------------------------------------
-                    // BACK
-                    // ------------------------------------------------
-
                     _glassBackButton(),
 
                     const SizedBox(height: 27),
-
-                    // ------------------------------------------------
-                    // PIKKX APP ICON / LOGO
-                    // ------------------------------------------------
 
                     Center(
                       child: Column(
                         children: [
                           ClipRRect(
-                            borderRadius:
-                                BorderRadius.circular(24),
+                            borderRadius: BorderRadius.circular(24),
                             child: BackdropFilter(
-                              filter:
-                                  ImageFilter.blur(
+                              filter: ImageFilter.blur(
                                 sigmaX: 16,
                                 sigmaY: 16,
                               ),
                               child: Container(
                                 height: 82,
                                 width: 82,
-                                padding:
-                                    const EdgeInsets.all(
-                                  10,
-                                ),
-                                decoration:
-                                    BoxDecoration(
-                                  color: pikkXWhite
-                                      .withOpacity(0.58),
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: pikkXWhite.withOpacity(0.58),
                                   borderRadius:
-                                      BorderRadius.circular(
-                                    24,
-                                  ),
+                                      BorderRadius.circular(24),
                                   border: Border.all(
-                                    color: pikkXWhite
-                                        .withOpacity(0.9),
+                                    color:
+                                        pikkXWhite.withOpacity(0.9),
                                     width: 1.2,
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: pikkXBlack
-                                          .withOpacity(
-                                        0.055,
-                                      ),
+                                      color:
+                                          pikkXBlack.withOpacity(0.055),
                                       blurRadius: 24,
-                                      offset:
-                                          const Offset(
-                                        0,
-                                        9,
-                                      ),
+                                      offset: const Offset(0, 9),
                                     ),
                                   ],
                                 ),
                                 child: Image.asset(
                                   'assets/images/pikkx_icon (1).png',
                                   fit: BoxFit.contain,
-                                  errorBuilder:
-                                      (_, __, ___) {
+                                  errorBuilder: (_, __, ___) {
                                     return const Icon(
-                                      Icons
-                                          .storefront_rounded,
+                                      Icons.storefront_rounded,
                                       color: pikkXBlack,
                                       size: 38,
                                     );
@@ -1086,8 +1049,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             style: TextStyle(
                               color: pikkXBlack,
                               fontSize: 27,
-                              fontWeight:
-                                  FontWeight.w900,
+                              fontWeight: FontWeight.w900,
                               letterSpacing: -1,
                             ),
                           ),
@@ -1096,10 +1058,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
 
                     const SizedBox(height: 32),
-
-                    // ------------------------------------------------
-                    // TITLE
-                    // ------------------------------------------------
 
                     const Text(
                       'Create your account',
@@ -1114,7 +1072,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     const SizedBox(height: 7),
 
                     const Text(
-                      'Join PikkX and build a secure shopping account.',
+                      'Create a secure account and start using PikkX.',
                       style: TextStyle(
                         color: pikkXGrey,
                         fontSize: 13,
@@ -1124,18 +1082,37 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                     const SizedBox(height: 24),
 
-                    // ------------------------------------------------
-                    // PASSWORD
-                    // ------------------------------------------------
-
+                    // EMAIL
                     _glassField(
-                      controller:
-                          _passwordController,
+                      controller: _emailController,
+                      hint: 'Email',
+                      icon: Icons.email_outlined,
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (value) {
+                        if (value == null ||
+                            value.trim().isEmpty) {
+                          return 'Enter your email.';
+                        }
+
+                        final email = value.trim();
+
+                        if (!email.contains('@') ||
+                            !email.contains('.')) {
+                          return 'Enter a valid email.';
+                        }
+
+                        return null;
+                      },
+                    ),
+
+                    const SizedBox(height: 13),
+
+                    // PASSWORD
+                    _glassField(
+                      controller: _passwordController,
                       hint: 'Password',
-                      icon:
-                          Icons.lock_outline_rounded,
-                      obscureText:
-                          _obscurePassword,
+                      icon: Icons.lock_outline_rounded,
+                      obscureText: _obscurePassword,
                       suffix: IconButton(
                         onPressed: _isLoading
                             ? null
@@ -1147,17 +1124,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               },
                         icon: Icon(
                           _obscurePassword
-                              ? Icons
-                                  .visibility_off_outlined
-                              : Icons
-                                  .visibility_outlined,
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
                           color: pikkXBlack,
                           size: 20,
                         ),
                       ),
                       validator: (value) {
-                        if (value == null ||
-                            value.isEmpty) {
+                        if (value == null || value.isEmpty) {
                           return 'Create a password.';
                         }
 
@@ -1171,61 +1145,109 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                     const SizedBox(height: 13),
 
-                    // ------------------------------------------------
-                    
-                    // ------------------------------------------------
-                    // PASSWORD RECOVERY NOTE
-                    // ------------------------------------------------
-
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        left: 4,
-                        right: 4,
+                    // CONFIRM PASSWORD
+                    _glassField(
+                      controller: _confirmPasswordController,
+                      hint: 'Confirm password',
+                      icon: Icons.lock_outline_rounded,
+                      obscureText: _obscureConfirmPassword,
+                      suffix: IconButton(
+                        onPressed: _isLoading
+                            ? null
+                            : () {
+                                setState(() {
+                                  _obscureConfirmPassword =
+                                      !_obscureConfirmPassword;
+                                });
+                              },
+                        icon: Icon(
+                          _obscureConfirmPassword
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: pikkXBlack,
+                          size: 20,
+                        ),
                       ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(
-                            Icons.info_outline_rounded,
-                            color: pikkXGrey,
-                            size: 14,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Confirm your password.';
+                        }
+
+                        if (value != _passwordController.text) {
+                          return 'Passwords do not match.';
+                        }
+
+                        return null;
+                      },
+                    ),
+
+                    const SizedBox(height: 15),
+
+                    // SECURITY MESSAGE
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(
+                          sigmaX: 14,
+                          sigmaY: 14,
+                        ),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
                           ),
-                          const SizedBox(width: 6),
-                          const Expanded(
-                            child: Text(
-                              'Forgot your password? You can securely reset it using your email.',
-                              style: TextStyle(
-                                color: pikkXGrey,
-                                fontSize: 10.5,
-                                height: 1.35,
-                              ),
+                          decoration: BoxDecoration(
+                            color: pikkXWhite.withOpacity(0.48),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: pikkXWhite.withOpacity(0.78),
                             ),
                           ),
-                        ],
+                          child: const Row(
+                            children: [
+                              Icon(
+                                Icons.lock_rounded,
+                                color: pikkXBlack,
+                                size: 18,
+                              ),
+                              SizedBox(width: 9),
+                              Expanded(
+                                child: Text(
+                                  'Your login details are secure.',
+                                  style: TextStyle(
+                                    color: pikkXBlack,
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 17),
 
-// RECOVERY EMAIL
-                    // ------------------------------------------------
+                    // PASSWORD RECOVERY
+                    _recoveryCard(),
 
+                    const SizedBox(height: 13),
+
+                    // RECOVERY EMAIL
                     _glassField(
-                      controller:
-                          _recoveryEmailController,
+                      controller: _recoveryEmailController,
                       hint: 'Recovery email',
-                      icon:
-                          Icons.mark_email_read_outlined,
-                      keyboardType:
-                          TextInputType.emailAddress,
+                      icon: Icons.mark_email_read_outlined,
+                      keyboardType: TextInputType.emailAddress,
                       validator: (value) {
                         if (value == null ||
                             value.trim().isEmpty) {
                           return 'Enter a recovery email.';
                         }
 
-                        final recovery =
-                            value.trim();
+                        final recovery = value.trim();
 
                         if (!recovery.contains('@') ||
                             !recovery.contains('.')) {
@@ -1243,13 +1265,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       },
                     ),
 
-                    const SizedBox(height: 9),
+                    const SizedBox(height: 8),
 
                     const Padding(
-                      padding:
-                          EdgeInsets.only(left: 4),
+                      padding: EdgeInsets.only(left: 4),
                       child: Text(
-                        'Use an email you can access if you ever need account recovery.',
+                        'Use an email you can access if you ever need to recover your account.',
                         style: TextStyle(
                           color: pikkXGrey,
                           fontSize: 10.5,
@@ -1258,36 +1279,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 18),
 
-                    // ------------------------------------------------
-                    // RECOVERY CARD
-                    // ------------------------------------------------
-
-                    _recoveryCard(),
-
-                    const SizedBox(height: 17),
-
-                    // ------------------------------------------------
-                    // NAME
-                    // ------------------------------------------------
-
+                    // FULL NAME
                     _glassField(
-                      controller:
-                          _nameController,
+                      controller: _nameController,
                       hint: 'Full name',
-                      icon: Icons
-                          .person_outline_rounded,
-                      keyboardType:
-                          TextInputType.name,
+                      icon: Icons.person_outline_rounded,
+                      keyboardType: TextInputType.name,
                       validator: (value) {
                         if (value == null ||
                             value.trim().isEmpty) {
                           return 'Enter your name.';
                         }
 
-                        if (value.trim().length <
-                            2) {
+                        if (value.trim().length < 2) {
                           return 'Enter your full name.';
                         }
 
@@ -1297,152 +1303,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                     const SizedBox(height: 13),
 
-                    // ------------------------------------------------
-                    // CONFIRM PASSWORD
-                    // ------------------------------------------------
-
-                    _glassField(
-                      controller:
-                          _confirmPasswordController,
-                      hint: 'Confirm password',
-                      icon:
-                          Icons.lock_outline_rounded,
-                      obscureText:
-                          _obscureConfirmPassword,
-                      suffix: IconButton(
-                        onPressed: _isLoading
-                            ? null
-                            : () {
-                                setState(() {
-                                  _obscureConfirmPassword =
-                                      !_obscureConfirmPassword;
-                                });
-                              },
-                        icon: Icon(
-                          _obscureConfirmPassword
-                              ? Icons
-                                  .visibility_off_outlined
-                              : Icons
-                                  .visibility_outlined,
-                          color: pikkXBlack,
-                          size: 20,
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null ||
-                            value.isEmpty) {
-                          return 'Confirm your password.';
-                        }
-
-                        if (value !=
-                            _passwordController.text) {
-                          return 'Passwords do not match.';
-                        }
-
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    const Padding(
-                      padding:
-                          EdgeInsets.only(left: 4),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.lock_outline_rounded,
-                            color: pikkXBlack,
-                            size: 13,
-                          ),
-                          SizedBox(width: 5),
-                          Expanded(
-                            child: Text(
-                              'Your password is protected by Firebase Authentication.',
-                              style: TextStyle(
-                                color: pikkXGrey,
-                                fontSize: 10.5,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 21),
-
-                    // ------------------------------------------------
-                    // NAME
-                    // ------------------------------------------------
-
-                    _glassField(
-                      controller:
-                          _nameController,
-                      hint: 'Full name',
-                      icon: Icons
-                          .person_outline_rounded,
-                      keyboardType:
-                          TextInputType.name,
-                      validator: (value) {
-                        if (value == null ||
-                            value.trim().isEmpty) {
-                          return 'Enter your name.';
-                        }
-
-                        if (value.trim().length <
-                            2) {
-                          return 'Enter your full name.';
-                        }
-
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 13),
-
-                    // ------------------------------------------------
-                    // MAIN EMAIL
-                    // ------------------------------------------------
-
-                    _glassField(
-                      controller:
-                          _emailController,
-                      hint: 'Email or Gmail',
-                      icon:
-                          Icons.email_outlined,
-                      keyboardType:
-                          TextInputType.emailAddress,
-                      validator: (value) {
-                        if (value == null ||
-                            value.trim().isEmpty) {
-                          return 'Enter your email.';
-                        }
-
-                        final email =
-                            value.trim();
-
-                        if (!email.contains('@') ||
-                            !email.contains('.')) {
-                          return 'Enter a valid email.';
-                        }
-
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 13),
-
-                    // ------------------------------------------------
                     // PHONE NUMBER
-                    // ------------------------------------------------
-
                     _phoneField(),
 
                     const SizedBox(height: 8),
 
                     const Padding(
-                      padding:
-                          EdgeInsets.only(left: 4),
+                      padding: EdgeInsets.only(left: 4),
                       child: Text(
                         'Your country selection sets your default PikkX currency.',
                         style: TextStyle(
@@ -1455,64 +1322,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                     const SizedBox(height: 12),
 
-                    // ------------------------------------------------
                     // CURRENCY PREVIEW
-                    // ------------------------------------------------
-
                     _currencyPreview(),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 19),
 
-                    // ------------------------------------------------
-                    // CREATE ACCOUNT
-                    // ------------------------------------------------
+                    // PART 2 CONTINUES HERE
+                    // Terms, Privacy, Create Account and Log In
 
-                    _glassButton(),
-
-                    const SizedBox(height: 25),
-
-                    // ------------------------------------------------
-                    // LOGIN
-                    // ------------------------------------------------
+                    // =================================================
+                    // TERMS & CONDITIONS + PRIVACY POLICY
+                    // =================================================
 
                     Center(
                       child: Wrap(
-                        alignment:
-                            WrapAlignment.center,
-                        children: [
-                          const Text(
-                            'Already have an account? ',
-                            style: TextStyle(
-                              color: pikkXGrey,
-                              fontSize: 12,
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: _openLogin,
-                            child: const Text(
-                              'Log In',
-                              style: TextStyle(
-                                color: pikkXBlack,
-                                fontSize: 12,
-                                fontWeight:
-                                    FontWeight.w900,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 21),
-
-                    // ------------------------------------------------
-                    // TERMS
-                    // ------------------------------------------------
-
-                    Center(
-                      child: Wrap(
-                        alignment:
-                            WrapAlignment.center,
+                        alignment: WrapAlignment.center,
                         children: [
                           const Text(
                             'By creating an account, you agree to our ',
@@ -1521,6 +1345,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               fontSize: 9.5,
                             ),
                           ),
+
                           GestureDetector(
                             onTap: _openTerms,
                             child: const Text(
@@ -1528,11 +1353,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               style: TextStyle(
                                 color: pikkXBlack,
                                 fontSize: 9.5,
-                                fontWeight:
-                                    FontWeight.w800,
+                                fontWeight: FontWeight.w800,
+                                decoration:
+                                    TextDecoration.underline,
                               ),
                             ),
                           ),
+
                           const Text(
                             ' and ',
                             style: TextStyle(
@@ -1540,6 +1367,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               fontSize: 9.5,
                             ),
                           ),
+
                           GestureDetector(
                             onTap: _openPrivacy,
                             child: const Text(
@@ -1547,11 +1375,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               style: TextStyle(
                                 color: pikkXBlack,
                                 fontSize: 9.5,
-                                fontWeight:
-                                    FontWeight.w800,
+                                fontWeight: FontWeight.w800,
+                                decoration:
+                                    TextDecoration.underline,
                               ),
                             ),
                           ),
+
                           const Text(
                             '.',
                             style: TextStyle(
@@ -1563,21 +1393,78 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 15),
+                    const SizedBox(height: 17),
 
-                    // ------------------------------------------------
-                    // SECURITY FOOTER
-                    // ------------------------------------------------
+                    // =================================================
+                    // CREATE ACCOUNT
+                    // =================================================
 
-                    const Center(
-                      child: Text(
-                        'Secure authentication powered by Firebase',
-                        style: TextStyle(
-                          color: Color(0xFF999999),
-                          fontSize: 9,
-                        ),
+                    _glassButton(),
+
+                    const SizedBox(height: 24),
+
+                    // =================================================
+                    // LOG IN
+                    // =================================================
+
+                    Center(
+                      child: Wrap(
+                        alignment: WrapAlignment.center,
+                        children: [
+                          const Text(
+                            'Already have an account? ',
+                            style: TextStyle(
+                              color: pikkXGrey,
+                              fontSize: 11.5,
+                            ),
+                          ),
+
+                          GestureDetector(
+                            onTap: _isLoading ? null : _openLogin,
+                            child: const Text(
+                              'Log In',
+                              style: TextStyle(
+                                color: pikkXBlack,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w900,
+                                decoration:
+                                    TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
+
+                    const SizedBox(height: 20),
+
+                    // =================================================
+                    // SECURITY FOOTER
+                    // =================================================
+
+                    const Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.lock_outline_rounded,
+                            color: pikkXGrey,
+                            size: 13,
+                          ),
+                          SizedBox(width: 5),
+                          Text(
+                            'Your login details are secure.',
+                            style: TextStyle(
+                              color: pikkXGrey,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 8),
                   ],
                 ),
               ),
@@ -1587,4 +1474,5 @@ class _SignUpScreenState extends State<SignUpScreen> {
       ),
     );
   }
+
 }

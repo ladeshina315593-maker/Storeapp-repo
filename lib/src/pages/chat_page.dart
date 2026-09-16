@@ -130,27 +130,33 @@ class _ChatPageState extends State<ChatPage> {
       );
 
       final unreadMessages = await _messagesRef
-          .where('read', isEqualTo: false)
+          .where('senderId', isNotEqualTo: uid)
           .get();
 
       final batch = _firestore.batch();
+      var changed = false;
 
       for (final doc in unreadMessages.docs) {
         final data = doc.data();
 
-        if (data['senderId'] == uid) {
+        if (data['deleted'] == true) {
           continue;
         }
 
         batch.update(
           doc.reference,
           {
+            'delivered': true,
             'read': true,
+            'deliveredAt': FieldValue.serverTimestamp(),
+            'readAt': FieldValue.serverTimestamp(),
           },
         );
+
+        changed = true;
       }
 
-      if (unreadMessages.docs.isNotEmpty) {
+      if (changed) {
         await batch.commit();
       }
     } catch (e) {
@@ -194,6 +200,7 @@ class _ChatPageState extends State<ChatPage> {
         'type': 'text',
         'createdAt':
             FieldValue.serverTimestamp(),
+        'delivered': false,
         'read': false,
         'deleted': false,
         'reactions': <String, dynamic>{},
@@ -1272,6 +1279,17 @@ class _ChatPageState extends State<ChatPage> {
                 ),
               ),
 
+              if (isMine)
+              Padding(
+              padding: const EdgeInsets.only(
+              top: 4,
+              right: 4,
+              ),
+              child: _buildMessageStatus(
+              doc,
+              message,
+              ),
+              ),
               if (reactions.isNotEmpty)
                 _buildReactions(
                   reactions,
@@ -1289,7 +1307,46 @@ class _ChatPageState extends State<ChatPage> {
   // MESSAGE CONTENT
   // ============================================================
 
-  Widget _buildMessageContent({
+  Widget _buildMessageStatus(
+  QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  Map<String, dynamic> message,
+) {
+  if (doc.metadata.hasPendingWrites) {
+    return const Icon(
+      Icons.access_time_rounded,
+      size: 15,
+      color: Colors.white70,
+    );
+  }
+
+  if (message['read'] == true) {
+    return const Icon(
+      Icons.done_all_rounded,
+      size: 15,
+      color: Colors.lightBlueAccent,
+    );
+  }
+
+  if (message['delivered'] == true) {
+    return const Icon(
+      Icons.done_all_rounded,
+      size: 15,
+      color: Colors.white,
+    );
+  }
+
+  return const Icon(
+    Icons.done_rounded,
+    size: 15,
+    color: Colors.white,
+  );
+}
+
+// -----------------------------------------------------------------------------
+// MESSAGE CONTENT
+// -----------------------------------------------------------------------------
+
+Widget _buildMessageContent({
     required String type,
     required String text,
     required Map<String, dynamic> message,
