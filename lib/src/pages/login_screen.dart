@@ -347,52 +347,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   // ============================================================
-  // GLASS CIRCLE BUTTON
-  // ============================================================
-
-  Widget _glassCircleButton({
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(23),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 12,
-          sigmaY: 12,
-        ),
-        child: Container(
-          height: 46,
-          width: 46,
-          decoration: BoxDecoration(
-            color: pikkXWhite.withOpacity(0.58),
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: pikkXWhite.withOpacity(0.9),
-              width: 1.1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: pikkXBlack.withOpacity(0.045),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: IconButton(
-            onPressed: onTap,
-            icon: const Icon(
-              Icons.arrow_back_ios_new_rounded,
-              size: 17,
-              color: pikkXNavy,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
   // BUILD
   // ============================================================
 
@@ -449,20 +403,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 crossAxisAlignment:
                     CrossAxisAlignment.start,
                 children: [
-                  // ==================================================
-                  // BACK BUTTON
-                  // ==================================================
-
-                  _glassCircleButton(
-                    icon: Icons.arrow_back_ios_new_rounded,
-                    onTap: () {
-                      if (!_isLoading) {
-                        Navigator.of(context).pop();
-                      }
-                    },
-                  ),
-
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 10),
 
                   // ==================================================
                   // PIKKX LOGO
