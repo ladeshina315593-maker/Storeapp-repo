@@ -62,7 +62,6 @@ class _ChatPageState extends State<ChatPage> {
   /// 1 = Unread
   /// 2 = Chats
   int _selectedFilter = 0;
-  bool _showArchived = false;
 
   /// Message currently being replied to.
   Map<String, dynamic>? _replyTo;
@@ -572,7 +571,7 @@ class _ChatPageState extends State<ChatPage> {
           archivedFor is List &&
           archivedFor.contains(uid);
 
-      return false
+      return _showArchived
           ? isArchived
           : !isArchived;
     }).toList();
@@ -1173,7 +1172,7 @@ class _ChatPageState extends State<ChatPage> {
                   title: const Text(
                     'Delete',
                   ),
-                  onTap: () async {
+                  onTap: () {
                     Navigator.pop(context);
                     await _deleteChatForMe(
                       chatId,
@@ -1188,7 +1187,7 @@ class _ChatPageState extends State<ChatPage> {
                   title: const Text(
                     'Block',
                   ),
-                  onTap: () async {
+                  onTap: () {
                     Navigator.pop(context);
                     await _blockUser(
                       chatId,
@@ -1204,7 +1203,7 @@ class _ChatPageState extends State<ChatPage> {
                   title: const Text(
                     'Report',
                   ),
-                  onTap: () async {
+                  onTap: () {
                     Navigator.pop(context);
                     await _reportChat(
                       chatId,
@@ -1491,7 +1490,7 @@ class _ChatPageState extends State<ChatPage> {
       onLongPress: () {
         _showChatActions(chatId, data);
       },
-      child: Padding(
+      child:       radius: 21,
       padding: EdgeInsets.zero,
       child: Material(
         color: Colors.transparent,
@@ -1589,8 +1588,8 @@ class _ChatPageState extends State<ChatPage> {
           ),
         ),
       ),
-    ),
-  );
+    );
+      )
 }
 
   // ============================================================
