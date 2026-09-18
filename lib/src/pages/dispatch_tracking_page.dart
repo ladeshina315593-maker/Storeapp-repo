@@ -2,7 +2,7 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 class DispatchTrackingPage extends StatefulWidget {
   final String orderId;
@@ -14,68 +14,126 @@ class DispatchTrackingPage extends StatefulWidget {
 }
 
 class _DispatchTrackingPageState extends State<DispatchTrackingPage> {
-  GoogleMapController? _map;
+  MapboxMap? _map;
   Timer? _timer;
 
-  static const LatLng _abuja = LatLng(9.0765, 7.3986);
-  static const LatLng _lagos = LatLng(6.5244, 3.3792);
+  static final Position _abuja = Position(7.3986, 9.0765);
+  static final Position _lagos = Position(3.3792, 6.5244);
 
   double _progress = 0;
-  LatLng _demoRider = _abuja;
 
-  LatLng _lerp(LatLng a, LatLng b, double t) {
-    return LatLng(
-      a.latitude + (b.latitude - a.latitude) * t,
-      a.longitude + (b.longitude - a.longitude) * t,
+  Position _demoRider = _abuja;
+
+  Position _lerp(
+    Position a,
+    Position b,
+    double t,
+  ) {
+    final aLat = a.lat.toDouble();
+    final aLng = a.lng.toDouble();
+
+    final bLat = b.lat.toDouble();
+    final bLng = b.lng.toDouble();
+
+    return Position(
+      aLng + (bLng - aLng) * t,
+      aLat + (bLat - aLat) * t,
     );
   }
 
   void _startDemo() {
     if (_timer != null) return;
 
-    _timer = Timer.periodic(const Duration(seconds: 2), (_) {
-      if (!mounted) return;
+    _timer = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) {
+        if (!mounted) return;
 
-      setState(() {
-        _progress += 0.015;
-        if (_progress >= 1) _progress = 0;
-        _demoRider = _lerp(_abuja, _lagos, _progress);
-      });
+        setState(() {
+          _progress += 0.015;
 
-      _map?.animateCamera(
-        CameraUpdate.newLatLng(_demoRider),
-      );
-    });
+          if (_progress >= 1) {
+            _progress = 0;
+          }
+
+          _demoRider = _lerp(
+            _abuja,
+            _lagos,
+            _progress,
+          );
+        });
+
+        final map = _map;
+
+        if (map != null) {
+          map.flyTo(
+            CameraOptions(
+              center: Point(
+                coordinates: _demoRider,
+              ),
+            ),
+            MapAnimationOptions(
+              duration: 900,
+            ),
+          );
+        }
+      },
+    );
   }
 
-  LatLng? _location(dynamic value) {
+  Position? _location(dynamic value) {
     if (value is GeoPoint) {
-      return LatLng(value.latitude, value.longitude);
+      return Position(
+        value.longitude,
+        value.latitude,
+      );
     }
 
     if (value is Map) {
-      final lat = value['latitude'] ?? value['lat'];
-      final lng = value['longitude'] ?? value['lng'] ?? value['lon'];
+      final lat =
+          value['latitude'] ?? value['lat'];
+
+      final lng =
+          value['longitude'] ??
+          value['lng'] ??
+          value['lon'];
 
       if (lat is num && lng is num) {
-        return LatLng(lat.toDouble(), lng.toDouble());
+        return Position(
+          lng.toDouble(),
+          lat.toDouble(),
+        );
       }
     }
 
     return null;
   }
 
-  LatLng? _findLocation(Map<String, dynamic> data, List<String> keys) {
+  Position? _findLocation(
+    Map<String, dynamic> data,
+    List<String> keys,
+  ) {
     for (final key in keys) {
       final result = _location(data[key]);
-      if (result != null) return result;
+
+      if (result != null) {
+        return result;
+      }
     }
 
-    final lat = data['riderLatitude'] ?? data['latitude'];
-    final lng = data['riderLongitude'] ?? data['longitude'];
+    final lat =
+        data['riderLatitude'] ??
+        data['latitude'];
+
+    final lng =
+        data['riderLongitude'] ??
+        data['longitude'];
 
     if (lat is num && lng is num) {
-      return LatLng(lat.toDouble(), lng.toDouble());
+      return Position(
+        lng.toDouble(),
+        lat.toDouble(),
+      );
     }
 
     return null;
@@ -143,37 +201,96 @@ class _DispatchTrackingPageState extends State<DispatchTrackingPage> {
               data['deliveryStatus'] ??
               (demo ? 'Demo Tracking' : 'Dispatched');
 
-          final markers = <Marker>{
-            Marker(
-              markerId: const MarkerId('rider'),
-              position: rider,
-              infoWindow: InfoWindow(
-                title: demo ? 'Demo Rider' : 'Rider',
-              ),
-            ),
-            Marker(
-              markerId: const MarkerId('destination'),
-              position: destination,
-              infoWindow: const InfoWindow(
-                title: 'Delivery Destination',
-              ),
-            ),
-          };
-
-          final points = demo
-              ? <LatLng>[
+          final routePoints = demo
+              ? <Position>[
                   _abuja,
-                  LatLng(8.2, 6.4),
-                  LatLng(7.3, 5.5),
-                  LatLng(6.8, 4.5),
+                  Position(6.4, 8.2),
+                  Position(5.5, 7.3),
+                  Position(4.5, 6.8),
                   _lagos,
                 ]
-              : <LatLng>[rider, destination];
+              : <Position>[rider, destination];
 
           return Column(
             children: [
               if (demo)
                 Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Text(
+                    'DEMO TRACKING • Abuja → Lagos\\n'
+                    'Real rider location is not available yet.',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+
+              Expanded(
+                child: MapWidget(
+                  cameraOptions: CameraOptions(
+                    center: Point(
+                      coordinates: rider,
+                    ),
+                    zoom: demo ? 6.2 : 13,
+                  ),
+                  onMapCreated: (mapboxMap) async {
+                    _map = mapboxMap;
+
+                    final pointManager =
+                        await mapboxMap.annotations
+                            .createPointAnnotationManager();
+
+                    await pointManager.create(
+                      PointAnnotationOptions(
+                        geometry: Point(
+                          coordinates: rider,
+                        ),
+                        textField: demo ? 'Rider' : 'Rider',
+                        textColor: Colors.black.value,
+                        textHaloColor: Colors.white.value,
+                        textHaloWidth: 2,
+                        textSize: 14,
+                      ),
+                    );
+
+                    await pointManager.create(
+                      PointAnnotationOptions(
+                        geometry: Point(
+                          coordinates: destination,
+                        ),
+                        textField: 'Destination',
+                        textColor: Colors.black.value,
+                        textHaloColor: Colors.white.value,
+                        textHaloWidth: 2,
+                        textSize: 14,
+                      ),
+                    );
+
+                    final lineManager =
+                        await mapboxMap.annotations
+                            .createPolylineAnnotationManager();
+
+                    await lineManager.create(
+                      PolylineAnnotationOptions(
+                        geometry: LineString(
+                          coordinates: routePoints,
+                        ),
+                        lineColor: Colors.black.value,
+                        lineWidth: 5,
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              Container(
                   width: double.infinity,
                   margin: const EdgeInsets.all(12),
                   padding: const EdgeInsets.all(12),
@@ -192,25 +309,14 @@ class _DispatchTrackingPageState extends State<DispatchTrackingPage> {
                 ),
 
               Expanded(
-                child: GoogleMap(
-                  initialCameraPosition: CameraPosition(
-                    target: rider,
+                child: MapWidget(
+                  cameraOptions: CameraOptions(
+                    center: Point(coordinates: rider),
                     zoom: demo ? 6.2 : 13,
                   ),
                   onMapCreated: (controller) {
                     _map = controller;
                   },
-                  markers: markers,
-                  polylines: {
-                    Polyline(
-                      polylineId: const PolylineId('route'),
-                      points: points,
-                      width: 5,
-                    ),
-                  },
-                  myLocationButtonEnabled: false,
-                  zoomControlsEnabled: true,
-                  compassEnabled: true,
                 ),
               ),
 

@@ -61,7 +61,7 @@ class _ChatPageState extends State<ChatPage> {
   /// 0 = Community
   /// 1 = Unread
   /// 2 = Chats
-  int _selectedFilter = 2;
+  int _selectedFilter = 0;
 
   /// Message currently being replied to.
   Map<String, dynamic>? _replyTo;
@@ -544,12 +544,41 @@ class _ChatPageState extends State<ChatPage> {
     List<QueryDocumentSnapshot<Map<String, dynamic>>>
         chats,
   ) {
-    if (_selectedFilter == 2) {
-      return chats;
+    final uid = _userId;
+
+    if (uid == null) {
+      return [];
     }
 
+    final visibleChats = chats.where((doc) {
+      final data = doc.data();
+
+      final deletedFor =
+          data['deletedFor'];
+
+      final isDeletedForMe =
+          deletedFor is List &&
+          deletedFor.contains(uid);
+
+      if (isDeletedForMe) {
+        return false;
+      }
+
+      final archivedFor =
+          data['archivedFor'];
+
+      final isArchived =
+          archivedFor is List &&
+          archivedFor.contains(uid);
+
+      return _showArchived
+          ? isArchived
+          : !isArchived;
+    }).toList();
+
+    // Chat
     if (_selectedFilter == 0) {
-      return chats.where((doc) {
+      return visibleChats.where((doc) {
         final data = doc.data();
 
         final type =
@@ -557,39 +586,105 @@ class _ChatPageState extends State<ChatPage> {
                 ?.toString()
                 .toLowerCase();
 
-        final isCommunity =
-            data['isCommunity'] == true;
-
-        return type == 'community' ||
-            isCommunity;
+        return type != 'community' &&
+            data['isCommunity'] != true;
       }).toList();
     }
 
-    return chats.where((doc) {
+    // Communities
+    if (_selectedFilter == 1) {
+      return visibleChats.where((doc) {
+        final data = doc.data();
+
+        final type =
+            data['type']
+                ?.toString()
+                .toLowerCase();
+
+        return type == 'community' ||
+            data['isCommunity'] == true;
+      }).toList();
+    }
+
+    // Unread
+    if (_selectedFilter == 2) {
+      return visibleChats.where((doc) {
+        final data = doc.data();
+
+        final count =
+            data['unreadCount'];
+
+        final unreadCount =
+            count is num && count > 0;
+
+        final unread =
+            data['unread'] == true;
+
+        final unreadFor =
+            data['unreadFor'];
+
+        final unreadForUser =
+            unreadFor is List &&
+            unreadFor.contains(uid);
+
+        return unreadCount ||
+            unread ||
+            unreadForUser;
+      }).toList();
+    }
+
+    // Favorite
+    return visibleChats.where((doc) {
       final data = doc.data();
 
-      final unreadCount =
-          data['unreadCount'];
+      final favoriteFor =
+          data['favoriteFor'];
 
-      final hasUnreadCount =
-          unreadCount is num &&
-          unreadCount > 0;
-
-      final unread =
-          data['unread'] == true;
-
-      final unreadFor =
-          data['unreadFor'];
-
-      final unreadForUser =
-          unreadFor is List &&
-          _userId != null &&
-          unreadFor.contains(_userId);
-
-      return hasUnreadCount ||
-          unread ||
-          unreadForUser;
+      return favoriteFor is List &&
+          favoriteFor.contains(uid);
     }).toList();
+  }
+
+  Future<void> _setFavorite(
+    String chatId,
+    bool value,
+  ) async {
+    final uid = _userId;
+
+    if (uid == null) return;
+
+    await _firestore
+        .collection('chats')
+        .doc(chatId)
+        .set(
+      {
+        'favoriteFor': value
+            ? FieldValue.arrayUnion([uid])
+            : FieldValue.arrayRemove([uid]),
+      },
+      SetOptions(merge: true),
+    );
+  }
+
+  Future<void> _setArchived(
+    String chatId,
+    bool value,
+  ) async {
+    final uid = _userId;
+
+    if (uid == null) return;
+
+    await _firestore
+        .collection('chats')
+        .doc(chatId)
+        .set(
+      {
+        'archivedFor': value
+            ? FieldValue.arrayUnion([uid])
+            : FieldValue.arrayRemove([uid]),
+      },
+      SetOptions(merge: true),
+    );
   }
 
   // ============================================================
@@ -715,39 +810,58 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   // ============================================================
-  // GLASS FILTER BOX
+  // CHAT FILTER BOX
   // ============================================================
 
   Widget _buildFilterBox() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        16,
-        4,
-        16,
-        8,
-      ),
-      child: _glass(
-        radius: 18,
-        padding: const EdgeInsets.all(4),
-        child: Row(
-          children: [
-            _filterButton(
-              label: 'Community',
-              index: 0,
-              icon: Icons.groups_rounded,
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: _glass(
+              radius: 18,
+              padding: const EdgeInsets.all(4),
+              child: Row(
+                children: [
+                  _filterButton(
+                    label: 'Chat',
+                    index: 0,
+                    icon: Icons.chat_bubble_rounded,
+                  ),
+                  _filterButton(
+                    label: 'Communities',
+                    index: 1,
+                    icon: Icons.groups_rounded,
+                  ),
+                  _filterButton(
+                    label: 'Unread',
+                    index: 2,
+                    icon: Icons.mark_email_unread_rounded,
+                  ),
+                  _filterButton(
+                    label: 'Favorite',
+                    index: 3,
+                    icon: Icons.star_rounded,
+                  ),
+                ],
+              ),
             ),
-            _filterButton(
-              label: 'Unread',
-              index: 1,
-              icon: Icons.mark_email_unread_rounded,
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: _showFolderMenu,
+            child: _glass(
+              radius: 18,
+              padding: const EdgeInsets.all(10),
+              child: const Icon(
+                Icons.add_rounded,
+                size: 21,
+                color: pikkXBlack,
+              ),
             ),
-            _filterButton(
-              label: 'Chats',
-              index: 2,
-              icon: Icons.chat_bubble_rounded,
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -757,55 +871,46 @@ class _ChatPageState extends State<ChatPage> {
     required int index,
     required IconData icon,
   }) {
-    final selected =
-        _selectedFilter == index;
+    final selected = _selectedFilter == index;
 
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          if (_selectedFilter == index) {
-            return;
-          }
-
           setState(() {
             _selectedFilter = index;
+            _showArchived = false;
           });
         },
         child: AnimatedContainer(
-          duration:
-              const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
+          duration: const Duration(milliseconds: 180),
           height: 39,
           decoration: BoxDecoration(
             color: selected
                 ? pikkXBlack
                 : Colors.transparent,
-            borderRadius:
-                BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(14),
           ),
           child: Row(
-            mainAxisAlignment:
-                MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 icon,
-                size: 14,
+                size: 13,
                 color: selected
                     ? pikkXWhite
                     : pikkXGrey,
               ),
-              const SizedBox(width: 5),
+              const SizedBox(width: 4),
               Flexible(
                 child: Text(
                   label,
                   maxLines: 1,
-                  overflow:
-                      TextOverflow.ellipsis,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: selected
                         ? pikkXWhite
                         : pikkXGrey,
-                    fontSize: 10.5,
+                    fontSize: 9.5,
                     fontWeight: selected
                         ? FontWeight.w800
                         : FontWeight.w600,
@@ -817,6 +922,536 @@ class _ChatPageState extends State<ChatPage> {
         ),
       ),
     );
+  }
+
+  void _showFolderMenu() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: pikkXWhite,
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(28),
+            ),
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 12),
+                const Text(
+                  'Chat folders',
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.create_new_folder_rounded,
+                  ),
+                  title: const Text('Create folder'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _createChatFolder();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.archive_rounded,
+                  ),
+                  title: const Text('Archived chats'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    setState(() {
+                      _showArchived = true;
+                    });
+                  },
+                ),
+                const SizedBox(height: 10),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _createChatFolder() async {
+    final uid = _userId;
+    if (uid == null) return;
+
+    final controller = TextEditingController();
+
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Create folder'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(
+              hintText: 'Folder name',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final value = controller.text.trim();
+                if (value.isNotEmpty) {
+                  Navigator.pop(context, value);
+                }
+              },
+              child: const Text('Create'),
+            ),
+          ],
+        );
+      },
+    );
+
+    controller.dispose();
+
+    if (name == null || name.trim().isEmpty) return;
+
+    await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('chatFolders')
+        .add({
+      'name': name.trim(),
+      'chatIds': <String>[],
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+
+  // ============================================================
+  // CHAT LONG-PRESS ACTIONS
+  // ============================================================
+
+  void _showChatActions(
+    String chatId,
+    Map<String, dynamic> data,
+  ) {
+    final uid = _userId;
+    if (uid == null) return;
+
+    final favoriteFor = data['favoriteFor'];
+    final isFavorite =
+        favoriteFor is List &&
+        favoriteFor.contains(uid);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return SafeArea(
+          child: Container(
+            decoration: const BoxDecoration(
+              color: pikkXWhite,
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(28),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 10),
+
+                Container(
+                  width: 42,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: pikkXLightGrey,
+                    borderRadius:
+                        BorderRadius.circular(20),
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                ListTile(
+                  leading: Icon(
+                    isFavorite
+                        ? Icons.star_rounded
+                        : Icons.star_border_rounded,
+                  ),
+                  title: Text(
+                    isFavorite
+                        ? 'Remove from Favorite'
+                        : 'Favorite',
+                  ),
+                  onTap: () async {
+                    Navigator.pop(context);
+
+                    await _setFavorite(
+                      chatId,
+                      !isFavorite,
+                    );
+                  },
+                ),
+
+                ListTile(
+                  leading: const Icon(
+                    Icons.folder_rounded,
+                  ),
+                  title: const Text(
+                    'Add to folder',
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showFolderPicker(chatId);
+                  },
+                ),
+
+                ListTile(
+                  leading: const Icon(
+                    Icons.notifications_off_rounded,
+                  ),
+                  title: const Text(
+                    'Mute',
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showMessage(
+                      'Mute will be added next.',
+                    );
+                  },
+                ),
+
+                ListTile(
+                  leading: const Icon(
+                    Icons.push_pin_rounded,
+                  ),
+                  title: const Text(
+                    'Pin',
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showMessage(
+                      'Pin will be added next.',
+                    );
+                  },
+                ),
+
+                ListTile(
+                  leading: const Icon(
+                    Icons.archive_rounded,
+                  ),
+                  title: const Text(
+                    'Archive',
+                  ),
+                  onTap: () async {
+                    Navigator.pop(context);
+
+                    await _setArchived(
+                      chatId,
+                      true,
+                    );
+
+                    if (mounted) {
+                      _showMessage(
+                        'Chat archived.',
+                      );
+                    }
+                  },
+                ),
+
+                ListTile(
+                  leading: const Icon(
+                    Icons.delete_outline_rounded,
+                  ),
+                  title: const Text(
+                    'Delete',
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    await _deleteChatForMe(
+                      chatId,
+                    );
+                  },
+                ),
+
+                ListTile(
+                  leading: const Icon(
+                    Icons.block_rounded,
+                  ),
+                  title: const Text(
+                    'Block',
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    await _blockUser(
+                      chatId,
+                      data,
+                    );
+                  },
+                ),
+
+                ListTile(
+                  leading: const Icon(
+                    Icons.report_problem_outlined,
+                  ),
+                  title: const Text(
+                    'Report',
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    await _reportChat(
+                      chatId,
+                      data,
+                    );
+                  },
+                ),
+
+                ListTile(
+                  leading: const Icon(
+                    Icons.close_rounded,
+                  ),
+                  title: const Text(
+                    'Cancel',
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                  },
+                ),
+
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showFolderPicker(
+    String chatId,
+  ) async {
+    final uid = _userId;
+
+    if (uid == null) return;
+
+    final folders = await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('chatFolders')
+        .get();
+
+    if (!mounted) return;
+
+    if (folders.docs.isEmpty) {
+      _showMessage(
+        'Create a folder first.',
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: pikkXWhite,
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(28),
+            ),
+          ),
+          child: SafeArea(
+            child: ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.symmetric(
+                vertical: 12,
+              ),
+              children: [
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text(
+                    'Add to folder',
+                    style: TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                ...folders.docs.map((folder) {
+                  final data = folder.data();
+                  final name =
+                      data['name']?.toString() ??
+                          'Folder';
+
+                  return ListTile(
+                    leading: const Icon(
+                      Icons.folder_rounded,
+                    ),
+                    title: Text(name),
+                    onTap: () async {
+                      await folder.reference.update({
+                        'chatIds':
+                            FieldValue.arrayUnion([
+                          chatId,
+                        ]),
+                        'updatedAt':
+                            FieldValue.serverTimestamp(),
+                      });
+
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                      }
+
+                      if (mounted) {
+                        _showMessage(
+                          'Added to $name.',
+                        );
+                      }
+                    },
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+
+  // ============================================================
+  // DELETE / BLOCK / REPORT
+  // ============================================================
+
+  String? _otherUserId(
+    Map<String, dynamic> data,
+  ) {
+    final uid = _userId;
+    final participants = data['participants'];
+
+    if (uid == null || participants is! List) {
+      return null;
+    }
+
+    for (final id in participants) {
+      if (id.toString() != uid) {
+        return id.toString();
+      }
+    }
+
+    return null;
+  }
+
+  Future<void> _deleteChatForMe(
+    String chatId,
+  ) async {
+    final uid = _userId;
+
+    if (uid == null) return;
+
+    try {
+      await _firestore
+          .collection('chats')
+          .doc(chatId)
+          .set(
+        {
+          'deletedFor': FieldValue.arrayUnion([uid]),
+        },
+        SetOptions(merge: true),
+      );
+
+      if (mounted) {
+        _showMessage('Chat deleted for you.');
+      }
+    } catch (e) {
+      debugPrint('Delete chat error: $e');
+
+      if (mounted) {
+        _showMessage('Could not delete chat.');
+      }
+    }
+  }
+
+  Future<void> _blockUser(
+    String chatId,
+    Map<String, dynamic> data,
+  ) async {
+    final uid = _userId;
+    final otherUid = _otherUserId(data);
+
+    if (uid == null || otherUid == null) {
+      if (mounted) {
+        _showMessage('Could not identify this user.');
+      }
+      return;
+    }
+
+    try {
+      await _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('blockedUsers')
+          .doc(otherUid)
+          .set({
+        'userId': otherUid,
+        'chatId': chatId,
+        'blockedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) {
+        _showMessage('User blocked.');
+      }
+    } catch (e) {
+      debugPrint('Block user error: $e');
+
+      if (mounted) {
+        _showMessage('Could not block user.');
+      }
+    }
+  }
+
+  Future<void> _reportChat(
+    String chatId,
+    Map<String, dynamic> data,
+  ) async {
+    final uid = _userId;
+    final otherUid = _otherUserId(data);
+
+    if (uid == null || otherUid == null) {
+      if (mounted) {
+        _showMessage('Could not identify this user.');
+      }
+      return;
+    }
+
+    try {
+      await _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('reports')
+          .add({
+        'chatId': chatId,
+        'reportedUserId': otherUid,
+        'reportedAt': FieldValue.serverTimestamp(),
+        'type': 'chat',
+      });
+
+      if (mounted) {
+        _showMessage('Report submitted.');
+      }
+    } catch (e) {
+      debugPrint('Report chat error: $e');
+
+      if (mounted) {
+        _showMessage('Could not submit report.');
+      }
+    }
   }
 
   // ============================================================
@@ -851,8 +1486,11 @@ class _ChatPageState extends State<ChatPage> {
             'community' ||
         data['isCommunity'] == true;
 
-    return _glass(
-      radius: 21,
+    return GestureDetector(
+      onLongPress: () {
+        _showChatActions(chatId, data);
+      },
+      child:       radius: 21,
       padding: EdgeInsets.zero,
       child: Material(
         color: Colors.transparent,
@@ -951,7 +1589,8 @@ class _ChatPageState extends State<ChatPage> {
         ),
       ),
     );
-  }
+      )
+}
 
   // ============================================================
   // UNREAD COUNT
