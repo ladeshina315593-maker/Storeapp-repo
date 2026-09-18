@@ -28,16 +28,17 @@ class _CustomBottomNavigationBarState
   //
   // Home → Cart → Chat → Favourite → Profile
   //
-  // IMPORTANT:
-  // - ONE floating glass container only
-  // - NO circles around individual icons
-  // - Cart uses a real shopping-cart icon
+  // DESIGN:
+  // - ONE floating glass container
+  // - Icon above label
+  // - No circles around individual icons
+  // - Subtle selected highlight
+  // - Black / white PikkX glass style
   // - Responsive across screen sizes
   // ============================================================
 
   static const Color pikkXBlack = Color(0xFF050505);
   static const Color pikkXWhite = Color(0xFFFFFFFF);
-  static const Color pikkXGrey = Color(0xFF777777);
 
   late final AnimationController _selectionController;
 
@@ -88,11 +89,11 @@ class _CustomBottomNavigationBarState
   // ============================================================
 
   static const List<IconData> _icons = [
-    Icons.home_rounded,
-    Icons.shopping_cart_rounded,
-    Icons.chat_bubble_rounded,
-    Icons.favorite_rounded,
-    Icons.person_rounded,
+    Icons.home_outlined,
+    Icons.shopping_cart_outlined,
+    Icons.chat_bubble_outline_rounded,
+    Icons.favorite_border_rounded,
+    Icons.person_outline_rounded,
   ];
 
   static const List<String> _labels = [
@@ -104,10 +105,11 @@ class _CustomBottomNavigationBarState
   ];
 
   // ============================================================
-  // SINGLE ICON ITEM
+  // NAVIGATION ITEM
   //
-  // There is intentionally NO BoxDecoration here.
-  // No circle, no pill, no separate background.
+  // Icon sits above the label.
+  // No individual circles.
+  // Selected item gets a subtle rounded highlight.
   // ============================================================
 
   Widget _buildNavItem({
@@ -127,54 +129,55 @@ class _CustomBottomNavigationBarState
           highlightColor: Colors.transparent,
           hoverColor: Colors.transparent,
           focusColor: Colors.transparent,
-          borderRadius: BorderRadius.circular(22),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            margin: const EdgeInsets.symmetric(
-              horizontal: 3,
-              vertical: 7,
-            ),
-            padding: EdgeInsets.symmetric(
-              horizontal: isSelected ? 12 : 7,
-              vertical: 8,
-            ),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? pikkXBlack
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  _icons[index],
-                  size: index == 2
-                      ? iconSize + 1
-                      : iconSize,
-                  color: isSelected
-                      ? pikkXWhite
-                      : pikkXBlack.withOpacity(0.68),
-                ),
-                if (isSelected) ...[
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      _labels[index],
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: pikkXWhite,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: -0.1,
-                      ),
+          borderRadius: BorderRadius.circular(18),
+          child: Center(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutCubic,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 9,
+                vertical: 6,
+              ),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? pikkXBlack.withOpacity(0.08)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isSelected
+                        ? _getSelectedIcon(index)
+                        : _icons[index],
+                    size: index == 2
+                        ? iconSize + 1
+                        : iconSize,
+                    color: isSelected
+                        ? pikkXBlack
+                        : pikkXBlack.withOpacity(0.48),
+                  ),
+
+                  const SizedBox(height: 2),
+
+                  Text(
+                    _labels[index],
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: isSelected
+                          ? pikkXBlack
+                          : pikkXBlack.withOpacity(0.48),
+                      fontSize: 10.5,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                      letterSpacing: -0.1,
                     ),
                   ),
                 ],
-              ],
+              ),
             ),
           ),
         ),
@@ -183,14 +186,40 @@ class _CustomBottomNavigationBarState
   }
 
   // ============================================================
+  // SELECTED ICONS
+  // ============================================================
+
+  IconData _getSelectedIcon(int index) {
+    switch (index) {
+      case 0:
+        return Icons.home_rounded;
+
+      case 1:
+        return Icons.shopping_cart_rounded;
+
+      case 2:
+        return Icons.chat_bubble_rounded;
+
+      case 3:
+        return Icons.favorite_rounded;
+
+      case 4:
+        return Icons.person_rounded;
+
+      default:
+        return _icons[index];
+    }
+  }
+
+  // ============================================================
   // GLASS BACKGROUND
   //
-  // THIS is the ONE floating container.
+  // ONE floating glass container.
   // ============================================================
 
   Widget _buildGlassBackground() {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(30),
+      borderRadius: BorderRadius.circular(28),
       child: BackdropFilter(
         filter: ImageFilter.blur(
           sigmaX: 18,
@@ -198,18 +227,18 @@ class _CustomBottomNavigationBarState
         ),
         child: Container(
           decoration: BoxDecoration(
-            color: pikkXWhite.withOpacity(0.62),
-            borderRadius: BorderRadius.circular(30),
+            color: pikkXWhite.withOpacity(0.68),
+            borderRadius: BorderRadius.circular(28),
             border: Border.all(
               color: pikkXWhite.withOpacity(0.90),
-              width: 1.15,
+              width: 1.1,
             ),
             boxShadow: [
               BoxShadow(
-                color: pikkXBlack.withOpacity(0.085),
+                color: pikkXBlack.withOpacity(0.055),
                 blurRadius: 24,
                 spreadRadius: 0,
-                offset: const Offset(0, 9),
+                offset: const Offset(0, 8),
               ),
             ],
           ),
@@ -226,15 +255,12 @@ class _CustomBottomNavigationBarState
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
 
-    final double screenWidth =
-        mediaQuery.size.width;
+    final double screenWidth = mediaQuery.size.width;
 
-    /*
-     * Responsive horizontal padding.
-     *
-     * The navigation never becomes ridiculously wide on tablets
-     * and does not become cramped on smaller phones.
-     */
+    // ----------------------------------------------------------
+    // RESPONSIVE HORIZONTAL PADDING
+    // ----------------------------------------------------------
+
     final double horizontalPadding =
         screenWidth < 360
             ? 8
@@ -242,10 +268,18 @@ class _CustomBottomNavigationBarState
                 ? 14
                 : 24;
 
+    // ----------------------------------------------------------
+    // BOTTOM SAFE AREA
+    // ----------------------------------------------------------
+
     final double bottomPadding =
         mediaQuery.padding.bottom > 0
             ? 4
             : 10;
+
+    // ----------------------------------------------------------
+    // RESPONSIVE ICON SIZE
+    // ----------------------------------------------------------
 
     final double iconSize =
         screenWidth < 360
@@ -253,6 +287,10 @@ class _CustomBottomNavigationBarState
             : screenWidth < 420
                 ? 22
                 : 23;
+
+    // ----------------------------------------------------------
+    // RESPONSIVE NAVIGATION HEIGHT
+    // ----------------------------------------------------------
 
     final double navHeight =
         screenWidth < 360
@@ -272,22 +310,21 @@ class _CustomBottomNavigationBarState
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // ----------------------------------------------------
+            // ==================================================
             // SINGLE FLOATING GLASS BAR
-            // ----------------------------------------------------
+            // ==================================================
 
             Positioned.fill(
               child: _buildGlassBackground(),
             ),
 
-            // ----------------------------------------------------
-            // ICONS
-            // ----------------------------------------------------
+            // ==================================================
+            // NAVIGATION ITEMS
+            // ==================================================
 
             Positioned.fill(
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(
+                padding: const EdgeInsets.symmetric(
                   horizontal: 5,
                 ),
                 child: Row(
@@ -296,18 +333,22 @@ class _CustomBottomNavigationBarState
                       index: 0,
                       iconSize: iconSize,
                     ),
+
                     _buildNavItem(
                       index: 1,
                       iconSize: iconSize,
                     ),
+
                     _buildNavItem(
                       index: 2,
                       iconSize: iconSize,
                     ),
+
                     _buildNavItem(
                       index: 3,
                       iconSize: iconSize,
                     ),
+
                     _buildNavItem(
                       index: 4,
                       iconSize: iconSize,
@@ -321,6 +362,10 @@ class _CustomBottomNavigationBarState
       ),
     );
   }
+
+  // ============================================================
+  // DISPOSE
+  // ============================================================
 
   @override
   void dispose() {
