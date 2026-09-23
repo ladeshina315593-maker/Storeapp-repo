@@ -1,5 +1,5 @@
-
 import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
@@ -7,21 +7,27 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 class DispatchTrackingPage extends StatefulWidget {
   final String orderId;
 
-  const DispatchTrackingPage({super.key, required this.orderId});
+  const DispatchTrackingPage({
+    super.key,
+    required this.orderId,
+  });
 
   @override
-  State<DispatchTrackingPage> createState() => _DispatchTrackingPageState();
+  State<DispatchTrackingPage> createState() =>
+      _DispatchTrackingPageState();
 }
 
 class _DispatchTrackingPageState extends State<DispatchTrackingPage> {
   MapboxMap? _map;
   Timer? _timer;
 
+  PointAnnotationManager? _pointManager;
+  PolylineAnnotationManager? _lineManager;
+
   static final Position _abuja = Position(7.3986, 9.0765);
   static final Position _lagos = Position(3.3792, 6.5244);
 
   double _progress = 0;
-
   Position _demoRider = _abuja;
 
   Position _lerp(
@@ -63,20 +69,11 @@ class _DispatchTrackingPageState extends State<DispatchTrackingPage> {
           );
         });
 
-        final map = _map;
-
-        if (map != null) {
-          map.flyTo(
-            CameraOptions(
-              center: Point(
-                coordinates: _demoRider,
-              ),
-            ),
-            MapAnimationOptions(
-              duration: 900,
-            ),
-          );
-        }
+        _updateMap(
+          rider: _demoRider,
+          destination: _lagos,
+          demo: true,
+        );
       },
     );
   }
@@ -90,11 +87,9 @@ class _DispatchTrackingPageState extends State<DispatchTrackingPage> {
     }
 
     if (value is Map) {
-      final lat =
-          value['latitude'] ?? value['lat'];
+      final lat = value['latitude'] ?? value['lat'];
 
-      final lng =
-          value['longitude'] ??
+      final lng = value['longitude'] ??
           value['lng'] ??
           value['lon'];
 
@@ -121,13 +116,10 @@ class _DispatchTrackingPageState extends State<DispatchTrackingPage> {
       }
     }
 
-    final lat =
-        data['riderLatitude'] ??
-        data['latitude'];
+    final lat = data['riderLatitude'] ?? data['latitude'];
 
     final lng =
-        data['riderLongitude'] ??
-        data['longitude'];
+        data['riderLongitude'] ?? data['longitude'];
 
     if (lat is num && lng is num) {
       return Position(
@@ -139,10 +131,103 @@ class _DispatchTrackingPageState extends State<DispatchTrackingPage> {
     return null;
   }
 
+  Future<void> _updateMap({
+    required Position rider,
+    required Position destination,
+    required bool demo,
+  }) async {
+    final map = _map;
+
+    if (map == null) return;
+
+    final riderPoint = Point(
+      coordinates: rider,
+    );
+
+    final destinationPoint = Point(
+      coordinates: destination,
+    );
+
+    try {
+      if (_pointManager == null) {
+        _pointManager = await map.annotations
+            .createPointAnnotationManager();
+      }
+
+      await _pointManager!.deleteAll();
+
+      await _pointManager!.create(
+        PointAnnotationOptions(
+          geometry: riderPoint,
+          textField: 'Rider',
+          textColor: Colors.black.value,
+          textHaloColor: Colors.white.value,
+          textHaloWidth: 2,
+          textSize: 14,
+        ),
+      );
+
+      await _pointManager!.create(
+        PointAnnotationOptions(
+          geometry: destinationPoint,
+          textField: 'Destination',
+          textColor: Colors.black.value,
+          textHaloColor: Colors.white.value,
+          textHaloWidth: 2,
+          textSize: 14,
+        ),
+      );
+
+      if (_lineManager == null) {
+        _lineManager = await map.annotations
+            .createPolylineAnnotationManager();
+      }
+
+      await _lineManager!.deleteAll();
+
+      final routePoints = demo
+          ? <Position>[
+              _abuja,
+              Position(6.4, 8.2),
+              Position(5.5, 7.3),
+              Position(4.5, 6.8),
+              _lagos,
+            ]
+          : <Position>[
+              rider,
+              destination,
+            ];
+
+      await _lineManager!.create(
+        PolylineAnnotationOptions(
+          geometry: LineString(
+            coordinates: routePoints,
+          ),
+          lineColor: Colors.black.value,
+          lineWidth: 5,
+        ),
+      );
+
+      await map.flyTo(
+        CameraOptions(
+          center: riderPoint,
+          zoom: demo ? 6.2 : 13,
+        ),
+        MapAnimationOptions(
+          duration: 700,
+        ),
+      );
+    } catch (_) {
+      // Prevent map-update errors from crashing the tracking page.
+    }
+  }
+
   @override
   void dispose() {
     _timer?.cancel();
     _map = null;
+    _pointManager = null;
+    _lineManager = null;
     super.dispose();
   }
 
@@ -153,13 +238,16 @@ class _DispatchTrackingPageState extends State<DispatchTrackingPage> {
       appBar: AppBar(
         title: const Text(
           'Dispatch Tracking',
-          style: TextStyle(fontWeight: FontWeight.w700),
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+          ),
         ),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
       ),
-      body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      body: StreamBuilder<
+          DocumentSnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance
             .collection('orders')
             .doc(widget.orderId)
@@ -169,7 +257,10 @@ class _DispatchTrackingPageState extends State<DispatchTrackingPage> {
 
           final realRider = _findLocation(
             data,
-            ['riderLocation', 'riderGeoPoint'],
+            [
+              'riderLocation',
+              'riderGeoPoint',
+            ],
           );
 
           final realDestination = _findLocation(
@@ -183,12 +274,19 @@ class _DispatchTrackingPageState extends State<DispatchTrackingPage> {
           );
 
           final demo = realRider == null;
-          final rider = realRider ?? _demoRider;
-          final destination = realDestination ?? _lagos;
+
+          final rider =
+              realRider ?? _demoRider;
+
+          final destination =
+              realDestination ?? _lagos;
 
           if (demo) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) _startDemo();
+            WidgetsBinding.instance
+                .addPostFrameCallback((_) {
+              if (mounted) {
+                _startDemo();
+              }
             });
           } else {
             _timer?.cancel();
@@ -199,104 +297,37 @@ class _DispatchTrackingPageState extends State<DispatchTrackingPage> {
               data['orderStatus'] ??
               data['status'] ??
               data['deliveryStatus'] ??
-              (demo ? 'Demo Tracking' : 'Dispatched');
+              (demo
+                  ? 'Demo Tracking'
+                  : 'Dispatched');
 
-          final routePoints = demo
-              ? <Position>[
-                  _abuja,
-                  Position(6.4, 8.2),
-                  Position(5.5, 7.3),
-                  Position(4.5, 6.8),
-                  _lagos,
-                ]
-              : <Position>[rider, destination];
+          WidgetsBinding.instance
+              .addPostFrameCallback((_) {
+            if (mounted && _map != null) {
+              _updateMap(
+                rider: rider,
+                destination: destination,
+                demo: demo,
+              );
+            }
+          });
 
           return Column(
             children: [
               if (demo)
                 Container(
                   width: double.infinity,
-                  margin: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.fromLTRB(
+                    12,
+                    12,
+                    12,
+                    8,
+                  ),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.black,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Text(
-                    'DEMO TRACKING • Abuja → Lagos\\n'
-                    'Real rider location is not available yet.',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-
-              Expanded(
-                child: MapWidget(
-                  cameraOptions: CameraOptions(
-                    center: Point(
-                      coordinates: rider,
-                    ),
-                    zoom: demo ? 6.2 : 13,
-                  ),
-                  onMapCreated: (mapboxMap) async {
-                    _map = mapboxMap;
-
-                    final pointManager =
-                        await mapboxMap.annotations
-                            .createPointAnnotationManager();
-
-                    await pointManager.create(
-                      PointAnnotationOptions(
-                        geometry: Point(
-                          coordinates: rider,
-                        ),
-                        textField: demo ? 'Rider' : 'Rider',
-                        textColor: Colors.black.value,
-                        textHaloColor: Colors.white.value,
-                        textHaloWidth: 2,
-                        textSize: 14,
-                      ),
-                    );
-
-                    await pointManager.create(
-                      PointAnnotationOptions(
-                        geometry: Point(
-                          coordinates: destination,
-                        ),
-                        textField: 'Destination',
-                        textColor: Colors.black.value,
-                        textHaloColor: Colors.white.value,
-                        textHaloWidth: 2,
-                        textSize: 14,
-                      ),
-                    );
-
-                    final lineManager =
-                        await mapboxMap.annotations
-                            .createPolylineAnnotationManager();
-
-                    await lineManager.create(
-                      PolylineAnnotationOptions(
-                        geometry: LineString(
-                          coordinates: routePoints,
-                        ),
-                        lineColor: Colors.black.value,
-                        lineWidth: 5,
-                      ),
-                    );
-                  },
-                ),
-              ),
-
-              Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.all(12),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius:
+                        BorderRadius.circular(16),
                   ),
                   child: const Text(
                     'DEMO TRACKING • Abuja → Lagos\n'
@@ -308,55 +339,92 @@ class _DispatchTrackingPageState extends State<DispatchTrackingPage> {
                   ),
                 ),
 
+              // ONE Mapbox map.
               Expanded(
-                child: MapWidget(
-                  cameraOptions: CameraOptions(
-                    center: Point(coordinates: rider),
-                    zoom: demo ? 6.2 : 13,
+                child: ClipRRect(
+                  borderRadius:
+                      const BorderRadius.vertical(
+                    top: Radius.circular(24),
                   ),
-                  onMapCreated: (controller) {
-                    _map = controller;
-                  },
+                  child: MapWidget(
+                    cameraOptions: CameraOptions(
+                      center: Point(
+                        coordinates: rider,
+                      ),
+                      zoom: demo ? 6.2 : 13,
+                    ),
+                    onMapCreated:
+                        (mapboxMap) async {
+                      _map = mapboxMap;
+
+                      await _updateMap(
+                        rider: rider,
+                        destination: destination,
+                        demo: demo,
+                      );
+                    },
+                  ),
                 ),
               ),
 
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(18, 16, 18, 20),
-                decoration: const BoxDecoration(
+                padding:
+                    const EdgeInsets.fromLTRB(
+                  18,
+                  16,
+                  18,
+                  20,
+                ),
+                decoration:
+                    const BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.vertical(
+                  borderRadius:
+                      BorderRadius.vertical(
                     top: Radius.circular(24),
                   ),
                 ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
                   children: [
                     Text(
-                      demo ? 'Demo delivery' : 'Your delivery',
+                      demo
+                          ? 'Demo delivery'
+                          : 'Your delivery',
                       style: const TextStyle(
                         fontSize: 20,
-                        fontWeight: FontWeight.w800,
+                        fontWeight:
+                            FontWeight.w800,
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       'Status: $status',
-                      style: const TextStyle(fontSize: 15),
+                      style:
+                          const TextStyle(
+                        fontSize: 15,
+                      ),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       demo
                           ? 'Rider: Abuja'
                           : 'Live rider location available',
-                      style: const TextStyle(fontSize: 14),
+                      style:
+                          const TextStyle(
+                        fontSize: 14,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       demo
                           ? 'Destination: Lagos'
                           : 'Destination location available',
-                      style: const TextStyle(fontSize: 14),
+                      style:
+                          const TextStyle(
+                        fontSize: 14,
+                      ),
                     ),
                   ],
                 ),
