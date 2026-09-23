@@ -37,7 +37,10 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  // Mapbox token is supplied securely by Codemagic
+  // using the ACCESS_TOKEN environment variable.
   const accessToken = String.fromEnvironment('ACCESS_TOKEN');
+
   if (accessToken.isNotEmpty) {
     MapboxOptions.setAccessToken(accessToken);
   }
@@ -76,9 +79,6 @@ class PikkXApp extends StatelessWidget {
           displayColor: AppTheme.pikkXBlack,
         ),
 
-        // IMPORTANT:
-        // No const here because AppTheme.pikkXBlack
-        // is not a compile-time constant in this project.
         appBarTheme: AppBarTheme(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -93,10 +93,7 @@ class PikkXApp extends StatelessWidget {
       // ======================================================
 
       routes: {
-        // ----------------------------------------------------
         // AUTH
-        // ----------------------------------------------------
-
         '/login': (context) => const LoginScreen(),
 
         '/signup': (context) => const SignUpScreen(),
@@ -104,75 +101,49 @@ class PikkXApp extends StatelessWidget {
         '/forgot-password': (context) =>
             const ForgotPasswordScreen(),
 
-        // Kept so existing references do not break.
         '/phone-login': (context) =>
             const PhoneAuthScreen(),
 
         '/phone-signup': (context) =>
             const PhoneAuthScreen(),
 
-        // ----------------------------------------------------
         // LEGAL
-        // ----------------------------------------------------
-
         '/terms': (context) =>
             const TermsConditionsPage(),
 
         '/privacy': (context) =>
             const PrivacyPolicyPage(),
 
-        // ----------------------------------------------------
         // MAIN APP
-        // ----------------------------------------------------
-
         '/': (context) => const AuthGate(),
 
         '/home': (context) => const MainPage(),
 
         '/profile': (context) => const ProfilePage(),
 
-
         '/MainPage': (context) => const MainPage(),
 
-        // ----------------------------------------------------
         // CART
-        // ----------------------------------------------------
-
         '/cart': (context) => ShoppingCartPage(),
 
-        // ----------------------------------------------------
         // FAVOURITES
-        // ----------------------------------------------------
-
         '/favourites': (context) =>
             const FavouritePage(),
 
-        // ----------------------------------------------------
         // CHECKOUT
-        // ----------------------------------------------------
-
         '/checkout': (context) => CheckoutPage(),
 
         '/delivery-address': (context) =>
             DeliveryAddressPage(),
 
-        // ----------------------------------------------------
         // ORDERS
-        // ----------------------------------------------------
-
         '/orders': (context) => OrdersPage(),
 
-        // ----------------------------------------------------
         // NOTIFICATIONS
-        // ----------------------------------------------------
-
         '/notifications': (context) =>
             NotificationsPage(),
 
-        // ----------------------------------------------------
         // SETTINGS
-        // ----------------------------------------------------
-
         '/settings': (context) => SettingsPage(),
       },
 
@@ -181,10 +152,7 @@ class PikkXApp extends StatelessWidget {
       // ======================================================
 
       onGenerateRoute: (RouteSettings settings) {
-        // ====================================================
         // PRODUCT DETAIL
-        // ====================================================
-
         if (settings.name == '/detail') {
           final arguments = settings.arguments;
 
@@ -205,8 +173,8 @@ class PikkXApp extends StatelessWidget {
 
           final productId =
               productMap['productId']?.toString() ??
-                  productMap['id']?.toString() ??
-                  '';
+              productMap['id']?.toString() ??
+              '';
 
           if (productId.isEmpty) {
             return MaterialPageRoute(
@@ -229,10 +197,7 @@ class PikkXApp extends StatelessWidget {
           );
         }
 
-        // ====================================================
         // ORDER DETAILS
-        // ====================================================
-
         if (settings.name == '/order-details') {
           final orderId =
               settings.arguments?.toString();
@@ -257,10 +222,7 @@ class PikkXApp extends StatelessWidget {
           );
         }
 
-        // ====================================================
         // DISPATCH TRACKING
-        // ====================================================
-
         if (settings.name == '/dispatch-tracking') {
           final orderId =
               settings.arguments?.toString();
@@ -285,10 +247,7 @@ class PikkXApp extends StatelessWidget {
           );
         }
 
-        // ====================================================
         // CHAT
-        // ====================================================
-
         if (settings.name == '/chat') {
           final arguments = settings.arguments;
 
@@ -324,10 +283,7 @@ class PikkXApp extends StatelessWidget {
           );
         }
 
-        // ====================================================
         // FALLBACK
-        // ====================================================
-
         return MaterialPageRoute(
           builder: (context) => const Scaffold(
             body: Center(
@@ -357,10 +313,7 @@ class AuthGate extends StatelessWidget {
       stream: FirebaseAuth.instance.authStateChanges(),
 
       builder: (context, snapshot) {
-        // ----------------------------------------------------
         // CHECKING
-        // ----------------------------------------------------
-
         if (snapshot.connectionState ==
             ConnectionState.waiting) {
           return Scaffold(
@@ -374,18 +327,12 @@ class AuthGate extends StatelessWidget {
           );
         }
 
-        // ----------------------------------------------------
         // SIGNED IN
-        // ----------------------------------------------------
-
         if (snapshot.hasData) {
           return const MainPage();
         }
 
-        // ----------------------------------------------------
         // SIGNED OUT
-        // ----------------------------------------------------
-
         return const LoginScreen();
       },
     );
