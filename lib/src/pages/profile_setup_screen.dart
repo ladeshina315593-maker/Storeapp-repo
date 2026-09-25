@@ -1,53 +1,28 @@
 import 'dart:ui';
 
-import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:country_picker/country_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:pikkx/src/pages/mainPage.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   const ProfileSetupScreen({super.key});
 
   @override
-  State<ProfileSetupScreen> createState() =>
-      _ProfileSetupScreenState();
+  State<ProfileSetupScreen> createState() => _ProfileSetupScreenState();
 }
 
-class _ProfileSetupScreenState
-    extends State<ProfileSetupScreen> {
-  final ImagePicker _imagePicker = ImagePicker();
-  XFile? _profileImage;
+class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   // ============================================================
-  // pikkX THEME
+  // PIKKX THEME
   // ============================================================
 
-  static const Color pikkXBlack =
-      Color(0xFF050505);
-
-  static const Color pikkXWhite =
-      Color(0xFFFFFFFF);
-
-  static const Color background =
-      Color(0xFFF7F7F7);
-
-  static const Color cardWhite =
-      Color(0xFFFFFFFF);
-
-  static const Color pikkXNavy =
-      Color(0xFF10233F);
-
-  static const Color darkText =
-      Color(0xFF050505);
-
-  static const Color mutedText =
-      Color(0xFF737373);
-
-  static const Color lightGrey =
-      Color(0xFFE7E7E7);
+  static const Color pikkXBlack = Color(0xFF050505);
+  static const Color background = Color(0xFFF7F7F7);
+  static const Color darkText = Color(0xFF050505);
+  static const Color mutedText = Color(0xFF737373);
+  static const Color lightGrey = Color(0xFFE7E7E7);
 
   // ============================================================
   // CONTROLLERS
@@ -62,16 +37,12 @@ class _ProfileSetupScreenState
   final TextEditingController _emailController =
       TextEditingController();
 
-  final FocusNode _nameFocus =
-      FocusNode();
-
-  final FocusNode _usernameFocus =
-      FocusNode();
-
-  final FocusNode _emailFocus =
-      FocusNode();
+  final FocusNode _nameFocus = FocusNode();
+  final FocusNode _usernameFocus = FocusNode();
+  final FocusNode _emailFocus = FocusNode();
 
   String? _selectedCountry;
+  String? _selectedCountryCode;
 
   bool _loading = false;
 
@@ -93,30 +64,8 @@ class _ProfileSetupScreenState
   }
 
   // ============================================================
-  // NAVIGATION
+  // CONTINUE
   // ============================================================
-
-  Future<void> _pickProfileImage() async {
-    final image = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 85,
-    );
-    if (image != null && mounted) {
-      setState(() {
-        _profileImage = image;
-      });
-    }
-  }
-
-  Future<String?> _uploadProfileImage(String uid) async {
-    if (_profileImage == null) return null;
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child('profile_images')
-        .child('$uid.jpg');
-    await ref.putData(await _profileImage!.readAsBytes());
-    return ref.getDownloadURL();
-  }
 
   Future<void> _continue() async {
     if (_nameController.text.trim().isEmpty) {
@@ -140,15 +89,19 @@ class _ProfileSetupScreenState
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
-          .set({
-        'uid': user.uid,
-        'name': _nameController.text.trim(),
-        'username': _usernameController.text.trim(),
-        'email': _emailController.text.trim(),
-        'country': _selectedCountry ?? '',
-        'updatedAt': FieldValue.serverTimestamp(),
-        'createdAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+          .set(
+        {
+          'uid': user.uid,
+          'name': _nameController.text.trim(),
+          'username': _usernameController.text.trim(),
+          'email': _emailController.text.trim(),
+          'country': _selectedCountry ?? '',
+          'countryCode': _selectedCountryCode ?? '',
+          'updatedAt': FieldValue.serverTimestamp(),
+          'createdAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
 
       await user.updateDisplayName(
         _nameController.text.trim(),
@@ -174,6 +127,10 @@ class _ProfileSetupScreenState
       }
     }
   }
+
+  // ============================================================
+  // SKIP
+  // ============================================================
 
   void _skip() {
     Navigator.of(context).pushAndRemoveUntil(
@@ -207,8 +164,7 @@ class _ProfileSetupScreenState
 
   Widget _glassContainer({
     required Widget child,
-    EdgeInsetsGeometry padding =
-        const EdgeInsets.all(16),
+    EdgeInsetsGeometry padding = const EdgeInsets.all(16),
   }) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(26),
@@ -249,8 +205,7 @@ class _ProfileSetupScreenState
     required FocusNode focusNode,
     required String hint,
     required IconData icon,
-    TextInputType keyboardType =
-        TextInputType.text,
+    TextInputType keyboardType = TextInputType.text,
   }) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(18),
@@ -273,6 +228,7 @@ class _ProfileSetupScreenState
             controller: controller,
             focusNode: focusNode,
             keyboardType: keyboardType,
+            textInputAction: TextInputAction.next,
             style: const TextStyle(
               color: darkText,
               fontSize: 14,
@@ -285,12 +241,12 @@ class _ProfileSetupScreenState
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: pikkXNavy.withOpacity(0.09),
-                  shape: BoxShape.circle,
+                  color: pikkXBlack.withOpacity(0.07),
+                  borderRadius: BorderRadius.circular(13),
                 ),
                 child: Icon(
                   icon,
-                  color: pikkXNavy,
+                  color: pikkXBlack,
                   size: 19,
                 ),
               ),
@@ -300,8 +256,7 @@ class _ProfileSetupScreenState
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
-              contentPadding:
-                  const EdgeInsets.symmetric(
+              contentPadding: const EdgeInsets.symmetric(
                 vertical: 18,
                 horizontal: 4,
               ),
@@ -345,12 +300,12 @@ class _ProfileSetupScreenState
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: pikkXNavy.withOpacity(0.09),
-                    shape: BoxShape.circle,
+                    color: pikkXBlack.withOpacity(0.07),
+                    borderRadius: BorderRadius.circular(13),
                   ),
                   child: const Icon(
                     Icons.public_rounded,
-                    color: pikkXNavy,
+                    color: pikkXBlack,
                     size: 19,
                   ),
                 ),
@@ -359,8 +314,7 @@ class _ProfileSetupScreenState
 
                 Expanded(
                   child: Column(
-                    mainAxisAlignment:
-                        MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment:
                         CrossAxisAlignment.start,
                     children: [
@@ -372,12 +326,10 @@ class _ProfileSetupScreenState
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-
                       const SizedBox(height: 2),
-
                       Text(
-                        _selectedCountry ??
-                            'Select your country',
+                        _selectedCountry ?? 'Select your country',
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: darkText,
                           fontSize: 13,
@@ -388,9 +340,21 @@ class _ProfileSetupScreenState
                   ),
                 ),
 
+                if (_selectedCountryCode != null)
+                  Text(
+                    _selectedCountryCode!,
+                    style: const TextStyle(
+                      color: mutedText,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+
+                const SizedBox(width: 5),
+
                 const Icon(
                   Icons.keyboard_arrow_down_rounded,
-                  color: pikkXNavy,
+                  color: pikkXBlack,
                 ),
               ],
             ),
@@ -405,133 +369,73 @@ class _ProfileSetupScreenState
   // ============================================================
 
   void _showCountryPicker() {
-    final List<String> countries = [
-      'Nigeria',
-      'Ghana',
-      'Kenya',
-      'South Africa',
-      'United Kingdom',
-      'United States',
-      'Canada',
-    ];
-
-    showModalBottomSheet(
+    showCountryPicker(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) {
-        return ClipRRect(
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(30),
+      showPhoneCode: true,
+      showSearch: true,
+      searchAutofocus: false,
+      showWorldWide: false,
+      favorite: const [
+        'NG',
+        'GH',
+        'KE',
+        'ZA',
+        'GB',
+        'US',
+        'CA',
+        'KR',
+      ],
+      countryListTheme: CountryListThemeData(
+        backgroundColor: Colors.white,
+        bottomSheetHeight:
+            MediaQuery.of(context).size.height * 0.78,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(30),
+        ),
+        flagSize: 28,
+        textStyle: const TextStyle(
+          color: darkText,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+        searchTextStyle: const TextStyle(
+          color: darkText,
+          fontSize: 14,
+        ),
+        inputDecoration: InputDecoration(
+          hintText: 'Search country',
+          hintStyle: const TextStyle(
+            color: mutedText,
+            fontSize: 13,
           ),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: 15,
-              sigmaY: 15,
-            ),
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(
-                20,
-                12,
-                20,
-                25,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.96),
-                borderRadius:
-                    const BorderRadius.vertical(
-                  top: Radius.circular(30),
-                ),
-                border: Border.all(
-                  color: Colors.white,
-                ),
-              ),
-              child: SafeArea(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 42,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: lightGrey,
-                        borderRadius:
-                            BorderRadius.circular(10),
-                      ),
-                    ),
-
-                    const SizedBox(height: 18),
-
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Choose your country',
-                        style: TextStyle(
-                          color: darkText,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    ...countries.map(
-                      (country) {
-                        final bool selected =
-                            _selectedCountry ==
-                                country;
-
-                        return ListTile(
-                          contentPadding:
-                              EdgeInsets.zero,
-                          leading: Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: pikkXNavy
-                                  .withOpacity(0.08),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.public_rounded,
-                              color: pikkXNavy,
-                              size: 19,
-                            ),
-                          ),
-                          title: Text(
-                            country,
-                            style: const TextStyle(
-                              color: darkText,
-                              fontSize: 13,
-                              fontWeight:
-                                  FontWeight.w600,
-                            ),
-                          ),
-                          trailing: selected
-                              ? const Icon(
-                                  Icons
-                                      .check_circle_rounded,
-                                  color: pikkXNavy,
-                                )
-                              : null,
-                          onTap: () {
-                            setState(() {
-                              _selectedCountry =
-                                  country;
-                            });
-
-                            Navigator.pop(context);
-                          },
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            color: pikkXBlack,
+          ),
+          filled: true,
+          fillColor: background,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(
+              color: pikkXBlack,
+              width: 1,
             ),
           ),
-        );
+        ),
+      ),
+      onSelect: (Country country) {
+        setState(() {
+          _selectedCountry = country.name;
+          _selectedCountryCode = '+${country.phoneCode}';
+        });
       },
     );
   }
@@ -548,7 +452,7 @@ class _ProfileSetupScreenState
         height: 58,
         child: Icon(
           Icons.person_outline_rounded,
-          color: pikkXNavy,
+          color: pikkXBlack,
           size: 38,
         ),
       ),
@@ -563,8 +467,7 @@ class _ProfileSetupScreenState
     return _glassContainer(
       padding: const EdgeInsets.all(20),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             'Tell us about you',
@@ -578,7 +481,7 @@ class _ProfileSetupScreenState
           const SizedBox(height: 5),
 
           const Text(
-            'A few details will help us personalize your pikkX experience.',
+            'A few details will help us personalize your PikkX experience.',
             style: TextStyle(
               color: mutedText,
               fontSize: 11,
@@ -611,8 +514,7 @@ class _ProfileSetupScreenState
             focusNode: _emailFocus,
             hint: 'Email address',
             icon: Icons.email_outlined,
-            keyboardType:
-                TextInputType.emailAddress,
+            keyboardType: TextInputType.emailAddress,
           ),
 
           const SizedBox(height: 13),
@@ -621,38 +523,30 @@ class _ProfileSetupScreenState
 
           const SizedBox(height: 22),
 
-          // ----------------------------------------------------
           // CONTINUE
-          // ----------------------------------------------------
-
           SizedBox(
             width: double.infinity,
             height: 55,
             child: ElevatedButton(
-              onPressed:
-                  _loading ? null : _continue,
+              onPressed: _loading ? null : _continue,
               style: ElevatedButton.styleFrom(
                 backgroundColor: pikkXBlack,
                 disabledBackgroundColor:
                     pikkXBlack.withOpacity(0.45),
                 elevation: 6,
-                shadowColor:
-                    Colors.black.withOpacity(0.20),
+                shadowColor: Colors.black.withOpacity(0.20),
                 shape: RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(18),
                 ),
               ),
               child: _loading
                   ? const SizedBox(
                       width: 22,
                       height: 22,
-                      child:
-                          CircularProgressIndicator(
+                      child: CircularProgressIndicator(
                         strokeWidth: 2.5,
                         valueColor:
-                            AlwaysStoppedAnimation<
-                                Color>(
+                            AlwaysStoppedAnimation<Color>(
                           Colors.white,
                         ),
                       ),
@@ -666,8 +560,7 @@ class _ProfileSetupScreenState
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 14,
-                            fontWeight:
-                                FontWeight.w800,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                         SizedBox(width: 8),
@@ -683,16 +576,12 @@ class _ProfileSetupScreenState
 
           const SizedBox(height: 8),
 
-          // ----------------------------------------------------
           // SKIP
-          // ----------------------------------------------------
-
           SizedBox(
             width: double.infinity,
             height: 45,
             child: TextButton(
-              onPressed:
-                  _loading ? null : _skip,
+              onPressed: _loading ? null : _skip,
               child: const Text(
                 'Skip for now',
                 style: TextStyle(
@@ -719,10 +608,7 @@ class _ProfileSetupScreenState
       body: SafeArea(
         child: Stack(
           children: [
-            // --------------------------------------------------
-            // SUBTLE NAVY BACKGROUND GLOW
-            // --------------------------------------------------
-
+            // SUBTLE GLASS BACKGROUND
             Positioned(
               top: -100,
               right: -80,
@@ -731,7 +617,7 @@ class _ProfileSetupScreenState
                 height: 240,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: pikkXNavy.withOpacity(0.045),
+                  color: Colors.black.withOpacity(0.025),
                 ),
               ),
             ),
@@ -744,18 +630,14 @@ class _ProfileSetupScreenState
                 height: 260,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: pikkXNavy.withOpacity(0.035),
+                  color: Colors.black.withOpacity(0.018),
                 ),
               ),
             ),
 
-            // --------------------------------------------------
             // CONTENT
-            // --------------------------------------------------
-
             SingleChildScrollView(
-              physics:
-                  const BouncingScrollPhysics(),
+              physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(
                 22,
                 25,
@@ -781,10 +663,10 @@ class _ProfileSetupScreenState
                   const SizedBox(height: 6),
 
                   const Text(
-                    'Welcome to pikkX',
+                    'Welcome to PikkX',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: pikkXNavy,
+                      color: pikkXBlack,
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                     ),
