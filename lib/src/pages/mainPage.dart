@@ -46,9 +46,6 @@ class _MainPageState extends State<MainPage> {
   final FirebaseAuth _auth =
       FirebaseAuth.instance;
 
-  final FirebaseFirestore _firestore =
-      FirebaseFirestore.instance;
-
   User? get currentUser =>
       _auth.currentUser;
 
@@ -303,16 +300,6 @@ class _MainPageState extends State<MainPage> {
           ),
 
           // ======================================================
-          // DISPATCH
-          // ======================================================
-
-          _dispatchTrackingButton(),
-
-          const SizedBox(
-            width: 9,
-          ),
-
-          // ======================================================
           // NOTIFICATIONS
           // ======================================================
 
@@ -400,145 +387,6 @@ class _MainPageState extends State<MainPage> {
   }
 
   // ============================================================
-  // DISPATCH TRACKING
-  // ============================================================
-
-  Widget _dispatchTrackingButton() {
-    return _glassIcon(
-      Icons.local_shipping_outlined,
-      onPressed:
-          _openLatestOrderForTracking,
-    );
-  }
-
-  Future<void>
-      _openLatestOrderForTracking() async {
-    final user = currentUser;
-
-    if (user == null) {
-      _showMessage(
-        'Please sign in first.',
-      );
-      return;
-    }
-
-    try {
-      final snapshot =
-          await _firestore
-              .collection('orders')
-              .where(
-                'userId',
-                isEqualTo: user.uid,
-              )
-              .get();
-
-      if (!mounted) return;
-
-      if (snapshot.docs.isEmpty) {
-        _showMessage(
-          'You do not have any orders yet.',
-        );
-        return;
-      }
-
-      final docs = [
-        ...snapshot.docs,
-      ];
-
-      // ========================================================
-      // REMOVE FINISHED ORDERS
-      // ========================================================
-
-      docs.removeWhere((doc) {
-        final status = doc
-            .data()['status']
-            ?.toString()
-            .toLowerCase()
-            .trim();
-
-        return status == 'delivered' ||
-            status == 'completed' ||
-            status == 'cancelled';
-      });
-
-      if (docs.isEmpty) {
-        _showMessage(
-          'You do not have an active order to track.',
-        );
-        return;
-      }
-
-      // ========================================================
-      // NEWEST ACTIVE ORDER FIRST
-      // ========================================================
-
-      docs.sort((a, b) {
-        final aTime =
-            _timestampToDate(
-          a.data()['createdAt'],
-        );
-
-        final bTime =
-            _timestampToDate(
-          b.data()['createdAt'],
-        );
-
-        if (aTime == null &&
-            bTime == null) {
-          return 0;
-        }
-
-        if (aTime == null) {
-          return 1;
-        }
-
-        if (bTime == null) {
-          return -1;
-        }
-
-        return bTime.compareTo(aTime);
-      });
-
-      final orderId =
-          docs.first.id;
-
-      // ========================================================
-      // OPEN THE EXISTING DISPATCH TRACKING SCREEN
-      // ========================================================
-
-      Navigator.pushNamed(
-        context,
-        '/dispatch-tracking',
-        arguments: orderId,
-      );
-    } catch (e) {
-      debugPrint(
-        'Open dispatch tracking error: $e',
-      );
-
-      if (!mounted) return;
-
-      _showMessage(
-        'Could not find your active order.',
-      );
-    }
-  }
-
-  DateTime? _timestampToDate(
-    dynamic value,
-  ) {
-    if (value is Timestamp) {
-      return value.toDate();
-    }
-
-    if (value is DateTime) {
-      return value;
-    }
-
-    return null;
-  }
-
-  // ============================================================
   // NOTIFICATION BUTTON
   // ============================================================
 
@@ -557,7 +405,7 @@ class _MainPageState extends State<MainPage> {
     return StreamBuilder<
         QuerySnapshot<
             Map<String, dynamic>>>(
-      stream: _firestore
+      stream: FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .collection('notifications')
@@ -961,19 +809,6 @@ class _MainPageState extends State<MainPage> {
                         _pushPage(
                           const OrdersPage(),
                         );
-                      },
-                    ),
-
-                    _menuItem(
-                      Icons
-                          .local_shipping_outlined,
-                      'Track My Order',
-                      () {
-                        Navigator.pop(
-                          context,
-                        );
-
-                        _openLatestOrderForTracking();
                       },
                     ),
 
