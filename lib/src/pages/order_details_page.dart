@@ -83,6 +83,8 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
       final user = _auth.currentUser;
 
       if (user == null) {
+        if (!mounted) return;
+
         setState(() {
           isLoading = false;
           errorMessage = 'Please sign in to view this order.';
@@ -96,6 +98,8 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
           .get();
 
       if (!doc.exists) {
+        if (!mounted) return;
+
         setState(() {
           isLoading = false;
           errorMessage = 'Order not found.';
@@ -106,12 +110,16 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
       final data = doc.data();
 
       if (data == null || data['userId'] != user.uid) {
+        if (!mounted) return;
+
         setState(() {
           isLoading = false;
           errorMessage = 'You do not have access to this order.';
         });
         return;
       }
+
+      if (!mounted) return;
 
       setState(() {
         order = {
@@ -120,7 +128,9 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
         };
         isLoading = false;
       });
-    } catch (e) {
+    } catch (_) {
+      if (!mounted) return;
+
       setState(() {
         isLoading = false;
         errorMessage = 'Could not load order details.';
@@ -133,7 +143,9 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
   // ============================================================
 
   double _number(dynamic value) {
-    if (value is num) return value.toDouble();
+    if (value is num) {
+      return value.toDouble();
+    }
 
     return double.tryParse(value?.toString() ?? '0') ?? 0;
   }
@@ -202,8 +214,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
   }
 
   // ============================================================
-  // FIX:
-  // Supports both local assets and Firebase/network images.
+  // Product Image
   // ============================================================
 
   Widget _buildProductImage(
@@ -263,8 +274,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
 
   Widget _glassContainer({
     required Widget child,
-    EdgeInsetsGeometry padding =
-        const EdgeInsets.all(16),
+    EdgeInsetsGeometry padding = const EdgeInsets.all(16),
     double radius = 24,
   }) {
     return ClipRRect(
@@ -361,8 +371,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
           const SizedBox(width: 14),
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   'Order',
@@ -426,8 +435,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
           ...List.generate(
             rawItems.length,
             (index) {
-              final item =
-                  Map<String, dynamic>.from(
+              final item = Map<String, dynamic>.from(
                 rawItems[index] as Map,
               );
 
@@ -446,16 +454,13 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
       ''
     ).toString();
 
-    final name =
-        (item['name'] ?? 'Product').toString();
+    final name = (item['name'] ?? 'Product').toString();
 
-    final quantity =
-        _number(item['quantity']).toInt();
+    final quantity = _number(item['quantity']).toInt();
 
     final price = _number(item['price']);
 
-    final size =
-        (item['size'] ?? '').toString();
+    final size = (item['size'] ?? '').toString();
 
     final selectedColor =
         (item['selectedColor'] ?? '').toString();
@@ -463,12 +468,10 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ClipRRect(
-            borderRadius:
-                BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(18),
             child: Container(
               width: 76,
               height: 76,
@@ -482,8 +485,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
           const SizedBox(width: 14),
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   name,
@@ -542,8 +544,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
   // ============================================================
 
   Widget _buildDeliveryAddress() {
-    final address =
-        order?['deliveryAddress'];
+    final address = order?['deliveryAddress'];
 
     if (address is! Map) {
       return _glassContainer(
@@ -568,32 +569,27 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
       );
     }
 
-    final addressMap =
-        Map<String, dynamic>.from(address);
+    final addressMap = Map<String, dynamic>.from(address);
 
-    final name =
-        (addressMap['name'] ??
-                addressMap['fullName'] ??
-                '')
-            .toString();
+    final name = (
+      addressMap['name'] ??
+      addressMap['fullName'] ??
+      ''
+    ).toString();
 
-    final phone =
-        (addressMap['phone'] ?? '').toString();
+    final phone = (addressMap['phone'] ?? '').toString();
 
-    final street =
-        (addressMap['address'] ??
-                addressMap['street'] ??
-                '')
-            .toString();
+    final street = (
+      addressMap['address'] ??
+      addressMap['street'] ??
+      ''
+    ).toString();
 
-    final city =
-        (addressMap['city'] ?? '').toString();
+    final city = (addressMap['city'] ?? '').toString();
 
-    final state =
-        (addressMap['state'] ?? '').toString();
+    final state = (addressMap['state'] ?? '').toString();
 
-    final country =
-        (addressMap['country'] ?? '').toString();
+    final country = (addressMap['country'] ?? '').toString();
 
     final location = [
       street,
@@ -604,8 +600,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
 
     return _glassContainer(
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             'Delivery Address',
@@ -617,8 +612,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
           ),
           const SizedBox(height: 14),
           Row(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 width: 44,
@@ -636,8 +630,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (name.isNotEmpty)
                       Text(
@@ -699,8 +692,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
             ? 'delivered'
             : currentStatus;
 
-    int currentIndex =
-        statuses.indexOf(effectiveStatus);
+    int currentIndex = statuses.indexOf(effectiveStatus);
 
     if (currentIndex < 0) {
       currentIndex = 0;
@@ -708,8 +700,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
 
     return _glassContainer(
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             'Order Status',
@@ -724,14 +715,11 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
             statuses.length,
             (index) {
               final status = statuses[index];
-              final isCompleted =
-                  index <= currentIndex;
-              final isLast =
-                  index == statuses.length - 1;
+              final isCompleted = index <= currentIndex;
+              final isLast = index == statuses.length - 1;
 
               return Row(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Column(
                     children: [
@@ -751,9 +739,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
                           color: isCompleted
                               ? pikkXWhite
                               : pikkXGrey,
-                          size: isCompleted
-                              ? 16
-                              : 8,
+                          size: isCompleted ? 16 : 8,
                         ),
                       ),
                       if (!isLast)
@@ -768,8 +754,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
                   ),
                   const SizedBox(width: 14),
                   Padding(
-                    padding:
-                        const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.only(top: 4),
                     child: Text(
                       _prettyStatus(status),
                       style: TextStyle(
@@ -798,13 +783,11 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
 
   Widget _buildPaymentSection() {
     final paymentMethod =
-        (order?['paymentMethod'] ??
-                'cash_on_delivery')
+        (order?['paymentMethod'] ?? 'cash_on_delivery')
             .toString();
 
     final paymentStatus =
-        (order?['paymentStatus'] ??
-                'pending')
+        (order?['paymentStatus'] ?? 'pending')
             .toString();
 
     String readablePayment =
@@ -821,8 +804,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
 
     return _glassContainer(
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             'Payment',
@@ -851,8 +833,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       readablePayment,
@@ -885,19 +866,15 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
   // ============================================================
 
   Widget _buildSummary() {
-    final subtotal =
-        _number(order?['subtotal']);
+    final subtotal = _number(order?['subtotal']);
 
-    final deliveryFee =
-        _number(order?['deliveryFee']);
+    final deliveryFee = _number(order?['deliveryFee']);
 
-    final total =
-        _number(order?['total']);
+    final total = _number(order?['total']);
 
     return _glassContainer(
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             'Order Summary',
@@ -918,9 +895,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
             _formatPrice(deliveryFee),
           ),
           const Padding(
-            padding: EdgeInsets.symmetric(
-              vertical: 14,
-            ),
+            padding: EdgeInsets.symmetric(vertical: 14),
             child: Divider(
               color: lightGrey,
               height: 1,
@@ -942,14 +917,12 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
     bool isTotal = false,
   }) {
     return Row(
-      mainAxisAlignment:
-          MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           title,
           style: TextStyle(
-            color:
-                isTotal ? pikkXBlack : pikkXGrey,
+            color: isTotal ? pikkXBlack : pikkXGrey,
             fontSize: isTotal ? 15 : 13,
             fontWeight: isTotal
                 ? FontWeight.w800
@@ -967,77 +940,6 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
           ),
         ),
       ],
-    );
-  }
-
-  // ============================================================
-  // Track Order Button
-  // ============================================================
-
-  Widget _buildTrackButton() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(22),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 15,
-          sigmaY: 15,
-        ),
-        child: Container(
-          decoration: BoxDecoration(
-            color: pikkXBlack.withOpacity(0.92),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: pikkXWhite.withOpacity(0.18),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: pikkXBlack.withOpacity(0.16),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(22),
-              onTap: () {
-                Navigator.pushNamed(
-                  context,
-                  '/dispatch-tracking',
-                  arguments: widget.orderId,
-                );
-              },
-              child: const Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 16,
-                ),
-                child: Row(
-                  mainAxisAlignment:
-                      MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.local_shipping_outlined,
-                      color: pikkXWhite,
-                      size: 21,
-                    ),
-                    SizedBox(width: 10),
-                    Text(
-                      'Track Order',
-                      style: TextStyle(
-                        color: pikkXWhite,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -1108,12 +1010,9 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
         elevation: 0,
         centerTitle: true,
         leading: Padding(
-          padding: const EdgeInsets.only(
-            left: 12,
-          ),
+          padding: const EdgeInsets.only(left: 12),
           child: ClipRRect(
-            borderRadius:
-                BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(16),
             child: BackdropFilter(
               filter: ImageFilter.blur(
                 sigmaX: 12,
@@ -1122,11 +1021,9 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
               child: Container(
                 decoration: BoxDecoration(
                   color: pikkXWhite.withOpacity(0.72),
-                  borderRadius:
-                      BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color:
-                        pikkXWhite.withOpacity(0.85),
+                    color: pikkXWhite.withOpacity(0.85),
                   ),
                 ),
                 child: IconButton(
@@ -1144,27 +1041,22 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
           ),
         ),
         title: ClipRRect(
-          borderRadius:
-              BorderRadius.circular(50),
+          borderRadius: BorderRadius.circular(50),
           child: BackdropFilter(
             filter: ImageFilter.blur(
               sigmaX: 12,
               sigmaY: 12,
             ),
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(
+              padding: const EdgeInsets.symmetric(
                 horizontal: 18,
                 vertical: 9,
               ),
               decoration: BoxDecoration(
-                color:
-                    pikkXWhite.withOpacity(0.72),
-                borderRadius:
-                    BorderRadius.circular(50),
+                color: pikkXWhite.withOpacity(0.72),
+                borderRadius: BorderRadius.circular(50),
                 border: Border.all(
-                  color:
-                      pikkXWhite.withOpacity(0.85),
+                  color: pikkXWhite.withOpacity(0.85),
                 ),
               ),
               child: const Text(
@@ -1181,7 +1073,6 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
       ),
       body: Stack(
         children: [
-          // Background glow/orbs
           Positioned(
             top: -100,
             right: -80,
@@ -1206,7 +1097,6 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
               ),
             ),
           ),
-
           SafeArea(
             child: isLoading
                 ? const Center(
@@ -1224,8 +1114,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
                             child: SingleChildScrollView(
                               physics:
                                   const AlwaysScrollableScrollPhysics(),
-                              padding:
-                                  const EdgeInsets.fromLTRB(
+                              padding: const EdgeInsets.fromLTRB(
                                 16,
                                 90,
                                 16,
@@ -1235,8 +1124,6 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
                                 crossAxisAlignment:
                                     CrossAxisAlignment.stretch,
                                 children: [
-                                  _buildTrackButton(),
-                                  const SizedBox(height: 16),
                                   _buildOrderHeader(),
                                   const SizedBox(height: 16),
                                   _buildOrderItems(),
@@ -1249,8 +1136,6 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
                                   const SizedBox(height: 16),
                                   _buildSummary(),
                                   const SizedBox(height: 18),
-
-                                  // Order ID
                                   _glassContainer(
                                     padding:
                                         const EdgeInsets.symmetric(
@@ -1283,8 +1168,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
                                                 TextAlign.right,
                                             overflow:
                                                 TextOverflow.ellipsis,
-                                            style:
-                                                const TextStyle(
+                                            style: const TextStyle(
                                               color: pikkXBlack,
                                               fontSize: 12,
                                               fontWeight:
