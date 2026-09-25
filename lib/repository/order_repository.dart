@@ -11,7 +11,6 @@ class OrderRepository {
   })  : _firestore = firestore ?? FirebaseFirestore.instance,
         _auth = auth ?? FirebaseAuth.instance;
 
-  /// Get the currently authenticated user's UID.
   String get _userId {
     final User? user = _auth.currentUser;
 
@@ -22,17 +21,9 @@ class OrderRepository {
     return user.uid;
   }
 
-  /// Current user's orders collection.
   CollectionReference<Map<String, dynamic>> get _orders =>
-      _firestore
-          .collection('users')
-          .doc(_userId)
-          .collection('orders');
+      _firestore.collection('users').doc(_userId).collection('orders');
 
-  /// Create a new order.
-  ///
-  /// The order is saved under:
-  /// users/{userId}/orders/{orderId}
   Future<String> createOrder({
     required List<Map<String, dynamic>> items,
     required double subtotal,
@@ -45,28 +36,20 @@ class OrderRepository {
     String note = '',
   }) async {
     try {
-      final DocumentReference<Map<String, dynamic>> order =
-          _orders.doc();
+      final DocumentReference<Map<String, dynamic>> order = _orders.doc();
 
       await order.set({
         'orderId': order.id,
         'userId': _userId,
-
         'items': items,
-
         'subtotal': subtotal,
         'deliveryFee': deliveryFee,
         'total': total,
-
         'deliveryAddress': deliveryAddress,
-
         'paymentMethod': paymentMethod,
         'paymentStatus': paymentStatus,
-
         'orderStatus': orderStatus,
-
         'note': note,
-
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -77,13 +60,11 @@ class OrderRepository {
     }
   }
 
-  /// Get all orders belonging to the current user.
   Future<List<Map<String, dynamic>>> getOrders() async {
     try {
-      final QuerySnapshot<Map<String, dynamic>> snapshot =
-          await _orders
-              .orderBy('createdAt', descending: true)
-              .get();
+      final QuerySnapshot<Map<String, dynamic>> snapshot = await _orders
+          .orderBy('createdAt', descending: true)
+          .get();
 
       return snapshot.docs.map((doc) {
         return {
@@ -96,7 +77,6 @@ class OrderRepository {
     }
   }
 
-  /// Listen to the user's orders in real time.
   Stream<List<Map<String, dynamic>>> ordersStream() {
     return _orders
         .orderBy('createdAt', descending: true)
@@ -111,7 +91,6 @@ class OrderRepository {
     });
   }
 
-  /// Get a single order.
   Future<Map<String, dynamic>?> getOrderById(
     String orderId,
   ) async {
@@ -123,24 +102,21 @@ class OrderRepository {
         return null;
       }
 
+      final data = document.data();
+
+      if (data == null) {
+        return null;
+      }
+
       return {
         'id': document.id,
-        ...document.data()!,
+        ...data,
       };
     } catch (e) {
       throw Exception('Failed to load order: $e');
     }
   }
 
-  /// Update the order status.
-  ///
-  /// Example statuses:
-  /// pending
-  /// confirmed
-  /// preparing
-  /// dispatched
-  /// delivered
-  /// cancelled
   Future<void> updateOrderStatus({
     required String orderId,
     required String status,
@@ -155,7 +131,6 @@ class OrderRepository {
     }
   }
 
-  /// Update payment information.
   Future<void> updatePaymentStatus({
     required String orderId,
     required String paymentStatus,
@@ -182,55 +157,6 @@ class OrderRepository {
     }
   }
 
-  /// Save the dispatch/rider information.
-  Future<void> assignDelivery({
-    required String orderId,
-    required String riderId,
-    String? riderName,
-    String? riderPhone,
-  }) async {
-    try {
-      await _orders.doc(orderId).update({
-        'delivery': {
-          'riderId': riderId,
-          'riderName': riderName ?? '',
-          'riderPhone': riderPhone ?? '',
-          'assignedAt': FieldValue.serverTimestamp(),
-        },
-        'orderStatus': 'dispatched',
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      throw Exception('Failed to assign delivery: $e');
-    }
-  }
-
-  /// Update the delivery location.
-  ///
-  /// This allows the dispatch system to later store the
-  /// rider's current coordinates for order tracking.
-  Future<void> updateDeliveryLocation({
-    required String orderId,
-    required double latitude,
-    required double longitude,
-  }) async {
-    try {
-      await _orders.doc(orderId).update({
-        'delivery.currentLocation': {
-          'latitude': latitude,
-          'longitude': longitude,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      throw Exception(
-        'Failed to update delivery location: $e',
-      );
-    }
-  }
-
-  /// Cancel an order.
   Future<void> cancelOrder(
     String orderId, {
     String reason = '',
