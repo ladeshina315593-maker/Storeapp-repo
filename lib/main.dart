@@ -3,7 +3,6 @@ import 'package:pikkx/src/pages/profile_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 import 'package:pikkx/src/pages/mainPage.dart';
 import 'package:pikkx/src/pages/login_screen.dart';
@@ -20,7 +19,6 @@ import 'package:pikkx/src/pages/order_details_page.dart';
 import 'package:pikkx/src/pages/notifications_page.dart';
 import 'package:pikkx/src/pages/chat_page.dart';
 import 'package:pikkx/src/pages/settings_page.dart';
-import 'package:pikkx/src/pages/dispatch_tracking_page.dart';
 
 import 'package:pikkx/src/pages/terms_conditions_page.dart';
 import 'package:pikkx/src/pages/privacy_policy_page.dart';
@@ -36,14 +34,6 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
-  // Mapbox token is supplied securely by Codemagic
-  // using the ACCESS_TOKEN environment variable.
-  const accessToken = String.fromEnvironment('ACCESS_TOKEN');
-
-  if (accessToken.isNotEmpty) {
-    MapboxOptions.setAccessToken(accessToken);
-  }
 
   runApp(const PikkXApp());
 }
@@ -216,31 +206,6 @@ class PikkXApp extends StatelessWidget {
 
           return CustomRoute<bool>(
             builder: (context) => OrderDetailsPage(
-              orderId: orderId,
-            ),
-            settings: settings,
-          );
-        }
-
-        // DISPATCH TRACKING
-        if (settings.name == '/dispatch-tracking') {
-          final orderId =
-              settings.arguments?.toString();
-
-          if (orderId == null || orderId.isEmpty) {
-            return MaterialPageRoute(
-              builder: (context) => const Scaffold(
-                body: Center(
-                  child: Text(
-                    'Order ID is missing.',
-                  ),
-                ),
-              ),
-            );
-          }
-
-          return CustomRoute<bool>(
-            builder: (context) => DispatchTrackingPage(
               orderId: orderId,
             ),
             settings: settings,
