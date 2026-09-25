@@ -1,16 +1,11 @@
-import 'dart:io';
 import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ProfilePage extends StatefulWidget {
-  /// These callbacks allow Profile to open the existing MainPage tabs
-  /// instead of pushing duplicate Cart/Favourite screens.
   final VoidCallback? onOpenCart;
   final VoidCallback? onOpenFavorites;
   final VoidCallback? onOpenNotifications;
@@ -27,43 +22,29 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  // ============================================================
-  // PIKKX COLORS
-  // ============================================================
-
   static const Color pikkXBlack = Color(0xFF050505);
   static const Color pikkXWhite = Color(0xFFFFFFFF);
   static const Color pikkXBackground = Color(0xFFF7F7F7);
   static const Color pikkXGrey = Color(0xFF777777);
   static const Color pikkXBorder = Color(0xFFE8E8E8);
 
-  // ============================================================
-  // FIREBASE
-  // ============================================================
+  final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance;
 
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final ImagePicker _picker = ImagePicker();
-
-  // ============================================================
-  // PROFILE STATE
-  // ============================================================
+  final FirebaseAuth _auth =
+      FirebaseAuth.instance;
 
   bool _isLoading = true;
-  bool _isUploadingPhoto = false;
+  bool _loadingProfile = false;
 
   String _name = 'Your Name';
   String _email = '';
   String _phone = '';
-  String _photoUrl = '';
 
   int _ordersCount = 0;
   int _favouritesCount = 0;
   int _cartCount = 0;
   int _followingCount = 0;
-
-  // Prevent repeated loads while the screen is already loading.
-  bool _loadingProfile = false;
 
   @override
   void initState() {
@@ -72,7 +53,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // ============================================================
-  // LOAD PROFILE — OPTIMIZED
+  // LOAD PROFILE
   // ============================================================
 
   Future<void> _loadProfile() async {
@@ -89,7 +70,6 @@ class _ProfilePageState extends State<ProfilePage> {
           _name = 'Guest';
           _email = '';
           _phone = '';
-          _photoUrl = '';
           _ordersCount = 0;
           _favouritesCount = 0;
           _cartCount = 0;
@@ -102,47 +82,28 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     try {
-      /*
-       * IMPORTANT PERFORMANCE CHANGE:
-       *
-       * The old version downloaded EVERY document in:
-       * orders
-       * favorites
-       * cart
-       * following
-       *
-       * just to find the number of documents.
-       *
-       * We use Firestore count() aggregation instead.
-       *
-       * This is much lighter for accounts with many records.
-       */
-
       final results = await Future.wait<dynamic>([
         _firestore
             .collection('users')
             .doc(user.uid)
             .get(),
-
         _getCollectionCount(
           'users/${user.uid}/orders',
         ),
-
         _getCollectionCount(
           'users/${user.uid}/favorites',
         ),
-
         _getCollectionCount(
           'users/${user.uid}/cart',
         ),
-
         _getCollectionCount(
           'users/${user.uid}/following',
         ),
       ]);
 
       final userSnapshot =
-          results[0] as DocumentSnapshot<Map<String, dynamic>>;
+          results[0]
+              as DocumentSnapshot<Map<String, dynamic>>;
 
       final data = userSnapshot.data();
 
@@ -154,12 +115,15 @@ class _ProfilePageState extends State<ProfilePage> {
       if (!mounted) return;
 
       setState(() {
-        _name =
-            data?['name']?.toString().trim().isNotEmpty == true
-                ? data!['name'].toString()
-                : (user.displayName?.trim().isNotEmpty == true
-                    ? user.displayName!
-                    : 'Your Name');
+        final firestoreName =
+            data?['name']?.toString().trim();
+
+        _name = firestoreName != null &&
+                firestoreName.isNotEmpty
+            ? firestoreName
+            : (user.displayName?.trim().isNotEmpty == true
+                ? user.displayName!
+                : 'Your Name');
 
         _email =
             data?['email']?.toString() ??
@@ -169,16 +133,6 @@ class _ProfilePageState extends State<ProfilePage> {
         _phone =
             data?['phone']?.toString() ??
             user.phoneNumber ??
-            '';
-
-        /*
-         * Support the normal PikkX field plus common existing
-         * Firebase Auth data.
-         */
-        _photoUrl =
-            data?['photoUrl']?.toString() ??
-            data?['profilePicture']?.toString() ??
-            user.photoURL ??
             '';
 
         _ordersCount = ordersCount;
@@ -194,10 +148,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
       if (!mounted) return;
 
-      /*
-       * Even if one Firebase query fails, don't leave the whole
-       * Profile screen stuck on a loading spinner.
-       */
       setState(() {
         _name =
             user.displayName?.trim().isNotEmpty == true
@@ -206,7 +156,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
         _email = user.email ?? '';
         _phone = user.phoneNumber ?? '';
-        _photoUrl = user.photoURL ?? '';
 
         _isLoading = false;
       });
@@ -215,7 +164,9 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  Future<int> _getCollectionCount(String path) async {
+  Future<int> _getCollectionCount(
+    String path,
+  ) async {
     try {
       final aggregate = await _firestore
           .collection(path)
@@ -224,15 +175,13 @@ class _ProfilePageState extends State<ProfilePage> {
 
       return aggregate.count ?? 0;
     } catch (e) {
-      /*
-       * Fallback for Firebase configurations where count()
-       * isn't available/usable.
-       */
       debugPrint('Count error for $path: $e');
 
       try {
-        final snapshot =
-            await _firestore.collection(path).limit(500).get();
+        final snapshot = await _firestore
+            .collection(path)
+            .limit(500)
+            .get();
 
         return snapshot.size;
       } catch (_) {
@@ -247,7 +196,8 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _glassContainer({
     required Widget child,
-    EdgeInsetsGeometry padding = const EdgeInsets.all(16),
+    EdgeInsetsGeometry padding =
+        const EdgeInsets.all(16),
     double radius = 24,
   }) {
     return ClipRRect(
@@ -261,13 +211,15 @@ class _ProfilePageState extends State<ProfilePage> {
           padding: padding,
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.70),
-            borderRadius: BorderRadius.circular(radius),
+            borderRadius:
+                BorderRadius.circular(radius),
             border: Border.all(
               color: Colors.white.withOpacity(0.95),
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.045),
+                color:
+                    Colors.black.withOpacity(0.045),
                 blurRadius: 22,
                 offset: const Offset(0, 9),
               ),
@@ -294,13 +246,27 @@ class _ProfilePageState extends State<ProfilePage> {
           borderRadius: BorderRadius.circular(18),
           child: Row(
             children: [
-              _profileImage(),
+              Container(
+                height: 58,
+                width: 58,
+                decoration: BoxDecoration(
+                  color: pikkXBlack,
+                  borderRadius:
+                      BorderRadius.circular(18),
+                ),
+                child: const Icon(
+                  Icons.person_outline_rounded,
+                  color: pikkXWhite,
+                  size: 29,
+                ),
+              ),
 
               const SizedBox(width: 13),
 
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
                   children: [
                     const Text(
                       'Your Profile',
@@ -310,9 +276,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-
                     const SizedBox(height: 3),
-
                     Text(
                       _name,
                       maxLines: 1,
@@ -323,9 +287,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-
                     const SizedBox(height: 3),
-
                     Text(
                       _email.isNotEmpty
                           ? _email
@@ -348,7 +310,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 width: 35,
                 decoration: BoxDecoration(
                   color: pikkXBlack,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius:
+                      BorderRadius.circular(12),
                 ),
                 child: const Icon(
                   Icons.arrow_forward_ios_rounded,
@@ -361,235 +324,6 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
       ),
     );
-  }
-
-  // ============================================================
-  // PROFILE IMAGE
-  // ============================================================
-
-  Widget _profileImage() {
-    return GestureDetector(
-      onTap: _changeProfilePicture,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            height: 72,
-            width: 72,
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: pikkXWhite,
-              border: Border.all(
-                color: Colors.white,
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: ClipOval(
-              child: _photoUrl.isNotEmpty
-                  ? Image.network(
-                      _photoUrl,
-                      key: ValueKey(_photoUrl),
-                      fit: BoxFit.cover,
-
-                      /*
-                       * Keep the network image lightweight.
-                       * The PFP is displayed at roughly 66px.
-                       */
-                      cacheWidth: 220,
-                      cacheHeight: 220,
-
-                      errorBuilder: (
-                        context,
-                        error,
-                        stackTrace,
-                      ) {
-                        return _defaultProfileIcon();
-                      },
-                    )
-                  : _defaultProfileIcon(),
-            ),
-          ),
-
-          Positioned(
-            right: -2,
-            bottom: -2,
-            child: Container(
-              height: 28,
-              width: 28,
-              decoration: BoxDecoration(
-                color: pikkXBlack,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.white,
-                  width: 2,
-                ),
-              ),
-              child: _isUploadingPhoto
-                  ? const Padding(
-                      padding: EdgeInsets.all(7),
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: pikkXWhite,
-                      ),
-                    )
-                  : const Icon(
-                      Icons.edit_rounded,
-                      color: pikkXWhite,
-                      size: 13,
-                    ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _defaultProfileIcon() {
-    return Container(
-      color: const Color(0xFFF0F0F0),
-      child: const Icon(
-        Icons.person_rounded,
-        color: pikkXBlack,
-        size: 36,
-      ),
-    );
-  }
-
-  // ============================================================
-  // PROFILE PICTURE — REAL FIREBASE STORAGE
-  // ============================================================
-
-  Future<void> _changeProfilePicture() async {
-    final user = _auth.currentUser;
-
-    if (user == null || _isUploadingPhoto) {
-      return;
-    }
-
-    try {
-      final XFile? pickedFile = await _picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 82,
-        maxWidth: 900,
-        maxHeight: 900,
-      );
-
-      if (pickedFile == null) {
-        return;
-      }
-
-      if (!mounted) return;
-
-      setState(() {
-        _isUploadingPhoto = true;
-      });
-
-      final file = File(pickedFile.path);
-
-      /*
-       * Use ONE stable Storage path for the user's profile picture.
-       *
-       * This is better than creating unlimited files:
-       * uid_123.jpg
-       * uid_456.jpg
-       * uid_789.jpg
-       *
-       * Every new picture replaces the user's current PFP.
-       */
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('profile_pictures')
-          .child('${user.uid}.jpg');
-
-      await storageRef.putFile(
-        file,
-        SettableMetadata(
-          contentType: 'image/jpeg',
-          cacheControl: 'public,max-age=300',
-        ),
-      );
-
-      final downloadUrl =
-          await storageRef.getDownloadURL();
-
-      /*
-       * Save the URL to BOTH:
-       *
-       * Firebase Auth
-       * Firestore
-       *
-       * Firestore is the main PikkX profile source.
-       */
-      await user.updatePhotoURL(downloadUrl);
-
-      await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .set(
-        {
-          'uid': user.uid,
-          'photoUrl': downloadUrl,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
-
-      /*
-       * Do NOT depend on user.reload() for the UI.
-       *
-       * We already have the verified Firebase Storage URL,
-       * so update the visible UI immediately.
-       */
-      if (!mounted) return;
-
-      setState(() {
-        _photoUrl = downloadUrl;
-        _isUploadingPhoto = false;
-      });
-
-      _showMessage(
-        'Profile picture saved successfully.',
-      );
-    } on FirebaseException catch (e, stackTrace) {
-      debugPrint(
-        'Profile picture Firebase error: '
-        '${e.code} ${e.message}',
-      );
-      debugPrint('$stackTrace');
-
-      if (!mounted) return;
-
-      setState(() {
-        _isUploadingPhoto = false;
-      });
-
-      _showMessage(
-        e.code == 'permission-denied'
-            ? 'Firebase denied the profile picture upload.'
-            : 'Unable to save profile picture.',
-      );
-    } catch (e, stackTrace) {
-      debugPrint('Profile picture error: $e');
-      debugPrint('$stackTrace');
-
-      if (!mounted) return;
-
-      setState(() {
-        _isUploadingPhoto = false;
-      });
-
-      _showMessage(
-        'Unable to save profile picture.',
-      );
-    }
   }
 
   // ============================================================
@@ -643,7 +377,8 @@ class _ProfilePageState extends State<ProfilePage> {
           color: Colors.transparent,
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius:
+                BorderRadius.circular(20),
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: 12,
@@ -683,13 +418,12 @@ class _ProfilePageState extends State<ProfilePage> {
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-
                         const SizedBox(height: 3),
-
                         Text(
                           subtitle,
                           maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          overflow:
+                              TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: pikkXGrey,
                             fontSize: 10,
@@ -727,20 +461,11 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _openCart() {
-    /*
-     * IMPORTANT:
-     * If MainPage supplies the callback, Profile opens the
-     * EXISTING Cart tab rather than pushing a second Cart screen.
-     */
     if (widget.onOpenCart != null) {
       widget.onOpenCart!();
       return;
     }
 
-    /*
-     * Fallback only if Profile is being used somewhere outside
-     * MainPage.
-     */
     Navigator.pushNamed(
       context,
       '/cart',
@@ -767,9 +492,6 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _openNotifications() {
-    /*
-     * Use the existing Notifications page/route.
-     */
     if (widget.onOpenNotifications != null) {
       widget.onOpenNotifications!();
       return;
@@ -782,7 +504,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // ============================================================
-  // REWARDS & OFFERS — COUPON CODES ONLY
+  // COUPONS
   // ============================================================
 
   Future<void> _openCoupons() async {
@@ -799,7 +521,7 @@ class _ProfilePageState extends State<ProfilePage> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (sheetContext) {
+      builder: (_) {
         return _CouponsSheet(
           firestore: _firestore,
           userId: user.uid,
@@ -809,7 +531,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // ============================================================
-  // FOLLOWING — LOAD ONLY WHEN OPENED
+  // FOLLOWING
   // ============================================================
 
   Future<void> _openFollowing() async {
@@ -826,7 +548,7 @@ class _ProfilePageState extends State<ProfilePage> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (sheetContext) {
+      builder: (_) {
         return _FollowingSheet(
           firestore: _firestore,
           userId: user.uid,
@@ -891,9 +613,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       color: pikkXWhite,
                     ),
                   ),
-
                   const SizedBox(width: 12),
-
                   Expanded(
                     child: Column(
                       crossAxisAlignment:
@@ -921,9 +641,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 14),
-
               Text(
                 'Merchant ID: $sellerId',
                 style: const TextStyle(
@@ -939,17 +657,10 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // ============================================================
-  // HELP & SUPPORT — WHATSAPP
+  // HELP & SUPPORT
   // ============================================================
 
   Future<void> _openHelpSupport() async {
-    /*
-     * WhatsApp number:
-     * +234 913 231 5593
-     *
-     * WhatsApp international format:
-     * 2349132315593
-     */
     final uri = Uri.parse(
       'https://wa.me/2349132315593?text=${Uri.encodeComponent(
         'Hello PikkX Support, I need help with my PikkX account.',
@@ -1008,9 +719,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   fontWeight: FontWeight.w900,
                 ),
               ),
-
               const SizedBox(height: 10),
-
               const Text(
                 'Your PikkX account information is protected through Firebase Authentication and your private user data is stored under your account.',
                 style: TextStyle(
@@ -1019,19 +728,15 @@ class _ProfilePageState extends State<ProfilePage> {
                   height: 1.5,
                 ),
               ),
-
               const SizedBox(height: 16),
-
               _securityInfo(
                 Icons.verified_user_outlined,
                 'Account protection',
               ),
-
               _securityInfo(
                 Icons.lock_outline_rounded,
                 'Secure authentication',
               ),
-
               _securityInfo(
                 Icons.person_outline_rounded,
                 'Private profile information',
@@ -1055,7 +760,8 @@ class _ProfilePageState extends State<ProfilePage> {
             height: 38,
             width: 38,
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.055),
+              color:
+                  Colors.black.withOpacity(0.055),
               borderRadius:
                   BorderRadius.circular(12),
             ),
@@ -1080,7 +786,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // ============================================================
-  // DELETE ACCOUNT — REAL FIREBASE AUTH DELETE
+  // DELETE ACCOUNT
   // ============================================================
 
   Future<void> _deleteAccount() async {
@@ -1100,7 +806,8 @@ class _ProfilePageState extends State<ProfilePage> {
         return AlertDialog(
           backgroundColor: pikkXWhite,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(23),
+            borderRadius:
+                BorderRadius.circular(23),
           ),
           title: const Text(
             'Delete Account?',
@@ -1144,7 +851,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     const Color(0xFFD32F2F),
                 foregroundColor: pikkXWhite,
                 elevation: 0,
-                shape: RoundedRectangleBorder(
+                shape:
+                    RoundedRectangleBorder(
                   borderRadius:
                       BorderRadius.circular(13),
                 ),
@@ -1161,16 +869,9 @@ class _ProfilePageState extends State<ProfilePage> {
       },
     );
 
-    if (confirmed != true) {
-      return;
-    }
+    if (confirmed != true) return;
 
     try {
-      /*
-       * Delete common user-owned subcollections first.
-       *
-       * This removes the profile's Firebase data.
-       */
       await _deleteUserSubcollection(
         user.uid,
         'cart',
@@ -1186,21 +887,11 @@ class _ProfilePageState extends State<ProfilePage> {
         'following',
       );
 
-      /*
-       * Orders are deliberately NOT blindly deleted here.
-       *
-       * If your business needs order history for records,
-       * those documents may need to be retained/anonymized.
-       */
-
       await _firestore
           .collection('users')
           .doc(user.uid)
           .delete();
 
-      /*
-       * THIS is the actual authentication-account deletion.
-       */
       await user.delete();
 
       if (!mounted) return;
@@ -1249,9 +940,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
       final snapshot = await ref.get();
 
-      if (snapshot.docs.isEmpty) {
-        return;
-      }
+      if (snapshot.docs.isEmpty) return;
 
       final batch = _firestore.batch();
 
@@ -1279,7 +968,8 @@ class _ProfilePageState extends State<ProfilePage> {
         return AlertDialog(
           backgroundColor: pikkXWhite,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(23),
+            borderRadius:
+                BorderRadius.circular(23),
           ),
           title: const Text(
             'Log Out',
@@ -1321,7 +1011,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 backgroundColor: pikkXBlack,
                 foregroundColor: pikkXWhite,
                 elevation: 0,
-                shape: RoundedRectangleBorder(
+                shape:
+                    RoundedRectangleBorder(
                   borderRadius:
                       BorderRadius.circular(13),
                 ),
@@ -1338,9 +1029,7 @@ class _ProfilePageState extends State<ProfilePage> {
       },
     );
 
-    if (confirmed != true) {
-      return;
-    }
+    if (confirmed != true) return;
 
     try {
       await _auth.signOut();
@@ -1352,7 +1041,6 @@ class _ProfilePageState extends State<ProfilePage> {
         _name = 'Guest';
         _email = '';
         _phone = '';
-        _photoUrl = '';
         _ordersCount = 0;
         _favouritesCount = 0;
         _cartCount = 0;
@@ -1385,16 +1073,15 @@ class _ProfilePageState extends State<ProfilePage> {
       builder: (_) {
         return _EditProfileSheet(
           currentName: _name,
-          currentPhotoUrl: _photoUrl,
           onSave: _saveProfile,
-          onChangePhoto: _changeProfilePicture,
-          isUploadingPhoto: _isUploadingPhoto,
         );
       },
     );
   }
 
-  Future<void> _saveProfile(String name) async {
+  Future<void> _saveProfile(
+    String name,
+  ) async {
     final user = _auth.currentUser;
 
     if (user == null) {
@@ -1420,15 +1107,13 @@ class _ProfilePageState extends State<ProfilePage> {
         'name': cleanName,
         'email': user.email ?? _email,
         'phone': user.phoneNumber ?? _phone,
-        'photoUrl': _photoUrl,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt':
+            FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
     );
 
-    await user.updateDisplayName(
-      cleanName,
-    );
+    await user.updateDisplayName(cleanName);
 
     if (!mounted) return;
 
@@ -1466,17 +1151,16 @@ class _ProfilePageState extends State<ProfilePage> {
             right: -50,
             child: _backgroundBlob(190),
           ),
-
           Positioned(
             top: 230,
             left: -100,
             child: _backgroundBlob(220),
           ),
-
           SafeArea(
             child: _isLoading
                 ? const Center(
-                    child: CircularProgressIndicator(
+                    child:
+                        CircularProgressIndicator(
                       color: pikkXBlack,
                     ),
                   )
@@ -1497,26 +1181,19 @@ class _ProfilePageState extends State<ProfilePage> {
                         110,
                       ),
                       children: [
-                        /*
-                         * NO PROFILE HEADER HERE.
-                         *
-                         * MainPage already provides the Profile
-                         * header, so this removes the duplicate.
-                         */
-
                         _yourProfileCard(),
 
-                        const SizedBox(height: 20),
+                        const SizedBox(
+                          height: 20,
+                        ),
 
-                        // ==================================================
-                        // SHOPPING
-                        // ==================================================
-
-                        _sectionTitle('Shopping'),
+                        _sectionTitle(
+                          'Shopping',
+                        ),
 
                         _profileOption(
-                          icon:
-                              Icons.receipt_long_rounded,
+                          icon: Icons
+                              .receipt_long_rounded,
                           title: 'My Orders',
                           subtitle:
                               'Track and manage your orders ($_ordersCount)',
@@ -1524,8 +1201,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
 
                         _profileOption(
-                          icon:
-                              Icons.favorite_outline_rounded,
+                          icon: Icons
+                              .favorite_outline_rounded,
                           title: 'Favorites',
                           subtitle:
                               'Your saved products ($_favouritesCount)',
@@ -1533,29 +1210,22 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
 
                         _profileOption(
-                          icon:
-                              Icons.shopping_cart_outlined,
+                          icon: Icons
+                              .shopping_cart_outlined,
                           title: 'My Cart',
                           subtitle:
                               'Items waiting in your cart ($_cartCount)',
                           onTap: _openCart,
                         ),
 
-                        const SizedBox(height: 8),
-
-                        // ==================================================
-                        // REWARDS & OFFERS
-                        // ==================================================
+                        const SizedBox(
+                          height: 8,
+                        ),
 
                         _sectionTitle(
                           'Rewards & Offers',
                         ),
 
-                        /*
-                         * ONLY COUPONS.
-                         *
-                         * Gift Cards and Redeem were removed.
-                         */
                         _profileOption(
                           icon: Icons
                               .confirmation_number_outlined,
@@ -1565,17 +1235,17 @@ class _ProfilePageState extends State<ProfilePage> {
                           onTap: _openCoupons,
                         ),
 
-                        const SizedBox(height: 8),
+                        const SizedBox(
+                          height: 8,
+                        ),
 
-                        // ==================================================
-                        // PIKKX
-                        // ==================================================
-
-                        _sectionTitle('PikkX'),
+                        _sectionTitle(
+                          'PikkX',
+                        ),
 
                         _profileOption(
-                          icon:
-                              Icons.storefront_outlined,
+                          icon: Icons
+                              .storefront_outlined,
                           title:
                               'Become a Merchant',
                           subtitle:
@@ -1587,30 +1257,30 @@ class _ProfilePageState extends State<ProfilePage> {
                           },
                         ),
 
-                        const SizedBox(height: 8),
-
-                        // ==================================================
-                        // FOLLOWING
-                        // ==================================================
+                        const SizedBox(
+                          height: 8,
+                        ),
 
                         _profileOption(
-                          icon:
-                              Icons.people_outline_rounded,
+                          icon: Icons
+                              .people_outline_rounded,
                           title: 'Following',
                           subtitle:
                               'See who you are following ($_followingCount)',
                           onTap: _openFollowing,
                         ),
 
-                        const SizedBox(height: 8),
+                        const SizedBox(
+                          height: 8,
+                        ),
 
-                        // ==================================================
-                        // OTHER
-                        // ==================================================
+                        _sectionTitle(
+                          'Other',
+                        ),
 
                         _profileOption(
-                          icon:
-                              Icons.location_on_outlined,
+                          icon: Icons
+                              .location_on_outlined,
                           title: 'Addresses',
                           subtitle:
                               'Manage your delivery addresses',
@@ -1623,21 +1293,21 @@ class _ProfilePageState extends State<ProfilePage> {
                           title: 'Notifications',
                           subtitle:
                               'View your PikkX notifications',
-                          onTap: _openNotifications,
+                          onTap:
+                              _openNotifications,
                         ),
 
-                        const SizedBox(height: 8),
+                        const SizedBox(
+                          height: 8,
+                        ),
 
-                        // ==================================================
-                        // ACCOUNT
-                        // NO "SETTINGS" HEADER / NO SETTINGS OPTION
-                        // ==================================================
-
-                        _sectionTitle('Account'),
+                        _sectionTitle(
+                          'Account',
+                        ),
 
                         _profileOption(
-                          icon:
-                              Icons.shield_outlined,
+                          icon: Icons
+                              .shield_outlined,
                           title:
                               'Privacy & Security',
                           subtitle:
@@ -1647,8 +1317,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
 
                         _profileOption(
-                          icon:
-                              Icons.help_outline_rounded,
+                          icon: Icons
+                              .help_outline_rounded,
                           title:
                               'Help & Support',
                           subtitle:
@@ -1658,8 +1328,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
 
                         _profileOption(
-                          icon:
-                              Icons.logout_rounded,
+                          icon: Icons.logout_rounded,
                           title: 'Log Out',
                           subtitle:
                               'Sign out of your account',
@@ -1667,8 +1336,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
 
                         _profileOption(
-                          icon:
-                              Icons.delete_outline_rounded,
+                          icon: Icons
+                              .delete_outline_rounded,
                           title:
                               'Delete Account',
                           subtitle:
@@ -1692,7 +1361,8 @@ class _ProfilePageState extends State<ProfilePage> {
         height: size,
         width: size,
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.025),
+          color:
+              Colors.black.withOpacity(0.025),
           shape: BoxShape.circle,
         ),
       ),
@@ -1719,7 +1389,8 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
           backgroundColor: pikkXBlack,
-          behavior: SnackBarBehavior.floating,
+          behavior:
+              SnackBarBehavior.floating,
           margin: const EdgeInsets.fromLTRB(
             16,
             0,
@@ -1742,19 +1413,14 @@ class _ProfilePageState extends State<ProfilePage> {
 
 class _EditProfileSheet extends StatefulWidget {
   final String currentName;
-  final String currentPhotoUrl;
 
-  final Future<void> Function(String name) onSave;
-  final Future<void> Function() onChangePhoto;
-
-  final bool isUploadingPhoto;
+  final Future<void> Function(
+    String name,
+  ) onSave;
 
   const _EditProfileSheet({
     required this.currentName,
-    required this.currentPhotoUrl,
     required this.onSave,
-    required this.onChangePhoto,
-    required this.isUploadingPhoto,
   });
 
   @override
@@ -1827,112 +1493,6 @@ class _EditProfileSheetState
     }
   }
 
-  Widget _sheetImage() {
-    return GestureDetector(
-      onTap:
-          widget.isUploadingPhoto
-              ? null
-              : widget.onChangePhoto,
-      child: Stack(
-        children: [
-          Container(
-            height: 88,
-            width: 88,
-            padding:
-                const EdgeInsets.all(3),
-            decoration:
-                BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color:
-                    const Color(
-                  0xFFE8E8E8,
-                ),
-              ),
-            ),
-            child: ClipOval(
-              child:
-                  widget.currentPhotoUrl
-                          .isNotEmpty
-                      ? Image.network(
-                          widget.currentPhotoUrl,
-                          key: ValueKey(
-                            widget
-                                .currentPhotoUrl,
-                          ),
-                          fit: BoxFit.cover,
-                          cacheWidth: 240,
-                          cacheHeight: 240,
-                          errorBuilder: (
-                            context,
-                            error,
-                            stackTrace,
-                          ) {
-                            return _fallback();
-                          },
-                        )
-                      : _fallback(),
-            ),
-          ),
-
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: Container(
-              height: 31,
-              width: 31,
-              decoration:
-                  BoxDecoration(
-                color:
-                    const Color(
-                  0xFF050505,
-                ),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.white,
-                  width: 2,
-                ),
-              ),
-              child:
-                  widget.isUploadingPhoto
-                      ? const Padding(
-                          padding:
-                              EdgeInsets.all(
-                            7,
-                          ),
-                          child:
-                              CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color:
-                                Colors.white,
-                          ),
-                        )
-                      : const Icon(
-                          Icons.edit_rounded,
-                          color: Colors.white,
-                          size: 14,
-                        ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _fallback() {
-    return Container(
-      color:
-          const Color(0xFFF0F0F0),
-      child: const Icon(
-        Icons.person_rounded,
-        color:
-            Color(0xFF050505),
-        size: 43,
-      ),
-    );
-  }
-
   void _showMessage(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -1943,8 +1503,7 @@ class _EditProfileSheetState
               const Color(0xFF050505),
           behavior:
               SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(
+          shape: RoundedRectangleBorder(
             borderRadius:
                 BorderRadius.circular(14),
           ),
@@ -1967,8 +1526,7 @@ class _EditProfileSheetState
           top: Radius.circular(30),
         ),
         child: BackdropFilter(
-          filter:
-              ImageFilter.blur(
+          filter: ImageFilter.blur(
             sigmaX: 20,
             sigmaY: 20,
           ),
@@ -1980,14 +1538,12 @@ class _EditProfileSheetState
               20,
               25,
             ),
-            decoration:
-                BoxDecoration(
+            decoration: BoxDecoration(
               color: Colors.white
                   .withOpacity(0.96),
               borderRadius:
                   const BorderRadius.vertical(
-                top:
-                    Radius.circular(30),
+                top: Radius.circular(30),
               ),
               border: Border.all(
                 color: Colors.white,
@@ -2006,13 +1562,9 @@ class _EditProfileSheetState
                     decoration:
                         BoxDecoration(
                       color: Colors.black
-                          .withOpacity(
-                        0.12,
-                      ),
+                          .withOpacity(0.12),
                       borderRadius:
-                          BorderRadius.circular(
-                        10,
-                      ),
+                          BorderRadius.circular(10),
                     ),
                   ),
                 ),
@@ -2024,38 +1576,10 @@ class _EditProfileSheetState
                 const Text(
                   'Edit Profile',
                   style: TextStyle(
-                    color:
-                        Color(0xFF050505),
+                    color: Color(0xFF050505),
                     fontSize: 21,
                     fontWeight:
                         FontWeight.w900,
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 18,
-                ),
-
-                Center(
-                  child: Column(
-                    children: [
-                      _sheetImage(),
-
-                      const SizedBox(
-                        height: 8,
-                      ),
-
-                      const Text(
-                        'Tap the pencil to change your photo',
-                        style: TextStyle(
-                          color:
-                              Color(0xFF777777),
-                          fontSize: 10,
-                          fontWeight:
-                              FontWeight.w600,
-                        ),
-                      ),
-                    ],
                   ),
                 ),
 
@@ -2077,8 +1601,7 @@ class _EditProfileSheetState
                   ),
                   decoration:
                       InputDecoration(
-                    labelText:
-                        'Name',
+                    labelText: 'Name',
                     labelStyle:
                         const TextStyle(
                       color:
@@ -2093,9 +1616,7 @@ class _EditProfileSheetState
                     ),
                     filled: true,
                     fillColor:
-                        const Color(
-                      0xFFF7F7F7,
-                    ),
+                        const Color(0xFFF7F7F7),
                     border:
                         OutlineInputBorder(
                       borderRadius:
@@ -2123,8 +1644,7 @@ class _EditProfileSheetState
                             ? null
                             : _save,
                     style:
-                        ElevatedButton
-                            .styleFrom(
+                        ElevatedButton.styleFrom(
                       backgroundColor:
                           const Color(
                         0xFF050505,
@@ -2139,8 +1659,7 @@ class _EditProfileSheetState
                       shape:
                           RoundedRectangleBorder(
                         borderRadius:
-                            BorderRadius
-                                .circular(
+                            BorderRadius.circular(
                           17,
                         ),
                       ),
@@ -2151,8 +1670,7 @@ class _EditProfileSheetState
                             width: 20,
                             child:
                                 CircularProgressIndicator(
-                              strokeWidth:
-                                  2,
+                              strokeWidth: 2,
                               color:
                                   Colors.white,
                             ),
@@ -2163,8 +1681,7 @@ class _EditProfileSheetState
                                     .center,
                             children: [
                               Icon(
-                                Icons
-                                    .check_rounded,
+                                Icons.check_rounded,
                                 size: 19,
                               ),
                               SizedBox(
@@ -2213,7 +1730,8 @@ class _CouponsSheet extends StatelessWidget {
       child: _SimpleGlassSheet(
         title: 'Coupon Codes',
         child: FutureBuilder<
-            DocumentSnapshot<Map<String, dynamic>>>(
+            DocumentSnapshot<
+                Map<String, dynamic>>>(
           future: userRef.get(),
           builder: (
             context,
@@ -2255,9 +1773,7 @@ class _CouponsSheet extends StatelessWidget {
 
             if (raw is String &&
                 raw.trim().isNotEmpty) {
-              codes.add(
-                raw.trim(),
-              );
+              codes.add(raw.trim());
             }
 
             if (codes.isEmpty) {
@@ -2291,15 +1807,10 @@ class _CouponsSheet extends StatelessWidget {
                     ),
                     decoration:
                         BoxDecoration(
-                      color:
-                          Colors.black
-                              .withOpacity(
-                        0.045,
-                      ),
+                      color: Colors.black
+                          .withOpacity(0.045),
                       borderRadius:
-                          BorderRadius.circular(
-                        15,
-                      ),
+                          BorderRadius.circular(15),
                     ),
                     child: Row(
                       children: [
@@ -2319,15 +1830,11 @@ class _CouponsSheet extends StatelessWidget {
                             style:
                                 const TextStyle(
                               color:
-                                  Color(
-                                0xFF050505,
-                              ),
-                              fontSize:
-                                  14,
+                                  Color(0xFF050505),
+                              fontSize: 14,
                               fontWeight:
                                   FontWeight.w900,
-                              letterSpacing:
-                                  0.5,
+                              letterSpacing: 0.5,
                             ),
                           ),
                         ),
@@ -2437,17 +1944,13 @@ class _FollowingSheet extends StatelessWidget {
               shrinkWrap: true,
               physics:
                   const NeverScrollableScrollPhysics(),
-              itemCount:
-                  docs.length,
+              itemCount: docs.length,
               itemBuilder: (
                 context,
                 index,
               ) {
-                final doc =
-                    docs[index];
-
-                final data =
-                    doc.data();
+                final doc = docs[index];
+                final data = doc.data();
 
                 final name =
                     data['sellerName']
@@ -2473,8 +1976,7 @@ class _FollowingSheet extends StatelessWidget {
                     bottom: 8,
                   ),
                   child: Material(
-                    color:
-                        Colors.transparent,
+                    color: Colors.transparent,
                     child: InkWell(
                       onTap: () {
                         onMerchantTap(
@@ -2483,28 +1985,20 @@ class _FollowingSheet extends StatelessWidget {
                         );
                       },
                       borderRadius:
-                          BorderRadius.circular(
-                        16,
-                      ),
+                          BorderRadius.circular(16),
                       child: Padding(
                         padding:
-                            const EdgeInsets.all(
-                          7,
-                        ),
+                            const EdgeInsets.all(7),
                         child: Row(
                           children: [
                             Container(
                               height: 47,
                               width: 47,
                               padding:
-                                  const EdgeInsets
-                                      .all(
-                                2,
-                              ),
+                                  const EdgeInsets.all(2),
                               decoration:
                                   BoxDecoration(
-                                color:
-                                    Colors.white,
+                                color: Colors.white,
                                 shape:
                                     BoxShape.circle,
                                 border:
@@ -2515,18 +2009,15 @@ class _FollowingSheet extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              child:
-                                  ClipOval(
+                              child: ClipOval(
                                 child: imageUrl
                                         .isNotEmpty
                                     ? Image.network(
                                         imageUrl,
                                         fit:
                                             BoxFit.cover,
-                                        cacheWidth:
-                                            180,
-                                        cacheHeight:
-                                            180,
+                                        cacheWidth: 180,
+                                        cacheHeight: 180,
                                         errorBuilder:
                                             (
                                           context,
@@ -2549,16 +2040,14 @@ class _FollowingSheet extends StatelessWidget {
                             ),
 
                             Expanded(
-                              child:
-                                  Column(
+                              child: Column(
                                 crossAxisAlignment:
                                     CrossAxisAlignment
                                         .start,
                                 children: [
                                   Text(
                                     name,
-                                    maxLines:
-                                        1,
+                                    maxLines: 1,
                                     overflow:
                                         TextOverflow
                                             .ellipsis,
@@ -2568,11 +2057,9 @@ class _FollowingSheet extends StatelessWidget {
                                           Color(
                                         0xFF050505,
                                       ),
-                                      fontSize:
-                                          13,
+                                      fontSize: 13,
                                       fontWeight:
-                                          FontWeight
-                                              .w800,
+                                          FontWeight.w800,
                                     ),
                                   ),
                                   const SizedBox(
@@ -2586,8 +2073,7 @@ class _FollowingSheet extends StatelessWidget {
                                           Color(
                                         0xFF777777,
                                       ),
-                                      fontSize:
-                                          10,
+                                      fontSize: 10,
                                     ),
                                   ),
                                 ],
@@ -2598,9 +2084,7 @@ class _FollowingSheet extends StatelessWidget {
                               Icons
                                   .arrow_forward_ios_rounded,
                               color:
-                                  Color(
-                                0xFF777777,
-                              ),
+                                  Color(0xFF777777),
                               size: 13,
                             ),
                           ],
@@ -2617,25 +2101,18 @@ class _FollowingSheet extends StatelessWidget {
     );
   }
 
-  Widget _avatarFallback(
-    String name,
-  ) {
+  Widget _avatarFallback(String name) {
     return Container(
-      color:
-          const Color(0xFFF0F0F0),
-      alignment:
-          Alignment.center,
+      color: const Color(0xFFF0F0F0),
+      alignment: Alignment.center,
       child: Text(
         name.isNotEmpty
             ? name[0].toUpperCase()
             : 'M',
-        style:
-            const TextStyle(
-          color:
-              Color(0xFF050505),
+        style: const TextStyle(
+          color: Color(0xFF050505),
           fontSize: 17,
-          fontWeight:
-              FontWeight.w900,
+          fontWeight: FontWeight.w900,
         ),
       ),
     );
@@ -2683,17 +2160,13 @@ class _SimpleGlassSheet
           decoration:
               BoxDecoration(
             color:
-                Colors.white.withOpacity(
-              0.96,
-            ),
+                Colors.white.withOpacity(0.96),
             borderRadius:
                 const BorderRadius.vertical(
-              top:
-                  Radius.circular(30),
+              top: Radius.circular(30),
             ),
             border: Border.all(
-              color:
-                  Colors.white,
+              color: Colors.white,
             ),
           ),
           child: SingleChildScrollView(
@@ -2709,15 +2182,10 @@ class _SimpleGlassSheet
                     width: 45,
                     decoration:
                         BoxDecoration(
-                      color:
-                          Colors.black
-                              .withOpacity(
-                        0.12,
-                      ),
+                      color: Colors.black
+                          .withOpacity(0.12),
                       borderRadius:
-                          BorderRadius.circular(
-                        10,
-                      ),
+                          BorderRadius.circular(10),
                     ),
                   ),
                 ),
@@ -2732,8 +2200,7 @@ class _SimpleGlassSheet
                       const TextStyle(
                     color:
                         Color(0xFF050505),
-                    fontSize:
-                        21,
+                    fontSize: 21,
                     fontWeight:
                         FontWeight.w900,
                   ),
