@@ -1,4 +1,5 @@
-import 'dart:ui';
+import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -17,7 +18,6 @@ class ChatPage extends StatefulWidget {
   /// Null = Chat Inbox.
   /// A value = Individual conversation.
   final String? chatId;
-
   final String? otherUserName;
 
   @override
@@ -40,31 +40,42 @@ class _ChatPageState extends State<ChatPage> {
   // FIREBASE
   // ============================================================
 
-  final FirebaseFirestore _firestore =
-      FirebaseFirestore.instance;
-
-  final FirebaseAuth _auth =
-      FirebaseAuth.instance;
-
-  final FirebaseStorage _storage =
-      FirebaseStorage.instance;
-
-  final ImagePicker _imagePicker =
-      ImagePicker();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
+  final ImagePicker _imagePicker = ImagePicker();
 
   final TextEditingController _messageController =
       TextEditingController();
 
+  final TextEditingController _searchController =
+      TextEditingController();
+
+  // ============================================================
+  // STATE
+  // ============================================================
+
   bool _isSending = false;
   bool _isSendingAttachment = false;
+  bool _isMarkingRead = false;
 
-  /// 0 = Community
-  /// 1 = Unread
-  /// 2 = Chats
+  /// 0 = Chat
+  /// 1 = Communities
+  /// 2 = Unread
+  /// 3 = Favorite
+  /// 4 = Folders
   int _selectedFilter = 0;
-  bool _showArchived = false;
 
-  /// Message currently being replied to.
+  String? _activeFolderId;
+  String? _activeFolderName;
+  Set<String> _activeFolderChatIds = <String>{};
+
+  // Keeps the active folder's chat list live instead of a one-off
+  // snapshot, so adding/removing chats from a folder updates the
+  // Folders tab immediately.
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+      _folderSub;
+
   Map<String, dynamic>? _replyTo;
 
   User? get _currentUser => _auth.currentUser;
@@ -72,11 +83,9 @@ class _ChatPageState extends State<ChatPage> {
   String? get _userId => _currentUser?.uid;
 
   bool get _isConversation =>
-      widget.chatId != null &&
-      widget.chatId!.trim().isNotEmpty;
+      widget.chatId != null && widget.chatId!.trim().isNotEmpty;
 
-  CollectionReference<Map<String, dynamic>>
-      get _messagesRef {
+  CollectionReference<Map<String, dynamic>> get _messagesRef {
     if (!_isConversation) {
       throw StateError('No chat ID provided.');
     }
@@ -96,6 +105,7 @@ class _ChatPageState extends State<ChatPage> {
     super.initState();
 
     if (_isConversation) {
+      _restoreChatForMe();
       _markChatAsRead();
     }
   }
@@ -103,7 +113,38 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void dispose() {
     _messageController.dispose();
+    _searchController.dispose();
+    _folderSub?.cancel();
     super.dispose();
+  }
+
+  // ============================================================
+  // RESTORE HIDDEN CHAT
+  // ============================================================
+
+  /// Opening a merchant chat makes the conversation visible again.
+  /// This is what allows a deleted/hidden customer ↔ merchant chat
+  /// to be reopened from Product Details using the same chat ID.
+  Future<void> _restoreChatForMe() async {
+    final uid = _userId;
+
+    if (uid == null || !_isConversation) {
+      return;
+    }
+
+    try {
+      await _firestore.collection('chats').doc(widget.chatId).set(
+        {
+          'hiddenFor': FieldValue.arrayRemove([uid]),
+
+          // Legacy compatibility for older chats.
+          'deletedFor': FieldValue.arrayRemove([uid]),
+        },
+        SetOptions(merge: true),
+      );
+    } catch (e) {
+      debugPrint('Restore chat error: $e');
+    }
   }
 
   // ============================================================
@@ -113,34 +154,84 @@ class _ChatPageState extends State<ChatPage> {
   Future<void> _markChatAsRead() async {
     final uid = _userId;
 
-    if (uid == null || !_isConversation) {
+    if (uid == null || !_isConversation || _isMarkingRead) {
       return;
     }
 
+    _isMarkingRead = true;
+
     try {
-      await _firestore
-          .collection('chats')
-          .doc(widget.chatId)
-          .set(
+      final chatRef =
+          _firestore.collection('chats').doc(widget.chatId);
+
+      final chatSnapshot = await chatRef.get();
+      final chatData = chatSnapshot.data() ?? <String, dynamic>{};
+
+      final participants = <String>[];
+
+      final rawParticipants = chatData['participants'];
+
+      if (rawParticipants is List) {
+        for (final participant in rawParticipants) {
+          final id = participant?.toString().trim();
+
+          if (id != null && id.isNotEmpty) {
+            participants.add(id);
+          }
+        }
+      }
+
+      if (!participants.contains(uid)) {
+        participants.add(uid);
+      }
+
+      final unreadCounts = <String, dynamic>{
+        ...?_asMap(chatData['unreadCounts']),
+      };
+
+      unreadCounts[uid] = 0;
+
+      var totalUnread = 0;
+
+      for (final participant in participants) {
+        final count = unreadCounts[participant];
+
+        if (count is num && count > 0) {
+          totalUnread += count.toInt();
+        }
+      }
+
+      await chatRef.set(
         {
+          'unreadCounts': unreadCounts,
           'unreadFor': FieldValue.arrayRemove([uid]),
-          'unread': false,
-          'unreadCount': 0,
+          'unread': totalUnread > 0,
+          'unreadCount': totalUnread,
         },
         SetOptions(merge: true),
       );
 
-      final unreadMessages = await _messagesRef
-          .where('senderId', isNotEqualTo: uid)
-          .get();
+      // Only fetch messages that are still unread, instead of the
+      // entire message history, so this scales as a chat grows.
+      final messageSnapshot =
+          await _messagesRef.where('read', isEqualTo: false).get();
 
       final batch = _firestore.batch();
       var changed = false;
 
-      for (final doc in unreadMessages.docs) {
+      for (final doc in messageSnapshot.docs) {
         final data = doc.data();
 
-        if (data['deleted'] == true) {
+        final senderId = data['senderId']?.toString();
+
+        if (senderId == null || senderId == uid) {
+          continue;
+        }
+
+        final alreadyRead = data['read'] == true;
+        final alreadyDelivered = data['delivered'] == true;
+
+        if (alreadyRead && alreadyDelivered) {
           continue;
         }
 
@@ -149,7 +240,8 @@ class _ChatPageState extends State<ChatPage> {
           {
             'delivered': true,
             'read': true,
-            'deliveredAt': FieldValue.serverTimestamp(),
+            'deliveredAt': data['deliveredAt'] ??
+                FieldValue.serverTimestamp(),
             'readAt': FieldValue.serverTimestamp(),
           },
         );
@@ -161,14 +253,14 @@ class _ChatPageState extends State<ChatPage> {
         await batch.commit();
       }
     } catch (e) {
-      debugPrint(
-        'Mark chat read error: $e',
-      );
+      debugPrint('Mark chat read error: $e');
+    } finally {
+      _isMarkingRead = false;
     }
   }
 
   // ============================================================
-  // SEND TEXT MESSAGE
+  // SEND TEXT
   // ============================================================
 
   Future<void> _sendMessage() async {
@@ -187,20 +279,16 @@ class _ChatPageState extends State<ChatPage> {
     });
 
     try {
-      final chatRef = _firestore
-          .collection('chats')
-          .doc(widget.chatId);
+      final chatRef =
+          _firestore.collection('chats').doc(widget.chatId);
 
-      final messageRef =
-          chatRef.collection('messages').doc();
+      final messageRef = chatRef.collection('messages').doc();
 
-      final messageData =
-          <String, dynamic>{
+      final messageData = <String, dynamic>{
         'senderId': _userId,
         'text': text,
         'type': 'text',
-        'createdAt':
-            FieldValue.serverTimestamp(),
+        'createdAt': FieldValue.serverTimestamp(),
         'delivered': false,
         'read': false,
         'deleted': false,
@@ -209,32 +297,20 @@ class _ChatPageState extends State<ChatPage> {
 
       if (_replyTo != null) {
         messageData['replyTo'] = {
-          'messageId':
-              _replyTo!['messageId'],
-          'senderId':
-              _replyTo!['senderId'],
-          'text':
-              _replyTo!['text'] ?? '',
-          'type':
-              _replyTo!['type'] ?? 'text',
+          'messageId': _replyTo!['messageId'],
+          'senderId': _replyTo!['senderId'],
+          'text': _replyTo!['text'] ?? '',
+          'type': _replyTo!['type'] ?? 'text',
+          'imageUrl': _replyTo!['imageUrl'],
+          'stickerUrl': _replyTo!['stickerUrl'],
         };
       }
 
       await messageRef.set(messageData);
 
-      await chatRef.set(
-        {
-          'lastMessage': text,
-          'lastMessageSenderId':
-              _userId,
-          'updatedAt':
-              FieldValue.serverTimestamp(),
-          'participants':
-              FieldValue.arrayUnion([
-            _userId,
-          ]),
-        },
-        SetOptions(merge: true),
+      await _updateChatPreview(
+        chatRef: chatRef,
+        preview: text,
       );
 
       _messageController.clear();
@@ -245,17 +321,11 @@ class _ChatPageState extends State<ChatPage> {
         });
       }
     } catch (e, stackTrace) {
-      debugPrint(
-        'Send message error: $e',
-      );
-      debugPrint(
-        'Stack trace: $stackTrace',
-      );
+      debugPrint('Send message error: $e');
+      debugPrint('Stack trace: $stackTrace');
 
       if (mounted) {
-        _showMessage(
-          'Could not send message.',
-        );
+        _showMessage('Could not send message.');
       }
     } finally {
       if (mounted) {
@@ -279,8 +349,7 @@ class _ChatPageState extends State<ChatPage> {
     }
 
     try {
-      final picked =
-          await _imagePicker.pickImage(
+      final picked = await _imagePicker.pickImage(
         source: ImageSource.gallery,
         imageQuality: 82,
         maxWidth: 1600,
@@ -294,22 +363,17 @@ class _ChatPageState extends State<ChatPage> {
         _isSendingAttachment = true;
       });
 
-      final fileBytes =
-          await picked.readAsBytes();
+      final fileBytes = await picked.readAsBytes();
 
-      final timestamp =
-          DateTime.now().millisecondsSinceEpoch;
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
 
       final storageRef = _storage
           .ref()
           .child('chat_images')
           .child(widget.chatId!)
-          .child(
-            '${_userId}_$timestamp.jpg',
-          );
+          .child('${_userId}_$timestamp.jpg');
 
-      final uploadTask =
-          await storageRef.putData(
+      final uploadTask = await storageRef.putData(
         fileBytes,
         SettableMetadata(
           contentType: 'image/jpeg',
@@ -319,51 +383,33 @@ class _ChatPageState extends State<ChatPage> {
       final imageUrl =
           await uploadTask.ref.getDownloadURL();
 
-      final chatRef = _firestore
-          .collection('chats')
-          .doc(widget.chatId);
+      final chatRef =
+          _firestore.collection('chats').doc(widget.chatId);
 
-      final messageRef =
-          chatRef.collection('messages').doc();
+      final messageRef = chatRef.collection('messages').doc();
 
       await messageRef.set({
         'senderId': _userId,
         'text': '',
         'type': 'image',
         'imageUrl': imageUrl,
-        'createdAt':
-            FieldValue.serverTimestamp(),
+        'createdAt': FieldValue.serverTimestamp(),
+        'delivered': false,
         'read': false,
         'deleted': false,
         'reactions': <String, dynamic>{},
       });
 
-      await chatRef.set(
-        {
-          'lastMessage': '📷 Image',
-          'lastMessageSenderId':
-              _userId,
-          'updatedAt':
-              FieldValue.serverTimestamp(),
-          'participants':
-              FieldValue.arrayUnion([
-            _userId,
-          ]),
-        },
-        SetOptions(merge: true),
+      await _updateChatPreview(
+        chatRef: chatRef,
+        preview: '📷 Image',
       );
     } catch (e, stackTrace) {
-      debugPrint(
-        'Send image error: $e',
-      );
-      debugPrint(
-        'Stack trace: $stackTrace',
-      );
+      debugPrint('Send image error: $e');
+      debugPrint('Stack trace: $stackTrace');
 
       if (mounted) {
-        _showMessage(
-          'Could not send image.',
-        );
+        _showMessage('Could not send image.');
       }
     } finally {
       if (mounted) {
@@ -378,9 +424,10 @@ class _ChatPageState extends State<ChatPage> {
   // SEND STICKER
   // ============================================================
 
-  Future<void> _sendSticker(
-    String sticker,
-  ) async {
+  /// The picker lets the user choose sticker designs using emoji
+  /// as the visual source, but the actual Firestore message is an
+  /// uploaded PNG image, not an emoji text message.
+  Future<void> _sendSticker(String emoji) async {
     if (_userId == null ||
         !_isConversation ||
         _isSending ||
@@ -390,52 +437,58 @@ class _ChatPageState extends State<ChatPage> {
 
     Navigator.of(context).pop();
 
+    setState(() {
+      _isSendingAttachment = true;
+    });
+
     try {
-      setState(() {
-        _isSendingAttachment = true;
-      });
+      final stickerBytes = await _emojiToPng(emoji);
 
-      final chatRef = _firestore
-          .collection('chats')
-          .doc(widget.chatId);
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
 
-      final messageRef =
-          chatRef.collection('messages').doc();
+      final storageRef = _storage
+          .ref()
+          .child('chat_stickers')
+          .child(widget.chatId!)
+          .child('${_userId}_$timestamp.png');
+
+      final uploadTask = await storageRef.putData(
+        stickerBytes,
+        SettableMetadata(
+          contentType: 'image/png',
+        ),
+      );
+
+      final stickerUrl =
+          await uploadTask.ref.getDownloadURL();
+
+      final chatRef =
+          _firestore.collection('chats').doc(widget.chatId);
+
+      final messageRef = chatRef.collection('messages').doc();
 
       await messageRef.set({
         'senderId': _userId,
-        'text': sticker,
+        'text': '',
         'type': 'sticker',
-        'createdAt':
-            FieldValue.serverTimestamp(),
+        'stickerUrl': stickerUrl,
+        'createdAt': FieldValue.serverTimestamp(),
+        'delivered': false,
         'read': false,
         'deleted': false,
         'reactions': <String, dynamic>{},
       });
 
-      await chatRef.set(
-        {
-          'lastMessage': '🎨 Sticker',
-          'lastMessageSenderId':
-              _userId,
-          'updatedAt':
-              FieldValue.serverTimestamp(),
-          'participants':
-              FieldValue.arrayUnion([
-            _userId,
-          ]),
-        },
-        SetOptions(merge: true),
+      await _updateChatPreview(
+        chatRef: chatRef,
+        preview: '🎨 Sticker',
       );
-    } catch (e) {
-      debugPrint(
-        'Send sticker error: $e',
-      );
+    } catch (e, stackTrace) {
+      debugPrint('Send sticker error: $e');
+      debugPrint('Stack trace: $stackTrace');
 
       if (mounted) {
-        _showMessage(
-          'Could not send sticker.',
-        );
+        _showMessage('Could not send sticker.');
       }
     } finally {
       if (mounted) {
@@ -447,11 +500,148 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   // ============================================================
+  // TURN EMOJI INTO REAL PNG
+  // ============================================================
+
+  Future<Uint8List> _emojiToPng(String emoji) async {
+    const size = 180.0;
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(
+      recorder,
+      const Rect.fromLTWH(0, 0, size, size),
+    );
+
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: emoji,
+        style: const TextStyle(
+          fontSize: 105,
+          height: 1,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+
+    textPainter.layout();
+
+    final offset = Offset(
+      (size - textPainter.width) / 2,
+      (size - textPainter.height) / 2,
+    );
+
+    textPainter.paint(canvas, offset);
+
+    final picture = recorder.endRecording();
+
+    final image = await picture.toImage(
+      size.toInt(),
+      size.toInt(),
+    );
+
+    final byteData = await image.toByteData(
+      format: ui.ImageByteFormat.png,
+    );
+
+    if (byteData == null) {
+      throw StateError('Could not create sticker image.');
+    }
+
+    return byteData.buffer.asUint8List();
+  }
+
+  // ============================================================
+  // UPDATE CHAT PREVIEW + UNREAD
+  // ============================================================
+
+  Future<void> _updateChatPreview({
+    required DocumentReference<Map<String, dynamic>> chatRef,
+    required String preview,
+  }) async {
+    final uid = _userId;
+
+    if (uid == null) {
+      return;
+    }
+
+    final chatSnapshot = await chatRef.get();
+    final chatData = chatSnapshot.data() ?? <String, dynamic>{};
+
+    final participants = <String>{};
+
+    final rawParticipants = chatData['participants'];
+
+    if (rawParticipants is List) {
+      for (final participant in rawParticipants) {
+        final id = participant?.toString().trim();
+
+        if (id != null && id.isNotEmpty) {
+          participants.add(id);
+        }
+      }
+    }
+
+    participants.add(uid);
+
+    final unreadCounts = <String, dynamic>{
+      ...?_asMap(chatData['unreadCounts']),
+    };
+
+    final unreadFor = <String>{};
+
+    final existingUnreadFor = chatData['unreadFor'];
+
+    if (existingUnreadFor is List) {
+      unreadFor.addAll(
+        existingUnreadFor.map((e) => e.toString()),
+      );
+    }
+
+    for (final participant in participants) {
+      if (participant == uid) {
+        unreadCounts[participant] ??= 0;
+        continue;
+      }
+
+      final oldCount = unreadCounts[participant];
+
+      final currentCount =
+          oldCount is num ? oldCount.toInt() : 0;
+
+      unreadCounts[participant] = currentCount + 1;
+      unreadFor.add(participant);
+    }
+
+    var totalUnread = 0;
+
+    for (final value in unreadCounts.values) {
+      if (value is num && value > 0) {
+        totalUnread += value.toInt();
+      }
+    }
+
+    await chatRef.set(
+      {
+        'participants': participants.toList(),
+        'lastMessage': preview,
+        'lastMessageSenderId': uid,
+        'updatedAt': FieldValue.serverTimestamp(),
+        'unreadCounts': unreadCounts,
+        'unreadFor': unreadFor.toList(),
+        'unread': totalUnread > 0,
+        'unreadCount': totalUnread,
+        'hiddenFor': FieldValue.arrayRemove([uid]),
+        'deletedFor': FieldValue.arrayRemove([uid]),
+      },
+      SetOptions(merge: true),
+    );
+  }
+
+  // ============================================================
   // CHAT STREAM
   // ============================================================
 
-  Stream<QuerySnapshot<Map<String, dynamic>>>
-      _chatStream() {
+  Stream<QuerySnapshot<Map<String, dynamic>>> _chatStream() {
     final uid = _userId;
 
     if (uid == null) {
@@ -490,28 +680,21 @@ class _ChatPageState extends State<ChatPage> {
   // SORT CHAT LIST
   // ============================================================
 
-  List<QueryDocumentSnapshot<Map<String, dynamic>>>
-      _sortChats(
-    List<QueryDocumentSnapshot<Map<String, dynamic>>>
-        chats,
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> _sortChats(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> chats,
   ) {
     final sorted =
-        List<QueryDocumentSnapshot<
-            Map<String, dynamic>>>.from(
+        List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
       chats,
     );
 
     sorted.sort(
       (a, b) {
         final aDate =
-            _timestampToDate(
-          a.data()['updatedAt'],
-        );
+            _timestampToDate(a.data()['updatedAt']);
 
         final bDate =
-            _timestampToDate(
-          b.data()['updatedAt'],
-        );
+            _timestampToDate(b.data()['updatedAt']);
 
         return bDate.compareTo(aDate);
       },
@@ -520,9 +703,7 @@ class _ChatPageState extends State<ChatPage> {
     return sorted;
   }
 
-  DateTime _timestampToDate(
-    dynamic value,
-  ) {
+  DateTime _timestampToDate(dynamic value) {
     if (value is Timestamp) {
       return value.toDate();
     }
@@ -531,19 +712,15 @@ class _ChatPageState extends State<ChatPage> {
       return value;
     }
 
-    return DateTime.fromMillisecondsSinceEpoch(
-      0,
-    );
+    return DateTime.fromMillisecondsSinceEpoch(0);
   }
 
   // ============================================================
   // FILTER CHAT LIST
   // ============================================================
 
-  List<QueryDocumentSnapshot<Map<String, dynamic>>>
-      _filterChats(
-    List<QueryDocumentSnapshot<Map<String, dynamic>>>
-        chats,
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> _filterChats(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> chats,
   ) {
     final uid = _userId;
 
@@ -554,97 +731,81 @@ class _ChatPageState extends State<ChatPage> {
     final visibleChats = chats.where((doc) {
       final data = doc.data();
 
-      final deletedFor =
-          data['deletedFor'];
+      final hiddenFor = data['hiddenFor'];
 
-      final isDeletedForMe =
-          deletedFor is List &&
-          deletedFor.contains(uid);
+      final isHiddenForMe =
+          hiddenFor is List && hiddenFor.contains(uid);
 
-      if (isDeletedForMe) {
+      final legacyDeletedFor = data['deletedFor'];
+
+      final isLegacyHidden =
+          legacyDeletedFor is List &&
+          legacyDeletedFor.contains(uid);
+
+      if (isHiddenForMe || isLegacyHidden) {
         return false;
       }
 
-      final archivedFor =
-          data['archivedFor'];
-
-      final isArchived =
-          archivedFor is List &&
-          archivedFor.contains(uid);
-
-      return false
-          ? isArchived
-          : !isArchived;
+      return true;
     }).toList();
 
-    // Chat
     if (_selectedFilter == 0) {
       return visibleChats.where((doc) {
         final data = doc.data();
 
         final type =
-            data['type']
-                ?.toString()
-                .toLowerCase();
+            data['type']?.toString().toLowerCase();
 
         return type != 'community' &&
             data['isCommunity'] != true;
       }).toList();
     }
 
-    // Communities
     if (_selectedFilter == 1) {
       return visibleChats.where((doc) {
         final data = doc.data();
 
         final type =
-            data['type']
-                ?.toString()
-                .toLowerCase();
+            data['type']?.toString().toLowerCase();
 
         return type == 'community' ||
             data['isCommunity'] == true;
       }).toList();
     }
 
-    // Unread
     if (_selectedFilter == 2) {
       return visibleChats.where((doc) {
-        final data = doc.data();
-
-        final count =
-            data['unreadCount'];
-
-        final unreadCount =
-            count is num && count > 0;
-
-        final unread =
-            data['unread'] == true;
-
-        final unreadFor =
-            data['unreadFor'];
-
-        final unreadForUser =
-            unreadFor is List &&
-            unreadFor.contains(uid);
-
-        return unreadCount ||
-            unread ||
-            unreadForUser;
+        return _getUnreadCount(doc.data()) > 0;
       }).toList();
     }
 
-    // Favorite
-    return visibleChats.where((doc) {
-      final data = doc.data();
+    if (_selectedFilter == 3) {
+      return visibleChats.where((doc) {
+        final data = doc.data();
 
-      final favoriteFor =
-          data['favoriteFor'];
+        final favoriteFor = data['favoriteFor'];
 
-      return favoriteFor is List &&
-          favoriteFor.contains(uid);
-    }).toList();
+        return favoriteFor is List &&
+            favoriteFor.contains(uid);
+      }).toList();
+    }
+
+    if (_selectedFilter == 4) {
+      if (_activeFolderId == null) {
+        return [];
+      }
+
+      return visibleChats.where((doc) {
+        return _activeFolderChatIds.contains(doc.id);
+      }).toList();
+    }
+
+    return visibleChats;
   }
+
+  // ============================================================
+  // FAVORITE
+  // ============================================================
 
   Future<void> _setFavorite(
     String chatId,
@@ -652,12 +813,11 @@ class _ChatPageState extends State<ChatPage> {
   ) async {
     final uid = _userId;
 
-    if (uid == null) return;
+    if (uid == null) {
+      return;
+    }
 
-    await _firestore
-        .collection('chats')
-        .doc(chatId)
-        .set(
+    await _firestore.collection('chats').doc(chatId).set(
       {
         'favoriteFor': value
             ? FieldValue.arrayUnion([uid])
@@ -667,322 +827,16 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  Future<void> _setArchived(
-    String chatId,
-    bool value,
-  ) async {
-    final uid = _userId;
-
-    if (uid == null) return;
-
-    await _firestore
-        .collection('chats')
-        .doc(chatId)
-        .set(
-      {
-        'archivedFor': value
-            ? FieldValue.arrayUnion([uid])
-            : FieldValue.arrayRemove([uid]),
-      },
-      SetOptions(merge: true),
-    );
-  }
-
   // ============================================================
-  // BUILD
+  // FOLDERS
   // ============================================================
-
-  @override
-  Widget build(BuildContext context) {
-    if (!_isConversation) {
-      return _buildInbox();
-    }
-
-    return _buildConversation();
-  }
-
-  // ============================================================
-  // CHAT INBOX
-  // ============================================================
-
-  Widget _buildInbox() {
-    return Scaffold(
-      backgroundColor: pikkXBackground,
-      body: _userId == null
-          ? _buildSignInState()
-          : Column(
-              children: [
-                _buildFilterBox(),
-
-                Expanded(
-                  child: StreamBuilder<
-                      QuerySnapshot<
-                          Map<String, dynamic>>>(
-                    stream: _chatStream(),
-                    builder: (
-                      context,
-                      snapshot,
-                    ) {
-                      if (snapshot.connectionState ==
-                          ConnectionState.waiting) {
-                        return const Center(
-                          child:
-                              CircularProgressIndicator(
-                            color: pikkXBlack,
-                          ),
-                        );
-                      }
-
-                      if (snapshot.hasError) {
-                        debugPrint(
-                          'Chat stream error: '
-                          '${snapshot.error}',
-                        );
-
-                        return _buildErrorState();
-                      }
-
-                      final allChats =
-                          snapshot.data?.docs ?? [];
-
-                      final filteredChats =
-                          _filterChats(allChats);
-
-                      final chats =
-                          _sortChats(
-                        filteredChats,
-                      );
-
-                      if (chats.isEmpty) {
-                        if (_selectedFilter == 0) {
-                          return _buildFilterEmptyState(
-                            'No community chats',
-                            'Community conversations will appear here.',
-                            Icons.groups_rounded,
-                          );
-                        }
-
-                        if (_selectedFilter == 1) {
-                          return _buildFilterEmptyState(
-                            'No unread chats',
-                            'You are all caught up.',
-                            Icons.mark_chat_read_rounded,
-                          );
-                        }
-
-                        return _buildEmptyInbox();
-                      }
-
-                      return ListView.builder(
-                        physics:
-                            const BouncingScrollPhysics(),
-                        padding:
-                            const EdgeInsets.fromLTRB(
-                          16,
-                          4,
-                          16,
-                          100,
-                        ),
-                        itemCount: chats.length,
-                        itemBuilder:
-                            (context, index) {
-                          final doc =
-                              chats[index];
-
-                          return Padding(
-                            padding:
-                                const EdgeInsets.only(
-                              bottom: 9,
-                            ),
-                            child:
-                                _buildChatTile(
-                              doc.id,
-                              doc.data(),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-    );
-  }
-
-  // ============================================================
-  // CHAT FILTER BOX
-  // ============================================================
-
-  Widget _buildFilterBox() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: _glass(
-              radius: 18,
-              padding: const EdgeInsets.all(4),
-              child: Row(
-                children: [
-                  _filterButton(
-                    label: 'Chat',
-                    index: 0,
-                    icon: Icons.chat_bubble_rounded,
-                  ),
-                  _filterButton(
-                    label: 'Communities',
-                    index: 1,
-                    icon: Icons.groups_rounded,
-                  ),
-                  _filterButton(
-                    label: 'Unread',
-                    index: 2,
-                    icon: Icons.mark_email_unread_rounded,
-                  ),
-                  _filterButton(
-                    label: 'Favorite',
-                    index: 3,
-                    icon: Icons.star_rounded,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: _showFolderMenu,
-            child: _glass(
-              radius: 18,
-              padding: const EdgeInsets.all(10),
-              child: const Icon(
-                Icons.add_rounded,
-                size: 21,
-                color: pikkXBlack,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _filterButton({
-    required String label,
-    required int index,
-    required IconData icon,
-  }) {
-    final selected = _selectedFilter == index;
-
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _selectedFilter = index;
-            _showArchived = false;
-          });
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          height: 39,
-          decoration: BoxDecoration(
-            color: selected
-                ? pikkXBlack
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 13,
-                color: selected
-                    ? pikkXWhite
-                    : pikkXGrey,
-              ),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: selected
-                        ? pikkXWhite
-                        : pikkXGrey,
-                    fontSize: 9.5,
-                    fontWeight: selected
-                        ? FontWeight.w800
-                        : FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showFolderMenu() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: pikkXWhite,
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(28),
-            ),
-          ),
-          child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 12),
-                const Text(
-                  'Chat folders',
-                  style: TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                ListTile(
-                  leading: const Icon(
-                    Icons.create_new_folder_rounded,
-                  ),
-                  title: const Text('Create folder'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _createChatFolder();
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(
-                    Icons.archive_rounded,
-                  ),
-                  title: const Text('Archived chats'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    setState(() {
-                      _showArchived = true;
-                    });
-                  },
-                ),
-                const SizedBox(height: 10),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
 
   Future<void> _createChatFolder() async {
     final uid = _userId;
-    if (uid == null) return;
+
+    if (uid == null) {
+      return;
+    }
 
     final controller = TextEditingController();
 
@@ -990,22 +844,44 @@ class _ChatPageState extends State<ChatPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Create folder'),
+          backgroundColor: pikkXWhite,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+          ),
+          title: const Text(
+            'Create folder',
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           content: TextField(
             controller: controller,
             autofocus: true,
-            decoration: const InputDecoration(
-              hintText: 'Folder name',
+            decoration: InputDecoration(
+              hintText: 'Sellers, Friends, Orders...',
+              filled: true,
+              fillColor: pikkXBackground,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(15),
+                borderSide: BorderSide.none,
+              ),
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                Navigator.pop(context);
+              },
               child: const Text('Cancel'),
             ),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: pikkXBlack,
+                foregroundColor: pikkXWhite,
+              ),
               onPressed: () {
                 final value = controller.text.trim();
+
                 if (value.isNotEmpty) {
                   Navigator.pop(context, value);
                 }
@@ -1019,315 +895,629 @@ class _ChatPageState extends State<ChatPage> {
 
     controller.dispose();
 
-    if (name == null || name.trim().isEmpty) return;
+    if (name == null || name.trim().isEmpty) {
+      return;
+    }
 
-    await _firestore
+    try {
+      await _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('chatFolders')
+          .add({
+        'name': name.trim(),
+        'chatIds': <String>[],
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) {
+        _showMessage('Folder created.');
+      }
+    } catch (e) {
+      debugPrint('Create folder error: $e');
+
+      if (mounted) {
+        _showMessage('Could not create folder.');
+      }
+    }
+  }
+
+  // Subscribes to a single chat folder document so the Folders tab
+  // stays live: adding or removing a chat from the folder (from
+  // anywhere) updates _activeFolderChatIds without needing to
+  // reopen the folder menu.
+  void _subscribeToFolder(String folderId, String fallbackName) {
+    final uid = _userId;
+
+    if (uid == null) {
+      return;
+    }
+
+    _folderSub?.cancel();
+
+    _folderSub = _firestore
         .collection('users')
         .doc(uid)
         .collection('chatFolders')
-        .add({
-      'name': name.trim(),
-      'chatIds': <String>[],
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
+        .doc(folderId)
+        .snapshots()
+        .listen((snapshot) {
+      if (!mounted) {
+        return;
+      }
+
+      final data = snapshot.data() ?? <String, dynamic>{};
+
+      final rawIds = data['chatIds'];
+
+      final ids = <String>{};
+
+      if (rawIds is List) {
+        ids.addAll(rawIds.map((e) => e.toString()));
+      }
+
+      setState(() {
+        _activeFolderName =
+            data['name']?.toString() ?? fallbackName;
+        _activeFolderChatIds = ids;
+      });
     });
   }
-
-
-  // ============================================================
-  // CHAT LONG-PRESS ACTIONS
-  // ============================================================
-
-  void _showChatActions(
-    String chatId,
-    Map<String, dynamic> data,
-  ) {
-    final uid = _userId;
-    if (uid == null) return;
-
-    final favoriteFor = data['favoriteFor'];
-    final isFavorite =
-        favoriteFor is List &&
-        favoriteFor.contains(uid);
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return SafeArea(
-          child: Container(
-            decoration: const BoxDecoration(
-              color: pikkXWhite,
-              borderRadius: BorderRadius.vertical(
-                top: Radius.circular(28),
-              ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 10),
-
-                Container(
-                  width: 42,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: pikkXLightGrey,
-                    borderRadius:
-                        BorderRadius.circular(20),
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                ListTile(
-                  leading: Icon(
-                    isFavorite
-                        ? Icons.star_rounded
-                        : Icons.star_border_rounded,
-                  ),
-                  title: Text(
-                    isFavorite
-                        ? 'Remove from Favorite'
-                        : 'Favorite',
-                  ),
-                  onTap: () async {
-                    Navigator.pop(context);
-
-                    await _setFavorite(
-                      chatId,
-                      !isFavorite,
-                    );
-                  },
-                ),
-
-                ListTile(
-                  leading: const Icon(
-                    Icons.folder_rounded,
-                  ),
-                  title: const Text(
-                    'Add to folder',
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showFolderPicker(chatId);
-                  },
-                ),
-
-                ListTile(
-                  leading: const Icon(
-                    Icons.notifications_off_rounded,
-                  ),
-                  title: const Text(
-                    'Mute',
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showMessage(
-                      'Mute will be added next.',
-                    );
-                  },
-                ),
-
-                ListTile(
-                  leading: const Icon(
-                    Icons.push_pin_rounded,
-                  ),
-                  title: const Text(
-                    'Pin',
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showMessage(
-                      'Pin will be added next.',
-                    );
-                  },
-                ),
-
-                ListTile(
-                  leading: const Icon(
-                    Icons.archive_rounded,
-                  ),
-                  title: const Text(
-                    'Archive',
-                  ),
-                  onTap: () async {
-                    Navigator.pop(context);
-
-                    await _setArchived(
-                      chatId,
-                      true,
-                    );
-
-                    if (mounted) {
-                      _showMessage(
-                        'Chat archived.',
-                      );
-                    }
-                  },
-                ),
-
-                ListTile(
-                  leading: const Icon(
-                    Icons.delete_outline_rounded,
-                  ),
-                  title: const Text(
-                    'Delete',
-                  ),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    await _deleteChatForMe(
-                      chatId,
-                    );
-                  },
-                ),
-
-                ListTile(
-                  leading: const Icon(
-                    Icons.block_rounded,
-                  ),
-                  title: const Text(
-                    'Block',
-                  ),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    await _blockUser(
-                      chatId,
-                      data,
-                    );
-                  },
-                ),
-
-                ListTile(
-                  leading: const Icon(
-                    Icons.report_problem_outlined,
-                  ),
-                  title: const Text(
-                    'Report',
-                  ),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    await _reportChat(
-                      chatId,
-                      data,
-                    );
-                  },
-                ),
-
-                ListTile(
-                  leading: const Icon(
-                    Icons.close_rounded,
-                  ),
-                  title: const Text(
-                    'Cancel',
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                  },
-                ),
-
-                const SizedBox(height: 8),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _showFolderPicker(
-    String chatId,
-  ) async {
+  Future<void> _showFolderMenu() async {
     final uid = _userId;
 
-    if (uid == null) return;
+    if (uid == null) {
+      return;
+    }
 
-    final folders = await _firestore
-        .collection('users')
-        .doc(uid)
-        .collection('chatFolders')
-        .get();
+    setState(() {
+      _selectedFilter = 4;
+    });
 
-    if (!mounted) return;
-
-    if (folders.docs.isEmpty) {
-      _showMessage(
-        'Create a folder first.',
-      );
+    if (!mounted) {
       return;
     }
 
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: pikkXWhite,
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(28),
-            ),
-          ),
-          child: SafeArea(
-            child: ListView(
-              shrinkWrap: true,
-              padding: const EdgeInsets.symmetric(
-                vertical: 12,
-              ),
-              children: [
-                const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text(
-                    'Add to folder',
-                    style: TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w800,
-                    ),
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.62,
+            minChildSize: 0.35,
+            maxChildSize: 0.88,
+            builder: (_, controller) {
+              return Container(
+                decoration: const BoxDecoration(
+                  color: pikkXWhite,
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(28),
                   ),
                 ),
-                ...folders.docs.map((folder) {
-                  final data = folder.data();
-                  final name =
-                      data['name']?.toString() ??
-                          'Folder';
-
-                  return ListTile(
-                    leading: const Icon(
-                      Icons.folder_rounded,
+                child: Column(
+                  children: [
+                    const SizedBox(height: 12),
+                    _sheetHandle(),
+                    const SizedBox(height: 14),
+                    const Text(
+                      'Chat folders',
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                    title: Text(name),
-                    onTap: () async {
-                      await folder.reference.update({
-                        'chatIds':
-                            FieldValue.arrayUnion([
-                          chatId,
-                        ]),
-                        'updatedAt':
-                            FieldValue.serverTimestamp(),
-                      });
+                    const SizedBox(height: 8),
+                    Expanded(
+                      // Live stream instead of a one-off get(), so
+                      // a newly created folder appears right away.
+                      child: StreamBuilder<
+                          QuerySnapshot<Map<String, dynamic>>>(
+                        stream: _firestore
+                            .collection('users')
+                            .doc(uid)
+                            .collection('chatFolders')
+                            .orderBy('createdAt', descending: false)
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                                  ConnectionState.waiting &&
+                              !snapshot.hasData) {
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                color: pikkXBlack,
+                              ),
+                            );
+                          }
 
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                      }
+                          final docs =
+                              snapshot.data?.docs ?? [];
 
-                      if (mounted) {
-                        _showMessage(
-                          'Added to $name.',
-                        );
-                      }
-                    },
-                  );
-                }),
-              ],
-            ),
+                          if (docs.isEmpty) {
+                            return Center(
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.all(25),
+                                child: Column(
+                                  mainAxisSize:
+                                      MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 64,
+                                      height: 64,
+                                      decoration:
+                                          BoxDecoration(
+                                        color: pikkXBlack
+                                            .withOpacity(
+                                          0.06,
+                                        ),
+                                        borderRadius:
+                                            BorderRadius
+                                                .circular(
+                                          20,
+                                        ),
+                                      ),
+                                      child: const Icon(
+                                        Icons
+                                            .folder_rounded,
+                                        color: pikkXBlack,
+                                        size: 30,
+                                      ),
+                                    ),
+                                    const SizedBox(
+                                      height: 12,
+                                    ),
+                                    const Text(
+                                      'No folders yet',
+                                      style: TextStyle(
+                                        fontWeight:
+                                            FontWeight.w800,
+                                        fontSize: 17,
+                                      ),
+                                    ),
+                                    const SizedBox(
+                                      height: 5,
+                                    ),
+                                    const Text(
+                                      'Create folders for Sellers, Friends, Orders and more.',
+                                      textAlign:
+                                          TextAlign.center,
+                                      style: TextStyle(
+                                        color: pikkXGrey,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }
+
+                          return ListView.separated(
+                            controller: controller,
+                            padding:
+                                const EdgeInsets.fromLTRB(
+                              14,
+                              8,
+                              14,
+                              12,
+                            ),
+                            itemCount: docs.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 6),
+                            itemBuilder: (context, index) {
+                              final folder = docs[index];
+                              final data = folder.data();
+
+                              final name =
+                                  data['name']?.toString() ??
+                                      'Folder';
+
+                              final rawIds =
+                                  data['chatIds'];
+
+                              final ids = <String>{};
+
+                              if (rawIds is List) {
+                                ids.addAll(
+                                  rawIds.map(
+                                    (e) => e.toString(),
+                                  ),
+                                );
+                              }
+
+                              final selected =
+                                  _activeFolderId ==
+                                      folder.id;
+
+                              return Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius:
+                                      BorderRadius.circular(
+                                    17,
+                                  ),
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedFilter = 4;
+                                      _activeFolderId =
+                                          folder.id;
+                                      _activeFolderName =
+                                          name;
+                                      _activeFolderChatIds =
+                                          ids;
+                                    });
+
+                                    _subscribeToFolder(
+                                      folder.id,
+                                      name,
+                                    );
+
+                                    Navigator.pop(
+                                      sheetContext,
+                                    );
+                                  },
+                                  child: Container(
+                                    padding:
+                                        const EdgeInsets
+                                            .symmetric(
+                                      horizontal: 13,
+                                      vertical: 12,
+                                    ),
+                                    decoration:
+                                        BoxDecoration(
+                                      color: selected
+                                          ? pikkXBlack
+                                          : pikkXBackground,
+                                      borderRadius:
+                                          BorderRadius
+                                              .circular(17),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 40,
+                                          height: 40,
+                                          decoration:
+                                              BoxDecoration(
+                                            color: selected
+                                                ? Colors
+                                                    .white
+                                                    .withOpacity(
+                                                    0.12,
+                                                  )
+                                                : pikkXWhite,
+                                            borderRadius:
+                                                BorderRadius
+                                                    .circular(
+                                              13,
+                                            ),
+                                          ),
+                                          child: Icon(
+                                            Icons
+                                                .folder_rounded,
+                                            color: selected
+                                                ? pikkXWhite
+                                                : pikkXBlack,
+                                            size: 20,
+                                          ),
+                                        ),
+                                        const SizedBox(
+                                          width: 11,
+                                        ),
+                                        Expanded(
+                                          child: Text(
+                                            name,
+                                            maxLines: 1,
+                                            overflow:
+                                                TextOverflow
+                                                    .ellipsis,
+                                            style: TextStyle(
+                                              color: selected
+                                                  ? pikkXWhite
+                                                  : pikkXBlack,
+                                              fontWeight:
+                                                  FontWeight
+                                                      .w800,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ),
+                                        Text(
+                                          '${ids.length}',
+                                          style: TextStyle(
+                                            color: selected
+                                                ? Colors
+                                                    .white70
+                                                : pikkXGrey,
+                                            fontSize: 11,
+                                            fontWeight:
+                                                FontWeight
+                                                    .w700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        14,
+                        0,
+                        14,
+                        14,
+                      ),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: pikkXBlack,
+                            foregroundColor: pikkXWhite,
+                            padding:
+                                const EdgeInsets.symmetric(
+                              vertical: 13,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius:
+                                  BorderRadius.circular(16),
+                            ),
+                          ),
+                          onPressed: () {
+                            Navigator.pop(sheetContext);
+                            _createChatFolder();
+                          },
+                          icon: const Icon(
+                            Icons.create_new_folder_rounded,
+                            size: 19,
+                          ),
+                          label: const Text(
+                            'Create folder',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         );
       },
     );
   }
 
+  // ============================================================
+  // ADD CHAT TO FOLDER
+  // ============================================================
+
+  Future<void> _showFolderPicker(
+    String chatId,
+  ) async {
+    final uid = _userId;
+
+    if (uid == null) {
+      return;
+    }
+
+    try {
+      final folders = await _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('chatFolders')
+          .get();
+
+      if (!mounted) {
+        return;
+      }
+
+      if (folders.docs.isEmpty) {
+        _showMessage('Create a folder first.');
+        return;
+      }
+
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        builder: (sheetContext) {
+          return SafeArea(
+            child: Container(
+              constraints: const BoxConstraints(
+                maxHeight: 520,
+              ),
+              decoration: const BoxDecoration(
+                color: pikkXWhite,
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(28),
+                ),
+              ),
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(
+                  14,
+                  12,
+                  14,
+                  18,
+                ),
+                itemCount: folders.docs.length + 1,
+                separatorBuilder: (_, __) =>
+                    const SizedBox(height: 6),
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return const Padding(
+                      padding: EdgeInsets.fromLTRB(4, 5, 4, 5),
+                      child: Text(
+                        'Add to folder',
+                        style: TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    );
+                  }
+
+                  final folder = folders.docs[index - 1];
+                  final data = folder.data();
+
+                  final name =
+                      data['name']?.toString() ?? 'Folder';
+
+                  final rawIds = data['chatIds'];
+
+                  final existing =
+                      rawIds is List &&
+                      rawIds.contains(chatId);
+
+                  return Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(17),
+                      onTap: () async {
+                        try {
+                          await folder.reference.update({
+                            'chatIds': existing
+                                ? FieldValue.arrayRemove([chatId])
+                                : FieldValue.arrayUnion([chatId]),
+                            'updatedAt':
+                                FieldValue.serverTimestamp(),
+                          });
+
+                          if (sheetContext.mounted) {
+                            Navigator.pop(sheetContext);
+                          }
+
+                          if (mounted) {
+                            _showMessage(
+                              existing
+                                  ? 'Removed from $name.'
+                                  : 'Added to $name.',
+                            );
+                          }
+                        } catch (e) {
+                          debugPrint(
+                            'Folder assignment error: $e',
+                          );
+
+                          if (mounted) {
+                            _showMessage(
+                              'Could not update folder.',
+                            );
+                          }
+                        }
+                      },
+                      child: Container(
+                        padding:
+                            const EdgeInsets.symmetric(
+                          horizontal: 13,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: pikkXBackground,
+                          borderRadius:
+                              BorderRadius.circular(17),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: pikkXWhite,
+                                borderRadius:
+                                    BorderRadius.circular(13),
+                              ),
+                              child: const Icon(
+                                Icons.folder_rounded,
+                                color: pikkXBlack,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 11),
+                            Expanded(
+                              child: Text(
+                                name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              existing
+                                  ? Icons.check_circle_rounded
+                                  : Icons.add_circle_outline_rounded,
+                              color: pikkXBlack,
+                              size: 21,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      debugPrint('Folder picker error: $e');
+
+      if (mounted) {
+        _showMessage('Could not load folders.');
+      }
+    }
+  }
 
   // ============================================================
-  // DELETE / BLOCK / REPORT
+  // DELETE CHAT FOR ME
+  // ============================================================
+
+  Future<void> _deleteChatForMe(
+    String chatId,
+  ) async {
+    final uid = _userId;
+
+    if (uid == null) {
+      return;
+    }
+
+    try {
+      await _firestore.collection('chats').doc(chatId).set(
+        {
+          'hiddenFor': FieldValue.arrayUnion([uid]),
+
+          // Keep this temporarily for old data compatibility.
+          'deletedFor': FieldValue.arrayUnion([uid]),
+        },
+        SetOptions(merge: true),
+      );
+
+      if (mounted) {
+        _showMessage('Chat hidden from your inbox.');
+      }
+    } catch (e) {
+      debugPrint('Delete chat error: $e');
+
+      if (mounted) {
+        _showMessage('Could not hide chat.');
+      }
+    }
+  }
+
+  // ============================================================
+  // OTHER USER ID
   // ============================================================
 
   String? _otherUserId(
@@ -1341,43 +1531,19 @@ class _ChatPageState extends State<ChatPage> {
     }
 
     for (final id in participants) {
-      if (id.toString() != uid) {
-        return id.toString();
+      final value = id.toString();
+
+      if (value != uid) {
+        return value;
       }
     }
 
     return null;
   }
 
-  Future<void> _deleteChatForMe(
-    String chatId,
-  ) async {
-    final uid = _userId;
-
-    if (uid == null) return;
-
-    try {
-      await _firestore
-          .collection('chats')
-          .doc(chatId)
-          .set(
-        {
-          'deletedFor': FieldValue.arrayUnion([uid]),
-        },
-        SetOptions(merge: true),
-      );
-
-      if (mounted) {
-        _showMessage('Chat deleted for you.');
-      }
-    } catch (e) {
-      debugPrint('Delete chat error: $e');
-
-      if (mounted) {
-        _showMessage('Could not delete chat.');
-      }
-    }
-  }
+  // ============================================================
+  // BLOCK
+  // ============================================================
 
   Future<void> _blockUser(
     String chatId,
@@ -1390,6 +1556,7 @@ class _ChatPageState extends State<ChatPage> {
       if (mounted) {
         _showMessage('Could not identify this user.');
       }
+
       return;
     }
 
@@ -1417,6 +1584,10 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
+  // ============================================================
+  // REPORT
+  // ============================================================
+
   Future<void> _reportChat(
     String chatId,
     Map<String, dynamic> data,
@@ -1428,6 +1599,7 @@ class _ChatPageState extends State<ChatPage> {
       if (mounted) {
         _showMessage('Could not identify this user.');
       }
+
       return;
     }
 
@@ -1464,134 +1636,292 @@ class _ChatPageState extends State<ChatPage> {
     Map<String, dynamic> data,
   ) {
     final name =
-        data['otherUserName']?.toString();
+        data['otherUserName']?.toString() ??
+        data['chatName']?.toString() ??
+        data['name']?.toString();
 
     final lastMessage =
-        data['lastMessage']
-                ?.toString()
-                .trim() ??
-            'Start a conversation';
+        data['lastMessage']?.toString().trim() ??
+        'Start a conversation';
 
     final displayName =
-        name == null || name.isEmpty
-            ? 'Chat'
-            : name;
+        name == null || name.isEmpty ? 'Chat' : name;
 
-    final unreadCount =
-        _getUnreadCount(data);
+    final unreadCount = _getUnreadCount(data);
 
     final isCommunity =
-        data['type']
-                ?.toString()
-                .toLowerCase() ==
-            'community' ||
+        data['type']?.toString().toLowerCase() == 'community' ||
         data['isCommunity'] == true;
+
+    final favoriteFor = data['favoriteFor'];
+
+    final isFavorite =
+        favoriteFor is List &&
+        _userId != null &&
+        favoriteFor.contains(_userId);
 
     return GestureDetector(
       onLongPress: () {
         _showChatActions(chatId, data);
       },
-      child: Padding(
-      padding: EdgeInsets.zero,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            _openChat(
-              chatId,
-              name,
-            );
-          },
-          borderRadius:
-              BorderRadius.circular(21),
-          child: Padding(
-            padding:
-                const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                _chatAvatar(
-                  displayName,
-                  isCommunity: isCommunity,
-                ),
-
-                const SizedBox(width: 11),
-
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              displayName,
-                              maxLines: 1,
-                              overflow:
-                                  TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: pikkXBlack,
-                                fontSize: 14,
-                                fontWeight:
-                                    unreadCount > 0
-                                        ? FontWeight.w900
-                                        : FontWeight.w800,
+      child: _glass(
+        radius: 21,
+        padding: EdgeInsets.zero,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              _openChat(chatId, name);
+            },
+            borderRadius: BorderRadius.circular(21),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  _chatAvatar(
+                    displayName,
+                    isCommunity: isCommunity,
+                  ),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                displayName,
+                                maxLines: 1,
+                                overflow:
+                                    TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: pikkXBlack,
+                                  fontSize: 14,
+                                  fontWeight: unreadCount > 0
+                                      ? FontWeight.w900
+                                      : FontWeight.w800,
+                                ),
                               ),
                             ),
-                          ),
-                          if (unreadCount > 0)
-                            _unreadBadge(
-                              unreadCount,
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        lastMessage,
-                        maxLines: 1,
-                        overflow:
-                            TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: pikkXGrey,
-                          fontSize: 11.5,
-                          fontWeight:
-                              unreadCount > 0
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
+                            if (isFavorite)
+                              const Padding(
+                                padding: EdgeInsets.only(
+                                  left: 5,
+                                ),
+                                child: Icon(
+                                  Icons.star_rounded,
+                                  color: pikkXBlack,
+                                  size: 15,
+                                ),
+                              ),
+                            if (unreadCount > 0)
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  left: 5,
+                                ),
+                                child:
+                                    _unreadBadge(
+                                  unreadCount,
+                                ),
+                              ),
+                          ],
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(width: 8),
-
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration:
-                      BoxDecoration(
-                    color: pikkXBlack,
-                    borderRadius:
-                        BorderRadius.circular(
-                      11,
+                        const SizedBox(height: 4),
+                        Text(
+                          lastMessage.isEmpty
+                              ? 'Start a conversation'
+                              : lastMessage,
+                          maxLines: 1,
+                          overflow:
+                              TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: pikkXGrey,
+                            fontSize: 11.5,
+                            fontWeight: unreadCount > 0
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  child: const Icon(
-                    Icons
-                        .arrow_forward_ios_rounded,
-                    color: pikkXWhite,
-                    size: 12,
+                  const SizedBox(width: 8),
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: pikkXBlack,
+                      borderRadius:
+                          BorderRadius.circular(11),
+                    ),
+                    child: const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      color: pikkXWhite,
+                      size: 12,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
+
+  // ============================================================
+  // CHAT LONG PRESS ACTIONS
+  // ============================================================
+
+  void _showChatActions(
+    String chatId,
+    Map<String, dynamic> data,
+  ) {
+    final uid = _userId;
+
+    if (uid == null) {
+      return;
+    }
+
+    final favoriteFor = data['favoriteFor'];
+
+    final isFavorite =
+        favoriteFor is List &&
+        favoriteFor.contains(uid);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.58,
+            minChildSize: 0.35,
+            maxChildSize: 0.88,
+            builder: (_, controller) {
+              return _glass(
+                radius: 27,
+                padding: EdgeInsets.zero,
+                child: ListView(
+                  controller: controller,
+                  padding: const EdgeInsets.fromLTRB(
+                    12,
+                    10,
+                    12,
+                    18,
+                  ),
+                  children: [
+                    _sheetHandle(),
+                    const SizedBox(height: 12),
+                    _actionTile(
+                      icon: isFavorite
+                          ? Icons.star_rounded
+                          : Icons.star_border_rounded,
+                      label: isFavorite
+                          ? 'Remove from Favorite'
+                          : 'Favorite',
+                      onTap: () async {
+                        Navigator.pop(sheetContext);
+
+                        await _setFavorite(
+                          chatId,
+                          !isFavorite,
+                        );
+                      },
+                    ),
+                    _actionTile(
+                      icon: Icons.folder_rounded,
+                      label: 'Add to folder',
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        _showFolderPicker(chatId);
+                      },
+                    ),
+                    _actionTile(
+                      icon: Icons.notifications_off_rounded,
+                      label: 'Mute',
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        _showMessage(
+                          'Mute will be added next.',
+                        );
+                      },
+                    ),
+                    _actionTile(
+                      icon: Icons.push_pin_rounded,
+                      label: 'Pin',
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        _showMessage(
+                          'Pin will be added next.',
+                        );
+                      },
+                    ),
+                    _actionTile(
+                      icon: Icons.delete_outline_rounded,
+                      label: 'Delete chat for me',
+                      destructive: true,
+                      onTap: () async {
+                        Navigator.pop(sheetContext);
+                        await _deleteChatForMe(chatId);
+                      },
+                    ),
+                    _actionTile(
+                      icon: Icons.block_rounded,
+                      label: 'Block',
+                      onTap: () async {
+                        Navigator.pop(sheetContext);
+                        await _blockUser(
+                          chatId,
+                          data,
+                        );
+                      },
+                    ),
+                    _actionTile(
+                      icon:
+                          Icons.report_problem_outlined,
+                      label: 'Report',
+                      onTap: () async {
+                        Navigator.pop(sheetContext);
+                        await _reportChat(
+                          chatId,
+                          data,
+                        );
+                      },
+                    ),
+                    _actionTile(
+                      icon: Icons.close_rounded,
+                      label: 'Cancel',
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _sheetHandle() {
+    return Center(
+      child: Container(
+        width: 42,
+        height: 4,
+        decoration: BoxDecoration(
+          color: pikkXGrey.withOpacity(0.4),
+          borderRadius: BorderRadius.circular(5),
+        ),
+      ),
+    );
+  }
 
   // ============================================================
   // UNREAD COUNT
@@ -1600,42 +1930,51 @@ class _ChatPageState extends State<ChatPage> {
   int _getUnreadCount(
     Map<String, dynamic> data,
   ) {
-    final value =
-        data['unreadCount'];
+    final uid = _userId;
 
-    if (value is num) {
-      return value.toInt();
+    if (uid != null) {
+      final unreadCounts = _asMap(
+        data['unreadCounts'],
+      );
+
+      final personalCount =
+          unreadCounts?[uid];
+
+      if (personalCount is num &&
+          personalCount > 0) {
+        return personalCount.toInt();
+      }
+    }
+
+    final legacyCount = data['unreadCount'];
+
+    if (legacyCount is num &&
+        legacyCount > 0) {
+      return legacyCount.toInt();
     }
 
     if (data['unread'] == true) {
       return 1;
     }
 
-    final unreadFor =
-        data['unreadFor'];
+    final unreadFor = data['unreadFor'];
 
     if (unreadFor is List &&
-        _userId != null &&
-        unreadFor.contains(_userId)) {
+        uid != null &&
+        unreadFor.contains(uid)) {
       return 1;
     }
 
     return 0;
   }
 
-  Widget _unreadBadge(
-    int count,
-  ) {
+  Widget _unreadBadge(int count) {
     return Container(
       constraints:
-          const BoxConstraints(
-        minWidth: 20,
-      ),
+          const BoxConstraints(minWidth: 20),
       height: 20,
       padding:
-          const EdgeInsets.symmetric(
-        horizontal: 6,
-      ),
+          const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
         color: pikkXBlack,
         borderRadius:
@@ -1643,15 +1982,583 @@ class _ChatPageState extends State<ChatPage> {
       ),
       alignment: Alignment.center,
       child: Text(
-        count > 99
-            ? '99+'
-            : count.toString(),
+        count > 99 ? '99+' : count.toString(),
         style: const TextStyle(
           color: pikkXWhite,
           fontSize: 9,
           fontWeight: FontWeight.w900,
         ),
       ),
+    );
+  }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_isConversation) {
+      return _buildInbox();
+    }
+
+    return _buildConversation();
+  }
+
+  // ============================================================
+  // INBOX
+  // ============================================================
+
+  Widget _buildInbox() {
+    return Scaffold(
+      backgroundColor: pikkXBackground,
+      body: _userId == null
+          ? _buildSignInState()
+          : Stack(
+              children: [
+                Column(
+                  children: [
+                    _buildFilterBox(),
+                    Expanded(
+                      child: StreamBuilder<
+                          QuerySnapshot<
+                              Map<String, dynamic>>>(
+                        stream: _chatStream(),
+                        builder: (
+                          context,
+                          snapshot,
+                        ) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child:
+                                  CircularProgressIndicator(
+                                color: pikkXBlack,
+                              ),
+                            );
+                          }
+
+                          if (snapshot.hasError) {
+                            debugPrint(
+                              'Chat stream error: '
+                              '${snapshot.error}',
+                            );
+
+                            return _buildErrorState();
+                          }
+
+                          final allChats =
+                              snapshot.data?.docs ?? [];
+
+                          final filteredChats =
+                              _filterChats(allChats);
+
+                          final chats =
+                              _sortChats(
+                            filteredChats,
+                          );
+
+                          if (chats.isEmpty) {
+                            if (_selectedFilter == 0) {
+                              return _buildFilterEmptyState(
+                                'No chats yet',
+                                'Your conversations with sellers and support will appear here.',
+                                Icons.chat_bubble_outline_rounded,
+                              );
+                            }
+
+                            if (_selectedFilter == 1) {
+                              return _buildFilterEmptyState(
+                                'No community chats',
+                                'Community conversations will appear here.',
+                                Icons.groups_rounded,
+                              );
+                            }
+
+                            if (_selectedFilter == 2) {
+                              return _buildFilterEmptyState(
+                                'No unread chats',
+                                'You are all caught up.',
+                                Icons.mark_chat_read_rounded,
+                              );
+                            }
+
+                            if (_selectedFilter == 3) {
+                              return _buildFilterEmptyState(
+                                'No favorite chats',
+                                'Favorite conversations will appear here.',
+                                Icons.star_border_rounded,
+                              );
+                            }
+
+                            if (_selectedFilter == 4 &&
+                                _activeFolderId == null) {
+                              return _buildFilterEmptyState(
+                                'Choose a folder',
+                                'Tap the Folders pill to view or create a chat folder.',
+                                Icons.folder_rounded,
+                              );
+                            }
+
+                            return _buildFilterEmptyState(
+                              _activeFolderName ??
+                                  'Empty folder',
+                              'Chats added to this folder will appear here.',
+                              Icons.folder_open_rounded,
+                            );
+                          }
+
+                          return ListView.builder(
+                            physics:
+                                const BouncingScrollPhysics(),
+                            padding:
+                                const EdgeInsets.fromLTRB(
+                              16,
+                              4,
+                              16,
+                              105,
+                            ),
+                            itemCount: chats.length,
+                            itemBuilder:
+                                (context, index) {
+                              final doc =
+                                  chats[index];
+
+                              return Padding(
+                                padding:
+                                    const EdgeInsets.only(
+                                  bottom: 9,
+                                ),
+                                child:
+                                    _buildChatTile(
+                                  doc.id,
+                                  doc.data(),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Floating search button above bottom navigation.
+                Positioned(
+                  right: 18,
+                  bottom: 18,
+                  child: GestureDetector(
+                    onTap: _showChatSearch,
+                    child: _glass(
+                      radius: 18,
+                      padding:
+                          const EdgeInsets.all(14),
+                      child: const Icon(
+                        Icons.search_rounded,
+                        color: pikkXBlack,
+                        size: 23,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  // ============================================================
+  // FILTER HEADER
+  // ============================================================
+
+  Widget _buildFilterBox() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        12,
+        6,
+        12,
+        8,
+      ),
+      child: _glass(
+        radius: 19,
+        padding: const EdgeInsets.all(4),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: Row(
+            children: [
+              _filterButton(
+                label: 'Chat',
+                index: 0,
+                icon: Icons.chat_bubble_rounded,
+              ),
+              _filterButton(
+                label: 'Communities',
+                index: 1,
+                icon: Icons.groups_rounded,
+              ),
+              _filterButton(
+                label: 'Unread',
+                index: 2,
+                icon: Icons.mark_email_unread_rounded,
+              ),
+              _filterButton(
+                label: 'Favorite',
+                index: 3,
+                icon: Icons.star_rounded,
+              ),
+              _filterButton(
+                label: 'Folders',
+                index: 4,
+                icon: Icons.folder_rounded,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _filterButton({
+    required String label,
+    required int index,
+    required IconData icon,
+  }) {
+    final selected = _selectedFilter == index;
+
+    return GestureDetector(
+      onTap: () {
+        if (index == 4) {
+          _showFolderMenu();
+          return;
+        }
+
+        setState(() {
+          _selectedFilter = index;
+
+          if (index != 4) {
+            _activeFolderId = null;
+            _activeFolderName = null;
+            _activeFolderChatIds = <String>{};
+            _folderSub?.cancel();
+            _folderSub = null;
+          }
+        });
+      },
+      child: AnimatedContainer(
+        duration:
+            const Duration(milliseconds: 180),
+        margin:
+            const EdgeInsets.symmetric(horizontal: 2),
+        padding:
+            const EdgeInsets.symmetric(
+          horizontal: 13,
+        ),
+        height: 39,
+        decoration: BoxDecoration(
+          color: selected
+              ? pikkXBlack
+              : Colors.transparent,
+          borderRadius:
+              BorderRadius.circular(14),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 14,
+              color: selected
+                  ? pikkXWhite
+                  : pikkXGrey,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                color: selected
+                    ? pikkXWhite
+                    : pikkXGrey,
+                fontSize: 10,
+                fontWeight: selected
+                    ? FontWeight.w800
+                    : FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // SEARCH
+  // ============================================================
+
+  void _showChatSearch() {
+    _searchController.clear();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (
+            context,
+            setSheetState,
+          ) {
+            return SafeArea(
+              child: Container(
+                height:
+                    MediaQuery.of(context).size.height * 0.78,
+                decoration:
+                    const BoxDecoration(
+                  color: pikkXWhite,
+                  borderRadius:
+                      BorderRadius.vertical(
+                    top: Radius.circular(28),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 12),
+                    _sheetHandle(),
+                    const SizedBox(height: 12),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 18,
+                      ),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Search chats',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 15,
+                      ),
+                      child: _glass(
+                        radius: 17,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.search_rounded,
+                              color: pikkXGrey,
+                              size: 21,
+                            ),
+                            const SizedBox(width: 7),
+                            Expanded(
+                              child: TextField(
+                                controller:
+                                    _searchController,
+                                autofocus: true,
+                                onChanged: (_) {
+                                  setSheetState(() {});
+                                },
+                                decoration:
+                                    const InputDecoration(
+                                  hintText:
+                                      'Search name or chat name...',
+                                  border: InputBorder.none,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: StreamBuilder<
+                          QuerySnapshot<
+                              Map<String, dynamic>>>(
+                        stream: _chatStream(),
+                        builder: (
+                          context,
+                          snapshot,
+                        ) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child:
+                                  CircularProgressIndicator(
+                                color: pikkXBlack,
+                              ),
+                            );
+                          }
+
+                          final query =
+                              _searchController.text
+                                  .trim()
+                                  .toLowerCase();
+
+                          final docs =
+                              snapshot.data?.docs ?? [];
+
+                          final results = docs.where((doc) {
+                            final data = doc.data();
+
+                            final hiddenFor =
+                                data['hiddenFor'];
+
+                            final deletedFor =
+                                data['deletedFor'];
+
+                            if (hiddenFor is List &&
+                                _userId != null &&
+                                hiddenFor.contains(_userId)) {
+                              return false;
+                            }
+
+                            if (deletedFor is List &&
+                                _userId != null &&
+                                deletedFor.contains(_userId)) {
+                              return false;
+                            }
+
+                            if (query.isEmpty) {
+                              return true;
+                            }
+
+                            final name =
+                                data['otherUserName']
+                                        ?.toString()
+                                        .toLowerCase() ??
+                                    '';
+
+                            final chatName =
+                                data['chatName']
+                                        ?.toString()
+                                        .toLowerCase() ??
+                                    '';
+
+                            final sellerName =
+                                data['sellerName']
+                                        ?.toString()
+                                        .toLowerCase() ??
+                                    '';
+
+                            return name.contains(query) ||
+                                chatName.contains(query) ||
+                                sellerName.contains(query);
+                          }).toList();
+
+                          if (results.isEmpty) {
+                            return _buildFilterEmptyState(
+                              'No results',
+                              'No chat matches your search.',
+                              Icons.search_off_rounded,
+                            );
+                          }
+
+                          final sorted =
+                              _sortChats(results);
+
+                          return ListView.builder(
+                            physics:
+                                const BouncingScrollPhysics(),
+                            padding:
+                                const EdgeInsets.fromLTRB(
+                              15,
+                              5,
+                              15,
+                              18,
+                            ),
+                            itemCount: sorted.length,
+                            itemBuilder:
+                                (context, index) {
+                              final doc =
+                                  sorted[index];
+
+                              final data =
+                                  doc.data();
+
+                              final name =
+                                  data['otherUserName']
+                                      ?.toString() ??
+                                  data['chatName']
+                                      ?.toString();
+
+                              final displayName =
+                                  name == null ||
+                                          name.isEmpty
+                                      ? 'Chat'
+                                      : name;
+
+                              return Padding(
+                                padding:
+                                    const EdgeInsets.only(
+                                  bottom: 8,
+                                ),
+                                child: _glass(
+                                  radius: 18,
+                                  padding:
+                                      EdgeInsets.zero,
+                                  child: ListTile(
+                                    onTap: () {
+                                      Navigator.pop(
+                                        sheetContext,
+                                      );
+
+                                      _openChat(
+                                        doc.id,
+                                        displayName,
+                                      );
+                                    },
+                                    leading:
+                                        _chatAvatar(
+                                      displayName,
+                                    ),
+                                    title: Text(
+                                      displayName,
+                                      maxLines: 1,
+                                      overflow:
+                                          TextOverflow.ellipsis,
+                                      style:
+                                          const TextStyle(
+                                        fontWeight:
+                                            FontWeight.w800,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      data['lastMessage']
+                                              ?.toString() ??
+                                          'Start a conversation',
+                                      maxLines: 1,
+                                      overflow:
+                                          TextOverflow.ellipsis,
+                                    ),
+                                    trailing:
+                                        const Icon(
+                                      Icons
+                                          .arrow_forward_ios_rounded,
+                                      size: 14,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -1682,11 +2589,11 @@ class _ChatPageState extends State<ChatPage> {
                 maxLines: 1,
                 overflow:
                     TextOverflow.ellipsis,
-                style:
-                    const TextStyle(
+                style: const TextStyle(
                   color: pikkXBlack,
                   fontSize: 18,
-                  fontWeight: FontWeight.w800,
+                  fontWeight:
+                      FontWeight.w800,
                 ),
               ),
             ),
@@ -1699,12 +2606,8 @@ class _ChatPageState extends State<ChatPage> {
             child: StreamBuilder<
                 QuerySnapshot<
                     Map<String, dynamic>>>(
-              stream: _messagesRef
-                  .orderBy(
-                    'createdAt',
-                    descending: false,
-                  )
-                  .snapshots(),
+              stream:
+                  _messagesRef.snapshots(),
               builder:
                   (context, snapshot) {
                 if (snapshot.connectionState ==
@@ -1727,34 +2630,69 @@ class _ChatPageState extends State<ChatPage> {
                 }
 
                 final rawMessages =
-                    snapshot.data?.docs ??
-                        [];
+                    snapshot.data?.docs ?? [];
 
-                final messages =
-                    rawMessages.where((doc) {
+                final messages = rawMessages
+                    .where((doc) {
+                      final data =
+                          doc.data();
+
+                      final deletedFor =
+                          data['deletedFor'];
+
+                      if (deletedFor is List &&
+                          _userId != null &&
+                          deletedFor.contains(
+                            _userId,
+                          )) {
+                        return false;
+                      }
+
+                      return true;
+                    })
+                    .toList();
+
+                messages.sort(
+                  (a, b) {
+                    final aDate =
+                        _timestampToDate(
+                      a.data()['createdAt'],
+                    );
+
+                    final bDate =
+                        _timestampToDate(
+                      b.data()['createdAt'],
+                    );
+
+                    return aDate.compareTo(bDate);
+                  },
+                );
+
+                final hasUnreadIncoming =
+                    messages.any((doc) {
                   final data =
                       doc.data();
 
-                  final deletedFor =
-                      data['deletedFor'];
+                  return data['senderId'] !=
+                          _userId &&
+                      data['read'] != true;
+                });
 
-                  if (deletedFor is List &&
-                      _userId != null &&
-                      deletedFor.contains(
-                        _userId,
-                      )) {
-                    return false;
-                  }
-
-                  return true;
-                }).toList();
+                if (hasUnreadIncoming &&
+                    !_isMarkingRead) {
+                  WidgetsBinding.instance
+                      .addPostFrameCallback((_) {
+                    if (mounted) {
+                      _markChatAsRead();
+                    }
+                  });
+                }
 
                 if (messages.isEmpty) {
                   return _buildStartConversation();
                 }
 
                 return ListView.builder(
-                  reverse: false,
                   physics:
                       const BouncingScrollPhysics(),
                   padding:
@@ -1822,7 +2760,8 @@ class _ChatPageState extends State<ChatPage> {
         _asMap(message['replyTo']);
 
     final reactions =
-        _asMap(message['reactions']) ?? <String, dynamic>{};
+        _asMap(message['reactions']) ??
+            <String, dynamic>{};
 
     return GestureDetector(
       onLongPress: isDeleted
@@ -1857,10 +2796,10 @@ class _ChatPageState extends State<ChatPage> {
                 replyTo,
                 isMine,
               ),
-
               Container(
                 padding:
-                    type == 'image'
+                    type == 'image' ||
+                            type == 'sticker'
                         ? const EdgeInsets.all(6)
                         : const EdgeInsets.symmetric(
                             horizontal: 15,
@@ -1889,13 +2828,9 @@ class _ChatPageState extends State<ChatPage> {
                   border: Border.all(
                     color: isMine
                         ? Colors.white
-                            .withOpacity(
-                            0.16,
-                          )
+                            .withOpacity(0.16)
                         : Colors.white
-                            .withOpacity(
-                            0.9,
-                          ),
+                            .withOpacity(0.9),
                   ),
                   boxShadow: [
                     BoxShadow(
@@ -1918,18 +2853,19 @@ class _ChatPageState extends State<ChatPage> {
                   isDeleted: isDeleted,
                 ),
               ),
-
               if (isMine)
-              Padding(
-              padding: const EdgeInsets.only(
-              top: 4,
-              right: 4,
-              ),
-              child: _buildMessageStatus(
-              doc,
-              message,
-              ),
-              ),
+                Padding(
+                  padding:
+                      const EdgeInsets.only(
+                    top: 4,
+                    right: 4,
+                  ),
+                  child:
+                      _buildMessageStatus(
+                    doc,
+                    message,
+                  ),
+                ),
               if (reactions.isNotEmpty)
                 _buildReactions(
                   reactions,
@@ -1944,49 +2880,51 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   // ============================================================
-  // MESSAGE CONTENT
+  // MESSAGE STATUS
   // ============================================================
 
   Widget _buildMessageStatus(
-  QueryDocumentSnapshot<Map<String, dynamic>> doc,
-  Map<String, dynamic> message,
-) {
-  if (doc.metadata.hasPendingWrites) {
-    return const Icon(
-      Icons.access_time_rounded,
-      size: 15,
-      color: Colors.white70,
-    );
-  }
+    QueryDocumentSnapshot<
+            Map<String, dynamic>>
+        doc,
+    Map<String, dynamic> message,
+  ) {
+    if (doc.metadata.hasPendingWrites) {
+      return const Icon(
+        Icons.access_time_rounded,
+        size: 15,
+        color: Colors.white70,
+      );
+    }
 
-  if (message['read'] == true) {
-    return const Icon(
-      Icons.done_all_rounded,
-      size: 15,
-      color: Colors.lightBlueAccent,
-    );
-  }
+    if (message['read'] == true) {
+      return const Icon(
+        Icons.done_all_rounded,
+        size: 15,
+        color: Colors.lightBlueAccent,
+      );
+    }
 
-  if (message['delivered'] == true) {
+    if (message['delivered'] == true) {
+      return const Icon(
+        Icons.done_all_rounded,
+        size: 15,
+        color: Colors.white,
+      );
+    }
+
     return const Icon(
-      Icons.done_all_rounded,
+      Icons.done_rounded,
       size: 15,
       color: Colors.white,
     );
   }
 
-  return const Icon(
-    Icons.done_rounded,
-    size: 15,
-    color: Colors.white,
-  );
-}
+  // ============================================================
+  // MESSAGE CONTENT
+  // ============================================================
 
-// -----------------------------------------------------------------------------
-// MESSAGE CONTENT
-// -----------------------------------------------------------------------------
-
-Widget _buildMessageContent({
+  Widget _buildMessageContent({
     required String type,
     required String text,
     required Map<String, dynamic> message,
@@ -2023,8 +2961,7 @@ Widget _buildMessageContent({
 
     if (type == 'image') {
       final imageUrl =
-          message['imageUrl']
-              ?.toString();
+          message['imageUrl']?.toString();
 
       if (imageUrl == null ||
           imageUrl.isEmpty) {
@@ -2081,8 +3018,7 @@ Widget _buildMessageContent({
               alignment:
                   Alignment.center,
               child: const Icon(
-                Icons
-                    .broken_image_outlined,
+                Icons.broken_image_outlined,
                 color: pikkXGrey,
                 size: 35,
               ),
@@ -2093,11 +3029,46 @@ Widget _buildMessageContent({
     }
 
     if (type == 'sticker') {
-      return Text(
-        text,
-        style: const TextStyle(
-          fontSize: 54,
-          height: 1,
+      final stickerUrl =
+          message['stickerUrl']?.toString();
+
+      if (stickerUrl == null ||
+          stickerUrl.isEmpty) {
+        return const Text(
+          'Sticker unavailable',
+          style: TextStyle(
+            color: pikkXGrey,
+            fontSize: 13,
+          ),
+        );
+      }
+
+      return ClipRRect(
+        borderRadius:
+            BorderRadius.circular(18),
+        child: Image.network(
+          stickerUrl,
+          width: 145,
+          height: 145,
+          fit: BoxFit.contain,
+          errorBuilder:
+              (
+            context,
+            error,
+            stackTrace,
+          ) {
+            return const SizedBox(
+              width: 145,
+              height: 145,
+              child: Center(
+                child: Icon(
+                  Icons.broken_image_outlined,
+                  color: pikkXGrey,
+                  size: 30,
+                ),
+              ),
+            );
+          },
         ),
       );
     }
@@ -2115,7 +3086,7 @@ Widget _buildMessageContent({
   }
 
   // ============================================================
-  // REPLY PREVIEW INSIDE MESSAGE
+  // REPLY PREVIEW
   // ============================================================
 
   Widget _buildReplyPreview(
@@ -2134,6 +3105,15 @@ Widget _buildMessageContent({
         reply['type']?.toString() ??
             'text';
 
+    final previewText =
+        replyType == 'image'
+            ? '📷 Image'
+            : replyType == 'sticker'
+                ? '🎨 Sticker'
+                : replyText.isEmpty
+                    ? 'Message'
+                    : replyText;
+
     return Container(
       width: 260,
       margin:
@@ -2144,7 +3124,7 @@ Widget _buildMessageContent({
           const EdgeInsets.all(9),
       decoration: BoxDecoration(
         color: isMine
-            ? pikkXBlack.withOpacity(0.08)
+            ? pikkXWhite.withOpacity(0.08)
             : Colors.white.withOpacity(0.55),
         borderRadius:
             BorderRadius.circular(13),
@@ -2172,11 +3152,7 @@ Widget _buildMessageContent({
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              replyType == 'image'
-                  ? '📷 Image'
-                  : replyText.isEmpty
-                      ? 'Message'
-                      : replyText,
+              previewText,
               maxLines: 2,
               overflow:
                   TextOverflow.ellipsis,
@@ -2196,7 +3172,7 @@ Widget _buildMessageContent({
   }
 
   // ============================================================
-  // REACTIONS DISPLAY
+  // REACTIONS
   // ============================================================
 
   Widget _buildReactions(
@@ -2204,17 +3180,11 @@ Widget _buildMessageContent({
     String messageId,
     bool isMine,
   ) {
-    final emojis =
-        reactions.values
-            .map(
-              (value) =>
-                  value?.toString() ?? '',
-            )
-            .where(
-              (value) => value.isNotEmpty,
-            )
-            .toSet()
-            .toList();
+    final emojis = reactions.values
+        .map((value) => value?.toString() ?? '')
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList();
 
     if (emojis.isEmpty) {
       return const SizedBox.shrink();
@@ -2222,54 +3192,31 @@ Widget _buildMessageContent({
 
     return GestureDetector(
       onTap: () {
-        _showReactionPicker(
-          messageId,
-        );
+        _showReactionPicker(messageId);
       },
       child: Container(
         margin:
-            const EdgeInsets.only(
-          top: 3,
-        ),
+            const EdgeInsets.only(top: 3),
         padding:
             const EdgeInsets.symmetric(
           horizontal: 8,
           vertical: 4,
         ),
         decoration: BoxDecoration(
-          color: Colors.white
-              .withOpacity(0.92),
+          color: Colors.white.withOpacity(0.92),
           borderRadius:
               BorderRadius.circular(13),
           border: Border.all(
-            color:
-                Colors.white.withOpacity(
-              0.95,
-            ),
+            color: Colors.white.withOpacity(0.95),
           ),
-          boxShadow: [
-            BoxShadow(
-              color:
-                  Colors.black.withOpacity(
-                0.04,
-              ),
-              blurRadius: 8,
-              offset:
-                  const Offset(0, 3),
-            ),
-          ],
         ),
         child: Row(
-          mainAxisSize:
-              MainAxisSize.min,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            ...emojis
-                .take(4)
-                .map(
+            ...emojis.take(6).map(
                   (emoji) => Padding(
                     padding:
-                        const EdgeInsets
-                            .symmetric(
+                        const EdgeInsets.symmetric(
                       horizontal: 2,
                     ),
                     child: Text(
@@ -2288,7 +3235,7 @@ Widget _buildMessageContent({
   }
 
   // ============================================================
-  // LONG-PRESS MESSAGE ACTIONS
+  // MESSAGE ACTIONS
   // ============================================================
 
   void _showMessageActions(
@@ -2300,133 +3247,115 @@ Widget _buildMessageContent({
   ) {
     showModalBottomSheet(
       context: context,
-      backgroundColor:
-          Colors.transparent,
-      isScrollControlled: false,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (sheetContext) {
         return SafeArea(
-          child: Padding(
-            padding:
-                const EdgeInsets.all(12),
-            child: _glass(
-              radius: 27,
-              padding:
-                  const EdgeInsets.fromLTRB(
-                12,
-                10,
-                12,
-                12,
-              ),
-              child: Column(
-                mainAxisSize:
-                    MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 42,
-                    height: 4,
-                    decoration:
-                        BoxDecoration(
-                      color: pikkXGrey
-                          .withOpacity(0.45),
-                      borderRadius:
-                          BorderRadius.circular(
-                        5,
-                      ),
-                    ),
+          child: DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.65,
+            minChildSize: 0.40,
+            maxChildSize: 0.92,
+            builder: (_, controller) {
+              return _glass(
+                radius: 27,
+                padding: EdgeInsets.zero,
+                child: ListView(
+                  controller: controller,
+                  padding:
+                      const EdgeInsets.fromLTRB(
+                    12,
+                    10,
+                    12,
+                    18,
                   ),
-
-                  const SizedBox(height: 10),
-
-                  _quickReactionRow(
-                    doc.id,
-                  ),
-
-                  const Divider(
-                    height: 18,
-                  ),
-
-                  _actionTile(
-                    icon:
-                        Icons.reply_rounded,
-                    label: 'Reply',
-                    onTap: () {
-                      Navigator.pop(
-                        sheetContext,
-                      );
-                      _setReplyTo(
-                        doc.id,
-                        message,
-                      );
-                    },
-                  ),
-
-                  if ((message['text']
-                              ?.toString()
-                              .isNotEmpty ??
-                          false))
+                  children: [
+                    _sheetHandle(),
+                    const SizedBox(height: 10),
+                    _quickReactionRow(doc.id),
+                    const Divider(height: 20),
                     _actionTile(
-                      icon:
-                          Icons.copy_rounded,
-                      label: 'Copy',
+                      icon: Icons.reply_rounded,
+                      label: 'Reply',
                       onTap: () {
                         Navigator.pop(
                           sheetContext,
                         );
-                        _copyMessage(
-                          message['text']
-                              ?.toString() ??
-                              '',
+
+                        _setReplyTo(
+                          doc.id,
+                          message,
                         );
                       },
                     ),
+                    if ((message['text']
+                                ?.toString()
+                                .trim()
+                                .isNotEmpty ??
+                            false))
+                      _actionTile(
+                        icon: Icons.copy_rounded,
+                        label: 'Copy',
+                        onTap: () {
+                          Navigator.pop(
+                            sheetContext,
+                          );
 
-                  _actionTile(
-                    icon:
-                        Icons.add_reaction_outlined,
-                    label: 'React',
-                    onTap: () {
-                      Navigator.pop(
-                        sheetContext,
-                      );
-                      _showReactionPicker(
-                        doc.id,
-                      );
-                    },
-                  ),
-
-                  _actionTile(
-                    icon:
-                        Icons.delete_outline_rounded,
-                    label: 'Delete for me',
-                    onTap: () async {
-                      Navigator.pop(
-                        sheetContext,
-                      );
-                      await _deleteForMe(
-                        doc.id,
-                      );
-                    },
-                  ),
-
-                  if (isMine)
+                          _copyMessage(
+                            message['text']
+                                    ?.toString() ??
+                                '',
+                          );
+                        },
+                      ),
                     _actionTile(
                       icon:
-                          Icons.delete_forever_rounded,
-                      label:
-                          'Delete for everyone',
-                      destructive: true,
-                      onTap: () async {
+                          Icons.add_reaction_outlined,
+                      label: 'React',
+                      onTap: () {
                         Navigator.pop(
                           sheetContext,
                         );
-                        await _deleteForEveryone(
+
+                        _showReactionPicker(
                           doc.id,
                         );
                       },
                     ),
-                ],
-              ),
-            ),
+                    _actionTile(
+                      icon: Icons.delete_outline_rounded,
+                      label: 'Delete for me',
+                      onTap: () async {
+                        Navigator.pop(
+                          sheetContext,
+                        );
+
+                        await _deleteForMe(
+                          doc.id,
+                        );
+                      },
+                    ),
+                    if (isMine)
+                      _actionTile(
+                        icon:
+                            Icons.delete_forever_rounded,
+                        label:
+                            'Delete for everyone',
+                        destructive: true,
+                        onTap: () async {
+                          Navigator.pop(
+                            sheetContext,
+                          );
+
+                          await _deleteForEveryone(
+                            doc.id,
+                          );
+                        },
+                      ),
+                  ],
+                ),
+              );
+            },
           ),
         );
       },
@@ -2443,20 +3372,28 @@ Widget _buildMessageContent({
     const reactions = [
       '❤️',
       '😂',
+      '🤣',
+      '😍',
+      '🥰',
       '😮',
       '😢',
+      '😭',
+      '😡',
       '👍',
-      '🔥',
+      '👎',
+      '👏',
     ];
 
-    return Row(
-      mainAxisAlignment:
-          MainAxisAlignment.spaceEvenly,
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 6,
+      runSpacing: 6,
       children: reactions.map(
         (emoji) {
           return GestureDetector(
             onTap: () async {
               Navigator.pop(context);
+
               await _setReaction(
                 messageId,
                 emoji,
@@ -2465,14 +3402,14 @@ Widget _buildMessageContent({
             child: Container(
               width: 40,
               height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
+              alignment:
+                  Alignment.center,
+              decoration:
+                  BoxDecoration(
                 color: Colors.white
                     .withOpacity(0.55),
                 borderRadius:
-                    BorderRadius.circular(
-                  13,
-                ),
+                    BorderRadius.circular(13),
                 border: Border.all(
                   color: Colors.white
                       .withOpacity(0.85),
@@ -2482,7 +3419,7 @@ Widget _buildMessageContent({
                 emoji,
                 style:
                     const TextStyle(
-                  fontSize: 20,
+                  fontSize: 19,
                 ),
               ),
             ),
@@ -2493,7 +3430,7 @@ Widget _buildMessageContent({
   }
 
   // ============================================================
-  // REACTION PICKER
+  // FULLER REACTION PICKER
   // ============================================================
 
   void _showReactionPicker(
@@ -2501,36 +3438,168 @@ Widget _buildMessageContent({
   ) {
     showModalBottomSheet(
       context: context,
-      backgroundColor:
-          Colors.transparent,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (sheetContext) {
-        const reactions = [
+        const reactions = <String>[
           '❤️',
-          '😂',
-          '😮',
-          '😢',
-          '👍',
+          '🩷',
+          '🧡',
+          '💛',
+          '💚',
+          '💙',
+          '🩵',
+          '💜',
+          '🤎',
+          '🖤',
+          '🩶',
+          '🤍',
+          '💔',
+          '❤️‍🔥',
+          '❣️',
+          '💕',
+          '💞',
+          '💓',
+          '💗',
+          '💖',
+          '💘',
+          '💝',
+          '✨',
+          '⭐',
+          '🌟',
           '🔥',
+          '💯',
+          '🎉',
+          '🎊',
           '👏',
+          '🙌',
+          '🫶',
+          '👍',
+          '👎',
+          '👌',
+          '✌️',
+          '🤞',
+          '🙏',
+          '💪',
+          '👋',
+          '😂',
+          '🤣',
+          '😅',
+          '😆',
+          '😁',
+          '😄',
+          '😃',
+          '😀',
+          '🥹',
+          '🥰',
           '😍',
+          '🤩',
+          '😘',
+          '😗',
+          '☺️',
+          '😊',
+          '😇',
+          '🙂',
+          '🙃',
+          '😉',
+          '😌',
+          '😎',
+          '🤓',
+          '🥳',
+          '🤭',
+          '🫢',
+          '🤗',
+          '😳',
+          '😮',
+          '😯',
+          '😲',
+          '😱',
+          '😢',
+          '😭',
+          '🥺',
+          '😔',
+          '😞',
+          '😕',
+          '🙁',
+          '☹️',
+          '😣',
+          '😖',
+          '😫',
+          '😩',
+          '🥲',
+          '😡',
+          '😠',
+          '🤬',
+          '🤔',
+          '🫡',
+          '🫠',
+          '🤯',
+          '😴',
+          '🤤',
+          '🤪',
+          '😜',
+          '😝',
+          '😋',
+          '🤤',
+          '😵',
+          '🤢',
+          '🤮',
+          '🥶',
+          '🥵',
+          '💀',
+          '👀',
+          '💫',
+          '💥',
+          '💦',
+          '💨',
+          '✅',
+          '❌',
+          '❗',
+          '❓',
+          '‼️',
+          '⁉️',
+          '🎯',
+          '🏆',
+          '🥇',
+          '👏',
+          '🙈',
+          '🙉',
+          '🙊',
         ];
 
         return SafeArea(
-          child: Padding(
-            padding:
-                const EdgeInsets.all(12),
-            child: _glass(
-              radius: 27,
-              padding:
-                  const EdgeInsets.all(14),
-              child: Wrap(
-                alignment:
-                    WrapAlignment.center,
-                spacing: 8,
-                runSpacing: 8,
-                children:
-                    reactions.map(
-                  (emoji) {
+          child: DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.62,
+            minChildSize: 0.42,
+            maxChildSize: 0.92,
+            builder: (_, controller) {
+              return _glass(
+                radius: 27,
+                padding: EdgeInsets.zero,
+                child: GridView.builder(
+                  controller: controller,
+                  padding:
+                      const EdgeInsets.fromLTRB(
+                    14,
+                    12,
+                    14,
+                    18,
+                  ),
+                  itemCount:
+                      reactions.length,
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 7,
+                    mainAxisSpacing: 7,
+                    crossAxisSpacing: 7,
+                    childAspectRatio: 1,
+                  ),
+                  itemBuilder:
+                      (context, index) {
+                    final emoji =
+                        reactions[index];
+
                     return GestureDetector(
                       onTap: () async {
                         Navigator.pop(
@@ -2543,35 +3612,35 @@ Widget _buildMessageContent({
                         );
                       },
                       child: Container(
-                        width: 48,
-                        height: 48,
-                        alignment:
-                            Alignment.center,
                         decoration:
                             BoxDecoration(
                           color: Colors.white
-                              .withOpacity(
-                            0.60,
-                          ),
+                              .withOpacity(0.62),
                           borderRadius:
                               BorderRadius
                                   .circular(
-                            15,
+                            14,
+                          ),
+                          border: Border.all(
+                            color: Colors.white
+                                .withOpacity(0.85),
                           ),
                         ),
+                        alignment:
+                            Alignment.center,
                         child: Text(
                           emoji,
                           style:
                               const TextStyle(
-                            fontSize: 25,
+                            fontSize: 22,
                           ),
                         ),
                       ),
                     );
                   },
-                ).toList(),
-              ),
-            ),
+                ),
+              );
+            },
           ),
         );
       },
@@ -2608,7 +3677,8 @@ Widget _buildMessageContent({
           }
 
           final data =
-              snapshot.data() ?? {};
+              snapshot.data() ??
+                  <String, dynamic>{};
 
           final currentReactions =
               <String, dynamic>{
@@ -2649,7 +3719,7 @@ Widget _buildMessageContent({
   }
 
   // ============================================================
-  // COPY MESSAGE
+  // COPY
   // ============================================================
 
   Future<void> _copyMessage(
@@ -2681,12 +3751,11 @@ Widget _buildMessageContent({
     setState(() {
       _replyTo = {
         'messageId': messageId,
-        'senderId':
-            message['senderId'],
-        'text':
-            message['text'] ?? '',
-        'type':
-            message['type'] ?? 'text',
+        'senderId': message['senderId'],
+        'text': message['text'] ?? '',
+        'type': message['type'] ?? 'text',
+        'imageUrl': message['imageUrl'],
+        'stickerUrl': message['stickerUrl'],
       };
     });
   }
@@ -2698,7 +3767,7 @@ Widget _buildMessageContent({
   }
 
   // ============================================================
-  // DELETE FOR ME
+  // DELETE MESSAGE FOR ME
   // ============================================================
 
   Future<void> _deleteForMe(
@@ -2711,12 +3780,9 @@ Widget _buildMessageContent({
     }
 
     try {
-      await _messagesRef
-          .doc(messageId)
-          .set(
+      await _messagesRef.doc(messageId).set(
         {
-          'deletedFor':
-              FieldValue.arrayUnion([
+          'deletedFor': FieldValue.arrayUnion([
             uid,
           ]),
         },
@@ -2742,22 +3808,24 @@ Widget _buildMessageContent({
   }
 
   // ============================================================
-  // DELETE FOR EVERYONE
+  // DELETE MESSAGE FOR EVERYONE
   // ============================================================
 
   Future<void> _deleteForEveryone(
     String messageId,
   ) async {
     try {
-      await _messagesRef
-          .doc(messageId)
-          .set(
+      await _messagesRef.doc(messageId).set(
         {
           'deleted': true,
-          'text': 'Message deleted',
-          'imageUrl': null,
-          'deletedAt':
-              FieldValue.serverTimestamp(),
+          'text': '',
+          'type': 'text',
+          'imageUrl': FieldValue.delete(),
+          'stickerUrl': FieldValue.delete(),
+          // Clear reactions too, so a deleted bubble can't still
+          // show old emoji reactions underneath it.
+          'reactions': <String, dynamic>{},
+          'deletedAt': FieldValue.serverTimestamp(),
         },
         SetOptions(merge: true),
       );
@@ -2801,7 +3869,6 @@ Widget _buildMessageContent({
           children: [
             if (_replyTo != null)
               _buildReplyComposer(),
-
             _glass(
               radius: 22,
               padding:
@@ -2817,7 +3884,6 @@ Widget _buildMessageContent({
                             ? null
                             : _showAttachmentOptions,
                   ),
-
                   Expanded(
                     child: TextField(
                       controller:
@@ -2853,7 +3919,6 @@ Widget _buildMessageContent({
                       ),
                     ),
                   ),
-
                   _inputActionButton(
                     icon:
                         Icons.emoji_emotions_outlined,
@@ -2863,9 +3928,7 @@ Widget _buildMessageContent({
                             ? null
                             : _showStickerPicker,
                   ),
-
                   const SizedBox(width: 3),
-
                   Material(
                     color: pikkXBlack,
                     borderRadius:
@@ -2926,14 +3989,21 @@ Widget _buildMessageContent({
 
   Widget _buildReplyComposer() {
     final replyType =
-        _replyTo!['type']
-                ?.toString() ??
+        _replyTo!['type']?.toString() ??
             'text';
 
     final replyText =
-        _replyTo!['text']
-                ?.toString() ??
+        _replyTo!['text']?.toString() ??
             '';
+
+    final previewText =
+        replyType == 'image'
+            ? '📷 Image'
+            : replyType == 'sticker'
+                ? '🎨 Sticker'
+                : replyText.isEmpty
+                    ? 'Message'
+                    : replyText;
 
     return Container(
       width: double.infinity,
@@ -2986,15 +4056,12 @@ Widget _buildMessageContent({
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  replyType == 'image'
-                      ? '📷 Image'
-                      : replyText.isEmpty
-                          ? 'Message'
-                          : replyText,
+                  previewText,
                   maxLines: 1,
                   overflow:
                       TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style:
+                      const TextStyle(
                     color: pikkXGrey,
                     fontSize: 11.5,
                   ),
@@ -3033,14 +4100,13 @@ Widget _buildMessageContent({
   }
 
   // ============================================================
-  // ATTACHMENT OPTIONS
+  // ATTACHMENTS
   // ============================================================
 
   void _showAttachmentOptions() {
     showModalBottomSheet(
       context: context,
-      backgroundColor:
-          Colors.transparent,
+      backgroundColor: Colors.transparent,
       builder: (sheetContext) {
         return SafeArea(
           child: Padding(
@@ -3059,6 +4125,8 @@ Widget _buildMessageContent({
                 mainAxisSize:
                     MainAxisSize.min,
                 children: [
+                  _sheetHandle(),
+                  const SizedBox(height: 8),
                   _actionTile(
                     icon:
                         Icons.photo_library_outlined,
@@ -3095,34 +4163,44 @@ Widget _buildMessageContent({
   // ============================================================
 
   void _showStickerPicker() {
+    const stickers = [
+      '😂',
+      '🤣',
+      '❤️',
+      '😍',
+      '🥰',
+      '🔥',
+      '😎',
+      '🥳',
+      '👏',
+      '✨',
+      '🎉',
+      '🙌',
+      '👍',
+      '😮',
+      '🤍',
+      '💯',
+      '🫶',
+      '😄',
+      '😁',
+      '🥹',
+      '😅',
+      '🤩',
+      '😭',
+      '🥺',
+      '🤭',
+      '😜',
+      '😴',
+      '🤯',
+      '💖',
+      '⭐',
+    ];
+
     showModalBottomSheet(
       context: context,
-      backgroundColor:
-          Colors.transparent,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (sheetContext) {
-        const stickers = [
-          '😂',
-          '❤️',
-          '😍',
-          '🔥',
-          '😎',
-          '🥰',
-          '👏',
-          '✨',
-          '🎉',
-          '🙌',
-          '👍',
-          '😮',
-          '🤍',
-          '💯',
-          '🫶',
-          '😄',
-          '😁',
-          '🥹',
-          '😅',
-          '🤩',
-        ];
-
         return SafeArea(
           child: Padding(
             padding:
@@ -3157,9 +4235,7 @@ Widget _buildMessageContent({
                       decoration:
                           BoxDecoration(
                         color: Colors.white
-                            .withOpacity(
-                          0.58,
-                        ),
+                            .withOpacity(0.58),
                         borderRadius:
                             BorderRadius
                                 .circular(
@@ -3261,54 +4337,7 @@ Widget _buildMessageContent({
   }
 
   // ============================================================
-  // EMPTY INBOX
-  // ============================================================
-
-  Widget _buildEmptyInbox() {
-    return Center(
-      child: Padding(
-        padding:
-            const EdgeInsets.all(22),
-        child: _glass(
-          radius: 28,
-          padding: const EdgeInsets.all(26),
-          child: Column(
-            mainAxisSize:
-                MainAxisSize.min,
-            children: [
-              _largeChatIcon(),
-              const SizedBox(height: 15),
-              const Text(
-                'No chats yet',
-                textAlign:
-                    TextAlign.center,
-                style: TextStyle(
-                  color: pikkXBlack,
-                  fontSize: 19,
-                  fontWeight:
-                      FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 7),
-              const Text(
-                'Your conversations with sellers and support will appear here.',
-                textAlign:
-                    TextAlign.center,
-                style: TextStyle(
-                  color: pikkXGrey,
-                  fontSize: 12,
-                  height: 1.45,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // FILTER EMPTY
+  // EMPTY STATES
   // ============================================================
 
   Widget _buildFilterEmptyState(
@@ -3335,7 +4364,8 @@ Widget _buildMessageContent({
                       pikkXBlack.withOpacity(
                     0.055,
                   ),
-                  shape: BoxShape.circle,
+                  borderRadius:
+                      BorderRadius.circular(22),
                 ),
                 child: Icon(
                   icon,
@@ -3372,10 +4402,6 @@ Widget _buildMessageContent({
       ),
     );
   }
-
-  // ============================================================
-  // SIGN IN
-  // ============================================================
 
   Widget _buildSignInState() {
     return Center(
@@ -3420,10 +4446,6 @@ Widget _buildMessageContent({
     );
   }
 
-  // ============================================================
-  // START CONVERSATION
-  // ============================================================
-
   Widget _buildStartConversation() {
     return Center(
       child: Padding(
@@ -3462,10 +4484,6 @@ Widget _buildMessageContent({
     );
   }
 
-  // ============================================================
-  // ERROR
-  // ============================================================
-
   Widget _buildErrorState() {
     return Center(
       child: Padding(
@@ -3479,8 +4497,7 @@ Widget _buildMessageContent({
                 MainAxisSize.min,
             children: [
               const Icon(
-                Icons
-                    .error_outline_rounded,
+                Icons.error_outline_rounded,
                 size: 44,
                 color: pikkXBlack,
               ),
@@ -3580,7 +4597,7 @@ Widget _buildMessageContent({
   }
 
   // ============================================================
-  // GLASS FIXTURE
+  // GLASS
   // ============================================================
 
   Widget _glass({
@@ -3592,7 +4609,7 @@ Widget _buildMessageContent({
       borderRadius:
           BorderRadius.circular(radius),
       child: BackdropFilter(
-        filter: ImageFilter.blur(
+        filter: ui.ImageFilter.blur(
           sigmaX: 18,
           sigmaY: 18,
         ),
@@ -3651,13 +4668,15 @@ Widget _buildMessageContent({
   }
 
   // ============================================================
-  // MESSAGE
+  // SNACKBAR
   // ============================================================
 
   void _showMessage(
     String message,
   ) {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -3680,7 +4699,8 @@ Widget _buildMessageContent({
               Expanded(
                 child: Text(
                   message,
-                  style: const TextStyle(
+                  style:
+                      const TextStyle(
                     color: pikkXWhite,
                     fontSize: 12,
                     fontWeight:
