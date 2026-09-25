@@ -171,10 +171,9 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
   }
 
   String _status() {
-    final value =
-        (order?['orderStatus'] ?? 'pending').toString().toLowerCase();
-
-    return value;
+    return (order?['orderStatus'] ?? 'pending')
+        .toString()
+        .toLowerCase();
   }
 
   String _prettyStatus(String status) {
@@ -455,13 +454,9 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
     ).toString();
 
     final name = (item['name'] ?? 'Product').toString();
-
     final quantity = _number(item['quantity']).toInt();
-
     final price = _number(item['price']);
-
     final size = (item['size'] ?? '').toString();
-
     final selectedColor =
         (item['selectedColor'] ?? '').toString();
 
@@ -586,9 +581,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
     ).toString();
 
     final city = (addressMap['city'] ?? '').toString();
-
     final state = (addressMap['state'] ?? '').toString();
-
     final country = (addressMap['country'] ?? '').toString();
 
     final location = [
@@ -867,9 +860,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
 
   Widget _buildSummary() {
     final subtotal = _number(order?['subtotal']);
-
     final deliveryFee = _number(order?['deliveryFee']);
-
     final total = _number(order?['total']);
 
     return _glassContainer(
