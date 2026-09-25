@@ -137,14 +137,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
   // ============================================================
   // ONE REAL NIKE TEST PRODUCT
-  //
-  // DEFAULT HOME IMAGE:
-  // assets/images/blue_nike.jpg
-  //
-  // PRODUCT DETAIL HAS:
-  // blue_nike.jpg
-  // grey_nike.jpg
-  // purple_nike.jpg
   // ============================================================
 
   List<Map<String, dynamic>> _homeProducts() {
@@ -156,35 +148,26 @@ class _MyHomePageState extends State<MyHomePage> {
         'price': 45000.0,
         'originalPrice': 55000.0,
         'currency': '₦',
-
-        // Default image shown on Home.
         'imageUrl': 'assets/images/blue_nike.jpg',
         'image': 'assets/images/blue_nike.jpg',
-
-        // Product Detail can use these.
         'images': [
           'assets/images/blue_nike.jpg',
           'assets/images/grey_nike.jpg',
           'assets/images/purple_nike.jpg',
         ],
-
         'colors': [
           'Blue',
           'Grey',
           'Purple',
         ],
-
         'rating': 4.8,
         'reviews': 124,
         'deliveryTime': '25 min',
-
         'sellerId': 'pikkx_demo_seller',
         'sellerName': 'PikkX Fashion',
-
         'description':
             'Nike footwear available on the PikkX marketplace. '
             'Choose your preferred colour and size.',
-
         'isFeatured': true,
       },
     ];
@@ -570,17 +553,6 @@ class _MyHomePageState extends State<MyHomePage> {
           const SizedBox(width: 7),
 
           // ======================================================
-          // DISPATCH TRACKING
-          // ======================================================
-
-          _headerButton(
-            Icons.delivery_dining_rounded,
-            _openDispatchTracking,
-          ),
-
-          const SizedBox(width: 7),
-
-          // ======================================================
           // PROFILE
           // ======================================================
 
@@ -907,11 +879,9 @@ class _MyHomePageState extends State<MyHomePage> {
                         letterSpacing: -.3,
                       ),
                     ),
-
                     const SizedBox(
                       height: 5,
                     ),
-
                     Text(
                       'Shop products, discover food.',
                       maxLines: 1,
@@ -927,7 +897,6 @@ class _MyHomePageState extends State<MyHomePage> {
                   ],
                 ),
               ),
-
               Container(
                 width: 55,
                 height: 55,
@@ -1040,11 +1009,9 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 ),
               ),
-
               const SizedBox(
                 height: 12,
               ),
-
               SizedBox(
                 height: 315,
                 child: ListView.builder(
@@ -1103,11 +1070,9 @@ class _MyHomePageState extends State<MyHomePage> {
                 pikkXBlack,
             size: 14,
           ),
-
         const SizedBox(
           width: 5,
         ),
-
         Text(
           rating.toStringAsFixed(1),
           style:
@@ -1175,10 +1140,6 @@ class _MyHomePageState extends State<MyHomePage> {
           crossAxisAlignment:
               CrossAxisAlignment.start,
           children: [
-            // ====================================================
-            // PRODUCT IMAGE
-            // ====================================================
-
             SizedBox(
               height: 145,
               child: Stack(
@@ -1235,11 +1196,6 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                     ),
                   ),
-
-                  // =================================================
-                  // FAVOURITE BUTTON
-                  // =================================================
-
                   Positioned(
                     right: 9,
                     top: 9,
@@ -1280,11 +1236,6 @@ class _MyHomePageState extends State<MyHomePage> {
                 ],
               ),
             ),
-
-            // ====================================================
-            // PRODUCT INFORMATION
-            // ====================================================
-
             Padding(
               padding:
                   const EdgeInsets.fromLTRB(
@@ -1311,7 +1262,6 @@ class _MyHomePageState extends State<MyHomePage> {
                           FontWeight.w700,
                     ),
                   ),
-
                   if (category.isNotEmpty)
                     Padding(
                       padding:
@@ -1329,15 +1279,12 @@ class _MyHomePageState extends State<MyHomePage> {
                         ),
                       ),
                     ),
-
                   const SizedBox(
                     height: 5,
                   ),
-
                   _ratingStars(
                     rating,
                   ),
-
                   if (deliveryTime !=
                       null) ...[
                     const SizedBox(
@@ -1367,11 +1314,9 @@ class _MyHomePageState extends State<MyHomePage> {
                       ],
                     ),
                   ],
-
                   const SizedBox(
                     height: 5,
                   ),
-
                   Row(
                     children: [
                       Expanded(
@@ -1398,7 +1343,6 @@ class _MyHomePageState extends State<MyHomePage> {
                                 ),
                               ),
                             ),
-
                             if (originalPrice !=
                                 null) ...[
                               const SizedBox(
@@ -1431,11 +1375,6 @@ class _MyHomePageState extends State<MyHomePage> {
                           ],
                         ),
                       ),
-
-                      // =================================================
-                      // OPEN PRODUCT DETAIL
-                      // =================================================
-
                       GestureDetector(
                         onTap: () =>
                             _openProduct(
@@ -1592,103 +1531,6 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   // ============================================================
-  // DISPATCH TRACKING
-  // ============================================================
-
-  Future<void>
-      _openDispatchTracking() async {
-    final user =
-        _currentUser;
-
-    if (user == null) {
-      _showMessage(
-        'Please sign in to track your order.',
-      );
-      return;
-    }
-
-    try {
-      final snapshot =
-          await _firestore
-              .collection('orders')
-              .where(
-                'userId',
-                isEqualTo:
-                    user.uid,
-              )
-              .get();
-
-      final activeOrders =
-          snapshot.docs.where(
-        (doc) {
-          final data =
-              doc.data();
-
-          final status =
-              data['status']
-                  ?.toString()
-                  .toLowerCase()
-                  .trim();
-
-          return status !=
-                  'delivered' &&
-              status !=
-                  'completed' &&
-              status !=
-                  'cancelled';
-        },
-      ).toList();
-
-      if (activeOrders.isEmpty) {
-        _showMessage(
-          'You do not have an active order to track.',
-        );
-        return;
-      }
-
-      activeOrders.sort(
-        (a, b) {
-          final aCreated =
-              a.data()['createdAt'];
-
-          final bCreated =
-              b.data()['createdAt'];
-
-          if (aCreated is Timestamp &&
-              bCreated is Timestamp) {
-            return bCreated.compareTo(
-              aCreated,
-            );
-          }
-
-          return 0;
-        },
-      );
-
-      final orderId =
-          activeOrders.first.id;
-
-      if (!mounted) {
-        return;
-      }
-
-      Navigator.of(context).pushNamed(
-        '/dispatch-tracking',
-        arguments:
-            orderId,
-      );
-    } catch (e) {
-      debugPrint(
-        'Dispatch tracking error: $e',
-      );
-
-      _showMessage(
-        'Could not load your active order.',
-      );
-    }
-  }
-
-  // ============================================================
   // PROFILE
   // ============================================================
 
@@ -1737,7 +1579,6 @@ class _MyHomePageState extends State<MyHomePage> {
               const SizedBox(
                 height: 10,
               ),
-
               Container(
                 width: 40,
                 height: 4,
@@ -1751,11 +1592,9 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 ),
               ),
-
               const SizedBox(
                 height: 18,
               ),
-
               const Padding(
                 padding:
                     EdgeInsets.symmetric(
@@ -1779,11 +1618,9 @@ class _MyHomePageState extends State<MyHomePage> {
                   ],
                 ),
               ),
-
               const SizedBox(
                 height: 10,
               ),
-
               Expanded(
                 child: StreamBuilder<
                     QuerySnapshot<
@@ -1941,12 +1778,10 @@ class _MyHomePageState extends State<MyHomePage> {
                                         20,
                                   ),
                                 ),
-
                                 const SizedBox(
                                   width:
                                       12,
                                 ),
-
                                 Expanded(
                                   child:
                                       Column(
@@ -2061,11 +1896,9 @@ class _MyHomePageState extends State<MyHomePage> {
                   pikkXGrey,
               size: 42,
             ),
-
             const SizedBox(
               height: 10,
             ),
-
             const Text(
               'No products found',
               style:
@@ -2077,11 +1910,9 @@ class _MyHomePageState extends State<MyHomePage> {
                     FontWeight.w700,
               ),
             ),
-
             const SizedBox(
               height: 5,
             ),
-
             const Text(
               'Try another search or category.',
               style:
