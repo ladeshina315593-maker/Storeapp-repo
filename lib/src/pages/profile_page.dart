@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -31,8 +32,7 @@ class _ProfilePageState extends State<ProfilePage> {
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
 
-  final FirebaseAuth _auth =
-      FirebaseAuth.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   bool _isLoading = true;
   bool _loadingProfile = false;
@@ -83,22 +83,11 @@ class _ProfilePageState extends State<ProfilePage> {
 
     try {
       final results = await Future.wait<dynamic>([
-        _firestore
-            .collection('users')
-            .doc(user.uid)
-            .get(),
-        _getCollectionCount(
-          'users/${user.uid}/orders',
-        ),
-        _getCollectionCount(
-          'users/${user.uid}/favorites',
-        ),
-        _getCollectionCount(
-          'users/${user.uid}/cart',
-        ),
-        _getCollectionCount(
-          'users/${user.uid}/following',
-        ),
+        _firestore.collection('users').doc(user.uid).get(),
+        _getCollectionCount('users/${user.uid}/orders'),
+        _getCollectionCount('users/${user.uid}/favorites'),
+        _getCollectionCount('users/${user.uid}/cart'),
+        _getCollectionCount('users/${user.uid}/following'),
       ]);
 
       final userSnapshot =
@@ -106,11 +95,6 @@ class _ProfilePageState extends State<ProfilePage> {
               as DocumentSnapshot<Map<String, dynamic>>;
 
       final data = userSnapshot.data();
-
-      final ordersCount = results[1] as int;
-      final favouritesCount = results[2] as int;
-      final cartCount = results[3] as int;
-      final followingCount = results[4] as int;
 
       if (!mounted) return;
 
@@ -135,10 +119,10 @@ class _ProfilePageState extends State<ProfilePage> {
             user.phoneNumber ??
             '';
 
-        _ordersCount = ordersCount;
-        _favouritesCount = favouritesCount;
-        _cartCount = cartCount;
-        _followingCount = followingCount;
+        _ordersCount = results[1] as int;
+        _favouritesCount = results[2] as int;
+        _cartCount = results[3] as int;
+        _followingCount = results[4] as int;
 
         _isLoading = false;
       });
@@ -156,7 +140,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
         _email = user.email ?? '';
         _phone = user.phoneNumber ?? '';
-
         _isLoading = false;
       });
     } finally {
@@ -164,9 +147,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  Future<int> _getCollectionCount(
-    String path,
-  ) async {
+  Future<int> _getCollectionCount(String path) async {
     try {
       final aggregate = await _firestore
           .collection(path)
@@ -211,15 +192,13 @@ class _ProfilePageState extends State<ProfilePage> {
           padding: padding,
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.70),
-            borderRadius:
-                BorderRadius.circular(radius),
+            borderRadius: BorderRadius.circular(radius),
             border: Border.all(
               color: Colors.white.withOpacity(0.95),
             ),
             boxShadow: [
               BoxShadow(
-                color:
-                    Colors.black.withOpacity(0.045),
+                color: Colors.black.withOpacity(0.045),
                 blurRadius: 22,
                 offset: const Offset(0, 9),
               ),
@@ -251,8 +230,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 width: 58,
                 decoration: BoxDecoration(
                   color: pikkXBlack,
-                  borderRadius:
-                      BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(18),
                 ),
                 child: const Icon(
                   Icons.person_outline_rounded,
@@ -260,9 +238,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   size: 29,
                 ),
               ),
-
               const SizedBox(width: 13),
-
               Expanded(
                 child: Column(
                   crossAxisAlignment:
@@ -302,16 +278,13 @@ class _ProfilePageState extends State<ProfilePage> {
                   ],
                 ),
               ),
-
               const SizedBox(width: 8),
-
               Container(
                 height: 35,
                 width: 35,
                 decoration: BoxDecoration(
                   color: pikkXBlack,
-                  borderRadius:
-                      BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
                   Icons.arrow_forward_ios_rounded,
@@ -332,12 +305,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _sectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        4,
-        2,
-        4,
-        9,
-      ),
+      padding: const EdgeInsets.fromLTRB(4, 2, 4, 9),
       child: Text(
         title,
         style: const TextStyle(
@@ -377,8 +345,7 @@ class _ProfilePageState extends State<ProfilePage> {
           color: Colors.transparent,
           child: InkWell(
             onTap: onTap,
-            borderRadius:
-                BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(20),
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: 12,
@@ -393,8 +360,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       color: destructive
                           ? const Color(0xFFFFF0F0)
                           : Colors.black.withOpacity(0.055),
-                      borderRadius:
-                          BorderRadius.circular(13),
+                      borderRadius: BorderRadius.circular(13),
                     ),
                     child: Icon(
                       icon,
@@ -402,9 +368,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       size: 20,
                     ),
                   ),
-
                   const SizedBox(width: 12),
-
                   Expanded(
                     child: Column(
                       crossAxisAlignment:
@@ -422,8 +386,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         Text(
                           subtitle,
                           maxLines: 1,
-                          overflow:
-                              TextOverflow.ellipsis,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: pikkXGrey,
                             fontSize: 10,
@@ -432,7 +395,6 @@ class _ProfilePageState extends State<ProfilePage> {
                       ],
                     ),
                   ),
-
                   Icon(
                     Icons.arrow_forward_ios_rounded,
                     color: destructive
@@ -454,10 +416,7 @@ class _ProfilePageState extends State<ProfilePage> {
   // ============================================================
 
   void _openOrders() {
-    Navigator.pushNamed(
-      context,
-      '/orders',
-    );
+    Navigator.pushNamed(context, '/orders');
   }
 
   void _openCart() {
@@ -466,10 +425,7 @@ class _ProfilePageState extends State<ProfilePage> {
       return;
     }
 
-    Navigator.pushNamed(
-      context,
-      '/cart',
-    );
+    Navigator.pushNamed(context, '/cart');
   }
 
   void _openFavorites() {
@@ -507,12 +463,12 @@ class _ProfilePageState extends State<ProfilePage> {
   // COUPONS
   // ============================================================
 
-  Future<void> _openCoupons() async {
+  void _openCoupons() {
     final user = _auth.currentUser;
 
     if (user == null) {
       _showMessage(
-        'Please sign in to view your coupons.',
+        'Please sign in to use coupon codes.',
       );
       return;
     }
@@ -522,7 +478,7 @@ class _ProfilePageState extends State<ProfilePage> {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) {
-        return _CouponsSheet(
+        return _CouponCodeSheet(
           firestore: _firestore,
           userId: user.uid,
         );
@@ -760,10 +716,8 @@ class _ProfilePageState extends State<ProfilePage> {
             height: 38,
             width: 38,
             decoration: BoxDecoration(
-              color:
-                  Colors.black.withOpacity(0.055),
-              borderRadius:
-                  BorderRadius.circular(12),
+              color: Colors.black.withOpacity(0.055),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               icon,
@@ -799,15 +753,13 @@ class _ProfilePageState extends State<ProfilePage> {
       return;
     }
 
-    final confirmed =
-        await showDialog<bool>(
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
           backgroundColor: pikkXWhite,
           shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(23),
+            borderRadius: BorderRadius.circular(23),
           ),
           title: const Text(
             'Delete Account?',
@@ -826,10 +778,7 @@ class _ProfilePageState extends State<ProfilePage> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(
-                  dialogContext,
-                  false,
-                );
+                Navigator.pop(dialogContext, false);
               },
               child: const Text(
                 'Cancel',
@@ -841,20 +790,15 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(
-                  dialogContext,
-                  true,
-                );
+                Navigator.pop(dialogContext, true);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor:
                     const Color(0xFFD32F2F),
                 foregroundColor: pikkXWhite,
                 elevation: 0,
-                shape:
-                    RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.circular(13),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(13),
                 ),
               ),
               child: const Text(
@@ -961,15 +905,13 @@ class _ProfilePageState extends State<ProfilePage> {
   // ============================================================
 
   Future<void> _signOut() async {
-    final confirmed =
-        await showDialog<bool>(
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
           backgroundColor: pikkXWhite,
           shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(23),
+            borderRadius: BorderRadius.circular(23),
           ),
           title: const Text(
             'Log Out',
@@ -987,10 +929,7 @@ class _ProfilePageState extends State<ProfilePage> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(
-                  dialogContext,
-                  false,
-                );
+                Navigator.pop(dialogContext, false);
               },
               child: const Text(
                 'Cancel',
@@ -1002,19 +941,14 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(
-                  dialogContext,
-                  true,
-                );
+                Navigator.pop(dialogContext, true);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: pikkXBlack,
                 foregroundColor: pikkXWhite,
                 elevation: 0,
-                shape:
-                    RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.circular(13),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(13),
                 ),
               ),
               child: const Text(
@@ -1085,17 +1019,13 @@ class _ProfilePageState extends State<ProfilePage> {
     final user = _auth.currentUser;
 
     if (user == null) {
-      throw Exception(
-        'No authenticated user.',
-      );
+      throw Exception('No authenticated user.');
     }
 
     final cleanName = name.trim();
 
     if (cleanName.isEmpty) {
-      throw Exception(
-        'Name cannot be empty.',
-      );
+      throw Exception('Name cannot be empty.');
     }
 
     await _firestore
@@ -1107,8 +1037,7 @@ class _ProfilePageState extends State<ProfilePage> {
         'name': cleanName,
         'email': user.email ?? _email,
         'phone': user.phoneNumber ?? _phone,
-        'updatedAt':
-            FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
     );
@@ -1159,8 +1088,7 @@ class _ProfilePageState extends State<ProfilePage> {
           SafeArea(
             child: _isLoading
                 ? const Center(
-                    child:
-                        CircularProgressIndicator(
+                    child: CircularProgressIndicator(
                       color: pikkXBlack,
                     ),
                   )
@@ -1170,11 +1098,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     child: ListView(
                       physics:
                           const AlwaysScrollableScrollPhysics(
-                        parent:
-                            BouncingScrollPhysics(),
+                        parent: BouncingScrollPhysics(),
                       ),
-                      padding:
-                          const EdgeInsets.fromLTRB(
+                      padding: const EdgeInsets.fromLTRB(
                         18,
                         10,
                         18,
@@ -1182,18 +1108,12 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       children: [
                         _yourProfileCard(),
+                        const SizedBox(height: 20),
 
-                        const SizedBox(
-                          height: 20,
-                        ),
-
-                        _sectionTitle(
-                          'Shopping',
-                        ),
+                        _sectionTitle('Shopping'),
 
                         _profileOption(
-                          icon: Icons
-                              .receipt_long_rounded,
+                          icon: Icons.receipt_long_rounded,
                           title: 'My Orders',
                           subtitle:
                               'Track and manage your orders ($_ordersCount)',
@@ -1201,8 +1121,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
 
                         _profileOption(
-                          icon: Icons
-                              .favorite_outline_rounded,
+                          icon: Icons.favorite_outline_rounded,
                           title: 'Favorites',
                           subtitle:
                               'Your saved products ($_favouritesCount)',
@@ -1210,44 +1129,32 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
 
                         _profileOption(
-                          icon: Icons
-                              .shopping_cart_outlined,
+                          icon: Icons.shopping_cart_outlined,
                           title: 'My Cart',
                           subtitle:
                               'Items waiting in your cart ($_cartCount)',
                           onTap: _openCart,
                         ),
 
-                        const SizedBox(
-                          height: 8,
-                        ),
+                        const SizedBox(height: 8),
 
-                        _sectionTitle(
-                          'Rewards & Offers',
-                        ),
+                        _sectionTitle('Rewards & Offers'),
 
                         _profileOption(
-                          icon: Icons
-                              .confirmation_number_outlined,
+                          icon: Icons.confirmation_number_outlined,
                           title: 'Coupon Codes',
                           subtitle:
-                              'View your available coupon codes',
+                              'Enter a 10-character coupon code',
                           onTap: _openCoupons,
                         ),
 
-                        const SizedBox(
-                          height: 8,
-                        ),
+                        const SizedBox(height: 8),
 
-                        _sectionTitle(
-                          'PikkX',
-                        ),
+                        _sectionTitle('PikkX'),
 
                         _profileOption(
-                          icon: Icons
-                              .storefront_outlined,
-                          title:
-                              'Become a Merchant',
+                          icon: Icons.storefront_outlined,
+                          title: 'Become a Merchant',
                           subtitle:
                               'Sell products, food or services',
                           onTap: () {
@@ -1257,30 +1164,22 @@ class _ProfilePageState extends State<ProfilePage> {
                           },
                         ),
 
-                        const SizedBox(
-                          height: 8,
-                        ),
+                        const SizedBox(height: 8),
 
                         _profileOption(
-                          icon: Icons
-                              .people_outline_rounded,
+                          icon: Icons.people_outline_rounded,
                           title: 'Following',
                           subtitle:
                               'See who you are following ($_followingCount)',
                           onTap: _openFollowing,
                         ),
 
-                        const SizedBox(
-                          height: 8,
-                        ),
+                        const SizedBox(height: 8),
 
-                        _sectionTitle(
-                          'Other',
-                        ),
+                        _sectionTitle('Other'),
 
                         _profileOption(
-                          icon: Icons
-                              .location_on_outlined,
+                          icon: Icons.location_on_outlined,
                           title: 'Addresses',
                           subtitle:
                               'Manage your delivery addresses',
@@ -1288,43 +1187,31 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
 
                         _profileOption(
-                          icon: Icons
-                              .notifications_none_rounded,
+                          icon: Icons.notifications_none_rounded,
                           title: 'Notifications',
                           subtitle:
                               'View your PikkX notifications',
-                          onTap:
-                              _openNotifications,
+                          onTap: _openNotifications,
                         ),
 
-                        const SizedBox(
-                          height: 8,
-                        ),
+                        const SizedBox(height: 8),
 
-                        _sectionTitle(
-                          'Account',
-                        ),
+                        _sectionTitle('Account'),
 
                         _profileOption(
-                          icon: Icons
-                              .shield_outlined,
-                          title:
-                              'Privacy & Security',
+                          icon: Icons.shield_outlined,
+                          title: 'Privacy & Security',
                           subtitle:
                               'Manage your account security',
-                          onTap:
-                              _openPrivacySecurity,
+                          onTap: _openPrivacySecurity,
                         ),
 
                         _profileOption(
-                          icon: Icons
-                              .help_outline_rounded,
-                          title:
-                              'Help & Support',
+                          icon: Icons.help_outline_rounded,
+                          title: 'Help & Support',
                           subtitle:
                               'Chat with PikkX Support on WhatsApp',
-                          onTap:
-                              _openHelpSupport,
+                          onTap: _openHelpSupport,
                         ),
 
                         _profileOption(
@@ -1336,14 +1223,11 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
 
                         _profileOption(
-                          icon: Icons
-                              .delete_outline_rounded,
-                          title:
-                              'Delete Account',
+                          icon: Icons.delete_outline_rounded,
+                          title: 'Delete Account',
                           subtitle:
                               'Permanently delete your PikkX account',
-                          onTap:
-                              _deleteAccount,
+                          onTap: _deleteAccount,
                           destructive: true,
                         ),
                       ],
@@ -1361,8 +1245,7 @@ class _ProfilePageState extends State<ProfilePage> {
         height: size,
         width: size,
         decoration: BoxDecoration(
-          color:
-              Colors.black.withOpacity(0.025),
+          color: Colors.black.withOpacity(0.025),
           shape: BoxShape.circle,
         ),
       ),
@@ -1389,8 +1272,7 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
           backgroundColor: pikkXBlack,
-          behavior:
-              SnackBarBehavior.floating,
+          behavior: SnackBarBehavior.floating,
           margin: const EdgeInsets.fromLTRB(
             16,
             0,
@@ -1399,8 +1281,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(14),
           ),
         ),
       );
@@ -1414,9 +1295,7 @@ class _ProfilePageState extends State<ProfilePage> {
 class _EditProfileSheet extends StatefulWidget {
   final String currentName;
 
-  final Future<void> Function(
-    String name,
-  ) onSave;
+  final Future<void> Function(String name) onSave;
 
   const _EditProfileSheet({
     required this.currentName,
@@ -1430,8 +1309,7 @@ class _EditProfileSheet extends StatefulWidget {
 
 class _EditProfileSheetState
     extends State<_EditProfileSheet> {
-  late final TextEditingController
-      _nameController;
+  late final TextEditingController _nameController;
 
   bool _saving = false;
 
@@ -1439,8 +1317,7 @@ class _EditProfileSheetState
   void initState() {
     super.initState();
 
-    _nameController =
-        TextEditingController(
+    _nameController = TextEditingController(
       text: widget.currentName,
     );
   }
@@ -1452,13 +1329,10 @@ class _EditProfileSheetState
   }
 
   Future<void> _save() async {
-    final name =
-        _nameController.text.trim();
+    final name = _nameController.text.trim();
 
     if (name.isEmpty) {
-      _showMessage(
-        'Please enter your name.',
-      );
+      _showMessage('Please enter your name.');
       return;
     }
 
@@ -1473,9 +1347,7 @@ class _EditProfileSheetState
 
       Navigator.pop(context);
     } catch (e) {
-      debugPrint(
-        'Save profile error: $e',
-      );
+      debugPrint('Save profile error: $e');
 
       if (!mounted) return;
 
@@ -1484,9 +1356,7 @@ class _EditProfileSheetState
       });
 
       _showMessage(
-        e.toString().contains(
-              'Name cannot be empty',
-            )
+        e.toString().contains('Name cannot be empty')
             ? 'Please enter your name.'
             : 'Unable to update profile.',
       );
@@ -1499,13 +1369,10 @@ class _EditProfileSheetState
       ..showSnackBar(
         SnackBar(
           content: Text(message),
-          backgroundColor:
-              const Color(0xFF050505),
-          behavior:
-              SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFF050505),
+          behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(14),
           ),
         ),
       );
@@ -1515,14 +1382,10 @@ class _EditProfileSheetState
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(
-        bottom:
-            MediaQuery.of(context)
-                .viewInsets
-                .bottom,
+        bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       child: ClipRRect(
-        borderRadius:
-            const BorderRadius.vertical(
+        borderRadius: const BorderRadius.vertical(
           top: Radius.circular(30),
         ),
         child: BackdropFilter(
@@ -1531,18 +1394,15 @@ class _EditProfileSheetState
             sigmaY: 20,
           ),
           child: Container(
-            padding:
-                const EdgeInsets.fromLTRB(
+            padding: const EdgeInsets.fromLTRB(
               20,
               14,
               20,
               25,
             ),
             decoration: BoxDecoration(
-              color: Colors.white
-                  .withOpacity(0.96),
-              borderRadius:
-                  const BorderRadius.vertical(
+              color: Colors.white.withOpacity(0.96),
+              borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(30),
               ),
               border: Border.all(
@@ -1550,8 +1410,7 @@ class _EditProfileSheetState
               ),
             ),
             child: Column(
-              mainAxisSize:
-                  MainAxisSize.min,
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment:
                   CrossAxisAlignment.start,
               children: [
@@ -1559,109 +1418,64 @@ class _EditProfileSheetState
                   child: Container(
                     height: 5,
                     width: 45,
-                    decoration:
-                        BoxDecoration(
-                      color: Colors.black
-                          .withOpacity(0.12),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.12),
                       borderRadius:
                           BorderRadius.circular(10),
                     ),
                   ),
                 ),
-
-                const SizedBox(
-                  height: 18,
-                ),
-
+                const SizedBox(height: 18),
                 const Text(
                   'Edit Profile',
                   style: TextStyle(
                     color: Color(0xFF050505),
                     fontSize: 21,
-                    fontWeight:
-                        FontWeight.w900,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
-
-                const SizedBox(
-                  height: 18,
-                ),
-
+                const SizedBox(height: 18),
                 TextField(
-                  controller:
-                      _nameController,
-                  textInputAction:
-                      TextInputAction.done,
-                  style:
-                      const TextStyle(
-                    color:
-                        Color(0xFF050505),
-                    fontWeight:
-                        FontWeight.w600,
+                  controller: _nameController,
+                  textInputAction: TextInputAction.done,
+                  style: const TextStyle(
+                    color: Color(0xFF050505),
+                    fontWeight: FontWeight.w600,
                   ),
-                  decoration:
-                      InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Name',
-                    labelStyle:
-                        const TextStyle(
-                      color:
-                          Color(0xFF777777),
+                    labelStyle: const TextStyle(
+                      color: Color(0xFF777777),
                     ),
-                    prefixIcon:
-                        const Icon(
-                      Icons
-                          .person_outline_rounded,
-                      color:
-                          Color(0xFF050505),
+                    prefixIcon: const Icon(
+                      Icons.person_outline_rounded,
+                      color: Color(0xFF050505),
                     ),
                     filled: true,
-                    fillColor:
-                        const Color(0xFFF7F7F7),
-                    border:
-                        OutlineInputBorder(
+                    fillColor: const Color(0xFFF7F7F7),
+                    border: OutlineInputBorder(
                       borderRadius:
-                          BorderRadius.circular(
-                        17,
-                      ),
-                      borderSide:
-                          BorderSide.none,
+                          BorderRadius.circular(17),
+                      borderSide: BorderSide.none,
                     ),
                   ),
                 ),
-
-                const SizedBox(
-                  height: 16,
-                ),
-
+                const SizedBox(height: 16),
                 SizedBox(
-                  width:
-                      double.infinity,
+                  width: double.infinity,
                   height: 52,
-                  child:
-                      ElevatedButton(
-                    onPressed:
-                        _saving
-                            ? null
-                            : _save,
-                    style:
-                        ElevatedButton.styleFrom(
+                  child: ElevatedButton(
+                    onPressed: _saving ? null : _save,
+                    style: ElevatedButton.styleFrom(
                       backgroundColor:
-                          const Color(
-                        0xFF050505,
-                      ),
-                      foregroundColor:
-                          Colors.white,
+                          const Color(0xFF050505),
+                      foregroundColor: Colors.white,
                       disabledBackgroundColor:
-                          const Color(
-                        0xFF777777,
-                      ),
+                          const Color(0xFF777777),
                       elevation: 0,
-                      shape:
-                          RoundedRectangleBorder(
+                      shape: RoundedRectangleBorder(
                         borderRadius:
-                            BorderRadius.circular(
-                          17,
-                        ),
+                            BorderRadius.circular(17),
                       ),
                     ),
                     child: _saving
@@ -1671,26 +1485,21 @@ class _EditProfileSheetState
                             child:
                                 CircularProgressIndicator(
                               strokeWidth: 2,
-                              color:
-                                  Colors.white,
+                              color: Colors.white,
                             ),
                           )
                         : const Row(
                             mainAxisAlignment:
-                                MainAxisAlignment
-                                    .center,
+                                MainAxisAlignment.center,
                             children: [
                               Icon(
                                 Icons.check_rounded,
                                 size: 19,
                               ),
-                              SizedBox(
-                                width: 7,
-                              ),
+                              SizedBox(width: 7),
                               Text(
                                 'Save Changes',
-                                style:
-                                    TextStyle(
+                                style: TextStyle(
                                   fontWeight:
                                       FontWeight.w800,
                                 ),
@@ -1709,141 +1518,421 @@ class _EditProfileSheetState
 }
 
 // ================================================================
-// COUPONS SHEET
+// COUPON CODE SHEET
 // ================================================================
 
-class _CouponsSheet extends StatelessWidget {
+class _CouponCodeSheet extends StatefulWidget {
   final FirebaseFirestore firestore;
   final String userId;
 
-  const _CouponsSheet({
+  const _CouponCodeSheet({
     required this.firestore,
     required this.userId,
   });
 
   @override
+  State<_CouponCodeSheet> createState() =>
+      _CouponCodeSheetState();
+}
+
+class _CouponCodeSheetState
+    extends State<_CouponCodeSheet> {
+  late final TextEditingController _controller;
+  late final FocusNode _focusNode;
+
+  bool _checking = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller = TextEditingController();
+    _focusNode = FocusNode();
+
+    _controller.addListener(_onCodeChanged);
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_onCodeChanged);
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _onCodeChanged() {
+    final uppercase = _controller.text.toUpperCase();
+
+    if (_controller.text != uppercase) {
+      _controller.value = _controller.value.copyWith(
+        text: uppercase,
+        selection: TextSelection.collapsed(
+          offset: uppercase.length,
+        ),
+      );
+    }
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  bool get _isValidLength =>
+      _controller.text.trim().length == 10;
+
+  Future<void> _applyCoupon() async {
+    final code = _controller.text.trim().toUpperCase();
+
+    if (code.length != 10) {
+      _showMessage(
+        'Coupon code must be exactly 10 characters.',
+      );
+      _focusNode.requestFocus();
+      return;
+    }
+
+    setState(() {
+      _checking = true;
+    });
+
+    try {
+      final couponSnapshot = await widget.firestore
+          .collection('couponCodes')
+          .doc(code)
+          .get();
+
+      if (!couponSnapshot.exists) {
+        _showMessage(
+          'Invalid coupon code.',
+        );
+        return;
+      }
+
+      final data = couponSnapshot.data() ?? {};
+
+      final activeValue = data['active'];
+
+      if (activeValue is bool && !activeValue) {
+        _showMessage(
+          'This coupon code is no longer active.',
+        );
+        return;
+      }
+
+      final expiresAt = data['expiresAt'];
+
+      if (expiresAt is Timestamp &&
+          expiresAt.toDate().isBefore(DateTime.now())) {
+        _showMessage(
+          'This coupon code has expired.',
+        );
+        return;
+      }
+
+      final userRef = widget.firestore
+          .collection('users')
+          .doc(widget.userId);
+
+      final userSnapshot = await userRef.get();
+      final userData = userSnapshot.data() ?? {};
+
+      final existingRaw =
+          userData['appliedCouponCodes'];
+
+      final appliedCodes = <String>[];
+
+      if (existingRaw is List) {
+        for (final value in existingRaw) {
+          appliedCodes.add(
+            value.toString().toUpperCase(),
+          );
+        }
+      }
+
+      if (appliedCodes.contains(code)) {
+        _showMessage(
+          'You have already applied this coupon.',
+        );
+        return;
+      }
+
+      await userRef.set(
+        {
+          'appliedCouponCodes':
+              FieldValue.arrayUnion([code]),
+          'updatedAt':
+              FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+
+      if (!mounted) return;
+
+      final discountType =
+          data['discountType']?.toString();
+
+      final discountValue =
+          data['discountValue']?.toString();
+
+      Navigator.pop(context);
+
+      String message =
+          'Coupon $code applied successfully.';
+
+      if (discountValue != null &&
+          discountValue.isNotEmpty) {
+        if (discountType == 'percentage') {
+          message =
+              'Coupon applied: $discountValue% off.';
+        } else {
+          message =
+              'Coupon applied: $discountValue discount.';
+        }
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor:
+              const Color(0xFF050505),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+      );
+    } catch (e, stackTrace) {
+      debugPrint('Coupon error: $e');
+      debugPrint('$stackTrace');
+
+      if (!mounted) return;
+
+      _showMessage(
+        'Unable to check this coupon. Please try again.',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _checking = false;
+        });
+      }
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor:
+              const Color(0xFF050505),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+      );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final userRef =
-        firestore.collection('users').doc(userId);
-
-    return SafeArea(
-      child: _SimpleGlassSheet(
-        title: 'Coupon Codes',
-        child: FutureBuilder<
-            DocumentSnapshot<
-                Map<String, dynamic>>>(
-          future: userRef.get(),
-          builder: (
-            context,
-            snapshot,
-          ) {
-            if (snapshot.connectionState ==
-                ConnectionState.waiting) {
-              return const Padding(
-                padding:
-                    EdgeInsets.all(30),
-                child: Center(
-                  child:
-                      CircularProgressIndicator(
-                    color:
-                        Color(0xFF050505),
-                  ),
-                ),
-              );
-            }
-
-            final data =
-                snapshot.data?.data();
-
-            final raw =
-                data?['couponCodes'];
-
-            final List<String> codes = [];
-
-            if (raw is List) {
-              for (final value in raw) {
-                final code =
-                    value.toString().trim();
-
-                if (code.isNotEmpty) {
-                  codes.add(code);
-                }
-              }
-            }
-
-            if (raw is String &&
-                raw.trim().isNotEmpty) {
-              codes.add(raw.trim());
-            }
-
-            if (codes.isEmpty) {
-              return const Padding(
-                padding:
-                    EdgeInsets.all(20),
-                child: Text(
-                  'No coupon codes available right now.',
-                  style: TextStyle(
-                    color:
-                        Color(0xFF777777),
-                    fontSize: 12,
-                  ),
-                ),
-              );
-            }
-
-            return Column(
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(30),
+        ),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(
+            sigmaX: 20,
+            sigmaY: 20,
+          ),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(
+              20,
+              14,
+              20,
+              25,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.96),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(30),
+              ),
+              border: Border.all(
+                color: Colors.white,
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
-                for (final code in codes)
-                  Container(
-                    width:
-                        double.infinity,
-                    margin:
-                        const EdgeInsets.only(
-                      bottom: 9,
-                    ),
-                    padding:
-                        const EdgeInsets.all(
-                      14,
-                    ),
-                    decoration:
-                        BoxDecoration(
-                      color: Colors.black
-                          .withOpacity(0.045),
+                Center(
+                  child: Container(
+                    height: 5,
+                    width: 45,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.12),
                       borderRadius:
-                          BorderRadius.circular(15),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons
-                              .confirmation_number_outlined,
-                          color:
-                              Color(0xFF050505),
-                          size: 20,
-                        ),
-                        const SizedBox(
-                          width: 10,
-                        ),
-                        Expanded(
-                          child: Text(
-                            code,
-                            style:
-                                const TextStyle(
-                              color:
-                                  Color(0xFF050505),
-                              fontSize: 14,
-                              fontWeight:
-                                  FontWeight.w900,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ),
-                      ],
+                          BorderRadius.circular(10),
                     ),
                   ),
+                ),
+
+                const SizedBox(height: 18),
+
+                const Text(
+                  'Enter Coupon Code',
+                  style: TextStyle(
+                    color: Color(0xFF050505),
+                    fontSize: 21,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+
+                const SizedBox(height: 6),
+
+                const Text(
+                  'Enter your 10-character PikkX coupon code below.',
+                  style: TextStyle(
+                    color: Color(0xFF777777),
+                    fontSize: 11,
+                    height: 1.4,
+                  ),
+                ),
+
+                const SizedBox(height: 18),
+
+                TextField(
+                  controller: _controller,
+                  focusNode: _focusNode,
+                  autofocus: true,
+                  maxLength: 10,
+                  textCapitalization:
+                      TextCapitalization.characters,
+                  keyboardType:
+                      TextInputType.visiblePassword,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'[a-zA-Z0-9]'),
+                    ),
+                    LengthLimitingTextInputFormatter(10),
+                  ],
+                  style: const TextStyle(
+                    color: Color(0xFF050505),
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.5,
+                  ),
+                  decoration: InputDecoration(
+                    counterText: '',
+                    hintText: 'XXXXXXXXXX',
+                    hintStyle: TextStyle(
+                      color:
+                          Colors.black.withOpacity(0.22),
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.5,
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.confirmation_number_outlined,
+                      color: Color(0xFF050505),
+                    ),
+                    suffixText:
+                        '${_controller.text.length}/10',
+                    suffixStyle: TextStyle(
+                      color: _isValidLength
+                          ? const Color(0xFF050505)
+                          : const Color(0xFF777777),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                    filled: true,
+                    fillColor:
+                        const Color(0xFFF7F7F7),
+                    border: OutlineInputBorder(
+                      borderRadius:
+                          BorderRadius.circular(17),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius:
+                          BorderRadius.circular(17),
+                      borderSide: BorderSide(
+                        color: const Color(0xFFE8E8E8),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius:
+                          BorderRadius.circular(17),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF050505),
+                        width: 1.2,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 15),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 53,
+                  child: ElevatedButton(
+                    onPressed:
+                        _checking ? null : _applyCoupon,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          const Color(0xFF050505),
+                      disabledBackgroundColor:
+                          const Color(0xFF777777),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(17),
+                      ),
+                    ),
+                    child: _checking
+                        ? const SizedBox(
+                            height: 21,
+                            width: 21,
+                            child:
+                                CircularProgressIndicator(
+                              strokeWidth: 2.3,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Row(
+                            mainAxisAlignment:
+                                MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.check_rounded,
+                                size: 20,
+                              ),
+                              SizedBox(width: 7),
+                              Text(
+                                'Apply Coupon',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight:
+                                      FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
               ],
-            );
-          },
+            ),
+          ),
         ),
       ),
     );
@@ -1884,8 +1973,7 @@ class _FollowingSheet extends StatelessWidget {
       child: _SimpleGlassSheet(
         title: 'Following',
         child: StreamBuilder<
-            QuerySnapshot<
-                Map<String, dynamic>>>(
+            QuerySnapshot<Map<String, dynamic>>>(
           stream: query.snapshots(),
           builder: (
             context,
@@ -1893,13 +1981,11 @@ class _FollowingSheet extends StatelessWidget {
           ) {
             if (snapshot.hasError) {
               return const Padding(
-                padding:
-                    EdgeInsets.all(20),
+                padding: EdgeInsets.all(20),
                 child: Text(
                   'Unable to load your following list.',
                   style: TextStyle(
-                    color:
-                        Color(0xFF777777),
+                    color: Color(0xFF777777),
                     fontSize: 12,
                   ),
                 ),
@@ -1910,13 +1996,10 @@ class _FollowingSheet extends StatelessWidget {
                     ConnectionState.waiting &&
                 !snapshot.hasData) {
               return const Padding(
-                padding:
-                    EdgeInsets.all(30),
+                padding: EdgeInsets.all(30),
                 child: Center(
-                  child:
-                      CircularProgressIndicator(
-                    color:
-                        Color(0xFF050505),
+                  child: CircularProgressIndicator(
+                    color: Color(0xFF050505),
                   ),
                 ),
               );
@@ -1927,13 +2010,11 @@ class _FollowingSheet extends StatelessWidget {
 
             if (docs.isEmpty) {
               return const Padding(
-                padding:
-                    EdgeInsets.all(20),
+                padding: EdgeInsets.all(20),
                 child: Text(
                   'You are not following anyone yet.',
                   style: TextStyle(
-                    color:
-                        Color(0xFF777777),
+                    color: Color(0xFF777777),
                     fontSize: 12,
                   ),
                 ),
@@ -1953,28 +2034,20 @@ class _FollowingSheet extends StatelessWidget {
                 final data = doc.data();
 
                 final name =
-                    data['sellerName']
-                            ?.toString() ??
-                        data['merchantName']
-                            ?.toString() ??
-                        data['storeName']
-                            ?.toString() ??
-                        'Merchant';
+                    data['sellerName']?.toString() ??
+                    data['merchantName']?.toString() ??
+                    data['storeName']?.toString() ??
+                    'Merchant';
 
                 final imageUrl =
-                    data['photoUrl']
-                            ?.toString() ??
-                        data['merchantPhotoUrl']
-                            ?.toString() ??
-                        data['imageUrl']
-                            ?.toString() ??
-                        '';
+                    data['photoUrl']?.toString() ??
+                    data['merchantPhotoUrl']?.toString() ??
+                    data['imageUrl']?.toString() ??
+                    '';
 
                 return Padding(
                   padding:
-                      const EdgeInsets.only(
-                    bottom: 8,
-                  ),
+                      const EdgeInsets.only(bottom: 8),
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
@@ -1987,8 +2060,7 @@ class _FollowingSheet extends StatelessWidget {
                       borderRadius:
                           BorderRadius.circular(16),
                       child: Padding(
-                        padding:
-                            const EdgeInsets.all(7),
+                        padding: const EdgeInsets.all(7),
                         child: Row(
                           children: [
                             Container(
@@ -1999,23 +2071,18 @@ class _FollowingSheet extends StatelessWidget {
                               decoration:
                                   BoxDecoration(
                                 color: Colors.white,
-                                shape:
-                                    BoxShape.circle,
-                                border:
-                                    Border.all(
-                                  color:
-                                      const Color(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: const Color(
                                     0xFFE8E8E8,
                                   ),
                                 ),
                               ),
                               child: ClipOval(
-                                child: imageUrl
-                                        .isNotEmpty
+                                child: imageUrl.isNotEmpty
                                     ? Image.network(
                                         imageUrl,
-                                        fit:
-                                            BoxFit.cover,
+                                        fit: BoxFit.cover,
                                         cacheWidth: 180,
                                         cacheHeight: 180,
                                         errorBuilder:
@@ -2029,62 +2096,45 @@ class _FollowingSheet extends StatelessWidget {
                                           );
                                         },
                                       )
-                                    : _avatarFallback(
-                                        name,
-                                      ),
+                                    : _avatarFallback(name),
                               ),
                             ),
-
-                            const SizedBox(
-                              width: 11,
-                            ),
-
+                            const SizedBox(width: 11),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment:
-                                    CrossAxisAlignment
-                                        .start,
+                                    CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     name,
                                     maxLines: 1,
                                     overflow:
-                                        TextOverflow
-                                            .ellipsis,
+                                        TextOverflow.ellipsis,
                                     style:
                                         const TextStyle(
                                       color:
-                                          Color(
-                                        0xFF050505,
-                                      ),
+                                          Color(0xFF050505),
                                       fontSize: 13,
                                       fontWeight:
                                           FontWeight.w800,
                                     ),
                                   ),
-                                  const SizedBox(
-                                    height: 3,
-                                  ),
+                                  const SizedBox(height: 3),
                                   const Text(
                                     'Following',
-                                    style:
-                                        TextStyle(
+                                    style: TextStyle(
                                       color:
-                                          Color(
-                                        0xFF777777,
-                                      ),
+                                          Color(0xFF777777),
                                       fontSize: 10,
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-
                             const Icon(
                               Icons
                                   .arrow_forward_ios_rounded,
-                              color:
-                                  Color(0xFF777777),
+                              color: Color(0xFF777777),
                               size: 13,
                             ),
                           ],
@@ -2123,8 +2173,7 @@ class _FollowingSheet extends StatelessWidget {
 // SIMPLE GLASS SHEET
 // ================================================================
 
-class _SimpleGlassSheet
-    extends StatelessWidget {
+class _SimpleGlassSheet extends StatelessWidget {
   final String title;
   final Widget child;
 
@@ -2136,8 +2185,7 @@ class _SimpleGlassSheet
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius:
-          const BorderRadius.vertical(
+      borderRadius: const BorderRadius.vertical(
         top: Radius.circular(30),
       ),
       child: BackdropFilter(
@@ -2146,23 +2194,18 @@ class _SimpleGlassSheet
           sigmaY: 20,
         ),
         child: Container(
-          constraints:
-              const BoxConstraints(
+          constraints: const BoxConstraints(
             maxHeight: 620,
           ),
-          padding:
-              const EdgeInsets.fromLTRB(
+          padding: const EdgeInsets.fromLTRB(
             20,
             14,
             20,
             25,
           ),
-          decoration:
-              BoxDecoration(
-            color:
-                Colors.white.withOpacity(0.96),
-            borderRadius:
-                const BorderRadius.vertical(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.96),
+            borderRadius: const BorderRadius.vertical(
               top: Radius.circular(30),
             ),
             border: Border.all(
@@ -2171,8 +2214,7 @@ class _SimpleGlassSheet
           ),
           child: SingleChildScrollView(
             child: Column(
-              mainAxisSize:
-                  MainAxisSize.min,
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment:
                   CrossAxisAlignment.start,
               children: [
@@ -2180,36 +2222,23 @@ class _SimpleGlassSheet
                   child: Container(
                     height: 5,
                     width: 45,
-                    decoration:
-                        BoxDecoration(
-                      color: Colors.black
-                          .withOpacity(0.12),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.12),
                       borderRadius:
                           BorderRadius.circular(10),
                     ),
                   ),
                 ),
-
-                const SizedBox(
-                  height: 18,
-                ),
-
+                const SizedBox(height: 18),
                 Text(
                   title,
-                  style:
-                      const TextStyle(
-                    color:
-                        Color(0xFF050505),
+                  style: const TextStyle(
+                    color: Color(0xFF050505),
                     fontSize: 21,
-                    fontWeight:
-                        FontWeight.w900,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
-
-                const SizedBox(
-                  height: 16,
-                ),
-
+                const SizedBox(height: 16),
                 child,
               ],
             ),
