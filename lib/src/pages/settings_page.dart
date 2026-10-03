@@ -9,16 +9,18 @@ class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
   @override
-  State<SettingsPage> createState() =>
-      _SettingsPageState();
+  State<SettingsPage> createState() => _SettingsPageState();
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  final FirebaseFirestore _firestore =
-      FirebaseFirestore.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  final FirebaseAuth _auth =
-      FirebaseAuth.instance;
+  static const Color pikkXBlack = Color(0xFF050505);
+  static const Color pikkXWhite = Color(0xFFFFFFFF);
+  static const Color pikkXBackground = Color(0xFFF7F7F7);
+  static const Color pikkXGrey = Color(0xFF777777);
+  static const Color pikkXLightGrey = Color(0xFFE8E8E8);
 
   bool notificationsEnabled = true;
   bool orderUpdates = true;
@@ -103,13 +105,11 @@ class _SettingsPageState extends State<SettingsPage> {
       await userRef.set(
         {
           'settings': {
-            'notificationsEnabled':
-                notificationsEnabled,
+            'notificationsEnabled': notificationsEnabled,
             'orderUpdates': orderUpdates,
             'promotionalNotifications':
                 promotionalNotifications,
-            'updatedAt':
-                FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
           },
         },
         SetOptions(merge: true),
@@ -125,9 +125,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  Future<void> _changeNotifications(
-    bool value,
-  ) async {
+  Future<void> _changeNotifications(bool value) async {
     setState(() {
       notificationsEnabled = value;
 
@@ -140,9 +138,7 @@ class _SettingsPageState extends State<SettingsPage> {
     await _saveSettings();
   }
 
-  Future<void> _changeOrderUpdates(
-    bool value,
-  ) async {
+  Future<void> _changeOrderUpdates(bool value) async {
     setState(() {
       orderUpdates = value;
     });
@@ -167,16 +163,17 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _signOut() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: AppTheme.pikkXWhite,
+          backgroundColor: pikkXWhite,
+          surfaceTintColor: pikkXWhite,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
-          title: Text(
+          title: const Text(
             'Sign out?',
             style: TextStyle(
-              color: AppTheme.pikkXBlack,
+              color: pikkXBlack,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -188,19 +185,21 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () =>
-                  Navigator.pop(context, false),
-              child: Text(
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
+              },
+              child: const Text(
                 'Cancel',
                 style: TextStyle(
-                  color: AppTheme.pikkXNavy,
+                  color: pikkXBlack,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ),
             TextButton(
-              onPressed: () =>
-                  Navigator.pop(context, true),
+              onPressed: () {
+                Navigator.pop(dialogContext, true);
+              },
               child: const Text(
                 'Sign out',
                 style: TextStyle(
@@ -233,8 +232,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget _glass({
     required Widget child,
-    EdgeInsetsGeometry padding =
-        EdgeInsets.zero,
+    EdgeInsetsGeometry padding = EdgeInsets.zero,
   }) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
@@ -246,15 +244,15 @@ class _SettingsPageState extends State<SettingsPage> {
         child: Container(
           padding: padding,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.72),
+            color: pikkXWhite.withOpacity(0.76),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: Colors.white.withOpacity(0.9),
+              color: pikkXWhite.withOpacity(0.92),
               width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.055),
+                color: pikkXBlack.withOpacity(0.055),
                 blurRadius: 22,
                 offset: const Offset(0, 9),
               ),
@@ -286,18 +284,15 @@ class _SettingsPageState extends State<SettingsPage> {
               Navigator.pop(context);
             },
           ),
-
           const SizedBox(width: 15),
-
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'Settings',
                   style: TextStyle(
-                    color: AppTheme.pikkXBlack,
+                    color: pikkXBlack,
                     fontSize: 25,
                     fontWeight: FontWeight.w900,
                   ),
@@ -314,10 +309,9 @@ class _SettingsPageState extends State<SettingsPage> {
               ],
             ),
           ),
-
           _glassIconButton(
             icon: Icons.tune_rounded,
-            iconColor: AppTheme.pikkXNavy,
+            iconColor: pikkXBlack,
             onTap: () {},
           ),
         ],
@@ -339,14 +333,14 @@ class _SettingsPageState extends State<SettingsPage> {
           height: 46,
           width: 46,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.68),
+            color: pikkXWhite.withOpacity(0.70),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: Colors.white.withOpacity(0.9),
+              color: pikkXWhite.withOpacity(0.92),
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.045),
+                color: pikkXBlack.withOpacity(0.045),
                 blurRadius: 14,
                 offset: const Offset(0, 6),
               ),
@@ -354,8 +348,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           child: Icon(
             icon,
-            color:
-                iconColor ?? AppTheme.pikkXBlack,
+            color: iconColor ?? pikkXBlack,
             size: 19,
           ),
         ),
@@ -375,8 +368,8 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
       child: Text(
         title,
-        style: TextStyle(
-          color: AppTheme.pikkXBlack,
+        style: const TextStyle(
+          color: pikkXBlack,
           fontSize: 15,
           fontWeight: FontWeight.w900,
         ),
@@ -405,19 +398,19 @@ class _SettingsPageState extends State<SettingsPage> {
         width: 44,
         height: 44,
         decoration: BoxDecoration(
-          color: AppTheme.pikkXNavy.withOpacity(0.08),
+          color: pikkXBlack.withOpacity(0.055),
           shape: BoxShape.circle,
         ),
-        child: Icon(
-          icon,
-          color: AppTheme.pikkXNavy,
+        child: const Icon(
+          Icons.notifications_none_rounded,
+          color: pikkXBlack,
           size: 20,
         ),
       ),
       title: Text(
         title,
-        style: TextStyle(
-          color: AppTheme.pikkXBlack,
+        style: const TextStyle(
+          color: pikkXBlack,
           fontSize: 13,
           fontWeight: FontWeight.w800,
         ),
@@ -434,11 +427,10 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
       trailing: Switch(
         value: value,
-        onChanged:
-            enabled ? onChanged : null,
-        activeThumbColor: AppTheme.pikkXWhite,
-        activeTrackColor: AppTheme.pikkXNavy,
-        inactiveThumbColor: AppTheme.pikkXWhite,
+        onChanged: enabled ? onChanged : null,
+        activeThumbColor: pikkXWhite,
+        activeTrackColor: pikkXBlack,
+        inactiveThumbColor: pikkXWhite,
         inactiveTrackColor: Colors.black12,
       ),
     );
@@ -460,8 +452,7 @@ class _SettingsPageState extends State<SettingsPage> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(20),
         child: ListTile(
-          contentPadding:
-              const EdgeInsets.symmetric(
+          contentPadding: const EdgeInsets.symmetric(
             horizontal: 15,
             vertical: 6,
           ),
@@ -469,20 +460,19 @@ class _SettingsPageState extends State<SettingsPage> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color:
-                  AppTheme.pikkXNavy.withOpacity(0.08),
+              color: pikkXBlack.withOpacity(0.055),
               shape: BoxShape.circle,
             ),
             child: Icon(
               icon,
-              color: AppTheme.pikkXNavy,
+              color: pikkXBlack,
               size: 20,
             ),
           ),
           title: Text(
             title,
-            style: TextStyle(
-              color: AppTheme.pikkXBlack,
+            style: const TextStyle(
+              color: pikkXBlack,
               fontSize: 13,
               fontWeight: FontWeight.w800,
             ),
@@ -508,17 +498,44 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   // ------------------------------------------------------------
+  // ABOUT PIKKX
+  // ------------------------------------------------------------
+
+  void _showAboutPikkX() {
+    showAboutDialog(
+      context: context,
+      applicationName: 'pikkX',
+      applicationVersion: '1.0.0',
+      applicationLegalese: 'pikkX marketplace',
+      showLicenseButton: false,
+      applicationIcon: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: pikkXBlack,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: const Icon(
+          Icons.shopping_bag_outlined,
+          color: pikkXWhite,
+          size: 25,
+        ),
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------
   // BUILD
   // ------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.lightBackground,
+      backgroundColor: pikkXBackground,
       body: SafeArea(
         child: Stack(
           children: [
-            // Subtle blue glow.
+            // Subtle neutral glass glow.
             Positioned(
               top: -100,
               right: -80,
@@ -527,8 +544,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 width: 230,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color:
-                      AppTheme.pikkXNavy.withOpacity(0.055),
+                  color: pikkXBlack.withOpacity(0.025),
                 ),
               ),
             ),
@@ -541,8 +557,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 width: 230,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color:
-                      AppTheme.pikkXNavy.withOpacity(0.035),
+                  color: pikkXBlack.withOpacity(0.018),
                 ),
               ),
             ),
@@ -553,14 +568,13 @@ class _SettingsPageState extends State<SettingsPage> {
 
                 Expanded(
                   child: isLoading
-                      ? Center(
-                          child:
-                              CircularProgressIndicator(
-                            color: AppTheme.pikkXNavy,
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: pikkXBlack,
                           ),
                         )
                       : RefreshIndicator(
-                          color: AppTheme.pikkXNavy,
+                          color: pikkXBlack,
                           onRefresh: _loadSettings,
                           child: ListView(
                             physics:
@@ -587,8 +601,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                     _switchTile(
                                       icon: Icons
                                           .notifications_none_rounded,
-                                      title:
-                                          'Notifications',
+                                      title: 'Notifications',
                                       subtitle:
                                           'Receive pikkX notifications',
                                       value:
@@ -599,7 +612,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
                                     Divider(
                                       height: 1,
-                                      color: Colors.black
+                                      color: pikkXBlack
                                           .withOpacity(0.06),
                                     ),
 
@@ -610,8 +623,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                           'Order updates',
                                       subtitle:
                                           'Get updates about your orders',
-                                      value:
-                                          orderUpdates,
+                                      value: orderUpdates,
                                       enabled:
                                           notificationsEnabled,
                                       onChanged:
@@ -620,15 +632,14 @@ class _SettingsPageState extends State<SettingsPage> {
 
                                     Divider(
                                       height: 1,
-                                      color: Colors.black
+                                      color: pikkXBlack
                                           .withOpacity(0.06),
                                     ),
 
                                     _switchTile(
                                       icon: Icons
                                           .local_offer_outlined,
-                                      title:
-                                          'Promotions',
+                                      title: 'Promotions',
                                       subtitle:
                                           'Receive offers and promotions',
                                       value:
@@ -648,9 +659,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               // ACCOUNT
                               // ------------------------------------------------
 
-                              _sectionTitle(
-                                'Account',
-                              ),
+                              _sectionTitle('Account'),
 
                               _glass(
                                 child: Column(
@@ -672,15 +681,14 @@ class _SettingsPageState extends State<SettingsPage> {
 
                                     Divider(
                                       height: 1,
-                                      color: Colors.black
+                                      color: pikkXBlack
                                           .withOpacity(0.06),
                                     ),
 
                                     _actionTile(
                                       icon: Icons
                                           .shopping_bag_outlined,
-                                      title:
-                                          'My Orders',
+                                      title: 'My Orders',
                                       subtitle:
                                           'View previous and active orders',
                                       onTap: () {
@@ -693,15 +701,14 @@ class _SettingsPageState extends State<SettingsPage> {
 
                                     Divider(
                                       height: 1,
-                                      color: Colors.black
+                                      color: pikkXBlack
                                           .withOpacity(0.06),
                                     ),
 
                                     _actionTile(
                                       icon: Icons
                                           .person_outline_rounded,
-                                      title:
-                                          'Profile',
+                                      title: 'Profile',
                                       subtitle:
                                           'Manage your pikkX profile',
                                       onTap: () {
@@ -721,9 +728,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               // SUPPORT
                               // ------------------------------------------------
 
-                              _sectionTitle(
-                                'Support',
-                              ),
+                              _sectionTitle('Support'),
 
                               _glass(
                                 child: Column(
@@ -740,28 +745,17 @@ class _SettingsPageState extends State<SettingsPage> {
 
                                     Divider(
                                       height: 1,
-                                      color: Colors.black
+                                      color: pikkXBlack
                                           .withOpacity(0.06),
                                     ),
 
                                     _actionTile(
                                       icon: Icons
                                           .info_outline_rounded,
-                                      title:
-                                          'About pikkX',
+                                      title: 'About pikkX',
                                       subtitle:
                                           'Learn more about pikkX',
-                                      onTap: () {
-                                        showAboutDialog(
-                                          context: context,
-                                          applicationName:
-                                              'pikkX',
-                                          applicationVersion:
-                                              '1.0.0',
-                                          applicationLegalese:
-                                              'pikkX marketplace',
-                                        );
-                                      },
+                                      onTap: _showAboutPikkX,
                                     ),
                                   ],
                                 ),
@@ -787,13 +781,13 @@ class _SettingsPageState extends State<SettingsPage> {
                                   style:
                                       OutlinedButton.styleFrom(
                                     foregroundColor:
-                                        AppTheme.pikkXBlack,
+                                        pikkXBlack,
                                     side: BorderSide(
-                                      color: Colors.black
+                                      color: pikkXBlack
                                           .withOpacity(0.10),
                                     ),
                                     backgroundColor:
-                                        Colors.white
+                                        pikkXWhite
                                             .withOpacity(0.65),
                                     shape:
                                         RoundedRectangleBorder(
@@ -812,15 +806,14 @@ class _SettingsPageState extends State<SettingsPage> {
                                       const EdgeInsets.only(
                                     top: 14,
                                   ),
-                                  child: Center(
+                                  child: const Center(
                                     child: SizedBox(
                                       width: 18,
                                       height: 18,
                                       child:
                                           CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        color:
-                                            AppTheme.pikkXNavy,
+                                        color: pikkXBlack,
                                       ),
                                     ),
                                   ),
@@ -828,12 +821,11 @@ class _SettingsPageState extends State<SettingsPage> {
 
                               const SizedBox(height: 15),
 
-                              Center(
+                              const Center(
                                 child: Text(
                                   'pikkX • 1.0.0',
                                   style: TextStyle(
-                                    color:
-                                        AppTheme.mutedText,
+                                    color: pikkXGrey,
                                     fontSize: 10,
                                     fontWeight:
                                         FontWeight.w500,
