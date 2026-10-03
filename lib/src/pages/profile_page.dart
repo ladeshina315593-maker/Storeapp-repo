@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:pikkx/src/pages/become_merchant_page.dart';
+
 class ProfilePage extends StatefulWidget {
   final VoidCallback? onOpenCart;
   final VoidCallback? onOpenFavorites;
@@ -1108,6 +1110,25 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       children: [
                         _yourProfileCard(),
+
+                        const SizedBox(height: 8),
+
+                        // ==================================================
+                        // PIKKX VERSION
+                        // ==================================================
+
+                        const Center(
+                          child: Text(
+                            'PikkX 1.0.0',
+                            style: TextStyle(
+                              color: pikkXGrey,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ),
+
                         const SizedBox(height: 20),
 
                         _sectionTitle('Shopping'),
@@ -1141,7 +1162,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         _sectionTitle('Rewards & Offers'),
 
                         _profileOption(
-                          icon: Icons.confirmation_number_outlined,
+                          icon:
+                              Icons.confirmation_number_outlined,
                           title: 'Coupon Codes',
                           subtitle:
                               'Enter a 10-character coupon code',
@@ -1152,14 +1174,22 @@ class _ProfilePageState extends State<ProfilePage> {
 
                         _sectionTitle('PikkX'),
 
+                        // ==================================================
+                        // BECOME A MERCHANT
+                        // ==================================================
+
                         _profileOption(
                           icon: Icons.storefront_outlined,
                           title: 'Become a Merchant',
                           subtitle:
                               'Sell products, food or services',
                           onTap: () {
-                            _showMessage(
-                              'Merchant registration is coming soon.',
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const BecomeMerchantPage(),
+                              ),
                             );
                           },
                         ),
@@ -1167,7 +1197,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         const SizedBox(height: 8),
 
                         _profileOption(
-                          icon: Icons.people_outline_rounded,
+                          icon:
+                              Icons.people_outline_rounded,
                           title: 'Following',
                           subtitle:
                               'See who you are following ($_followingCount)',
@@ -1187,7 +1218,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
 
                         _profileOption(
-                          icon: Icons.notifications_none_rounded,
+                          icon:
+                              Icons.notifications_none_rounded,
                           title: 'Notifications',
                           subtitle:
                               'View your PikkX notifications',
@@ -1223,12 +1255,27 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
 
                         _profileOption(
-                          icon: Icons.delete_outline_rounded,
+                          icon:
+                              Icons.delete_outline_rounded,
                           title: 'Delete Account',
                           subtitle:
                               'Permanently delete your PikkX account',
                           onTap: _deleteAccount,
                           destructive: true,
+                        ),
+
+                        const SizedBox(height: 15),
+
+                        const Center(
+                          child: Text(
+                            'PikkX • 1.0.0',
+                            style: TextStyle(
+                              color: pikkXGrey,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -1784,9 +1831,7 @@ class _CouponCodeSheetState
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 18),
-
                 const Text(
                   'Enter Coupon Code',
                   style: TextStyle(
@@ -1795,9 +1840,7 @@ class _CouponCodeSheetState
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-
                 const SizedBox(height: 6),
-
                 const Text(
                   'Enter your 10-character PikkX coupon code below.',
                   style: TextStyle(
@@ -1806,9 +1849,7 @@ class _CouponCodeSheetState
                     height: 1.4,
                   ),
                 ),
-
                 const SizedBox(height: 18),
-
                 TextField(
                   controller: _controller,
                   focusNode: _focusNode,
@@ -1864,8 +1905,8 @@ class _CouponCodeSheetState
                     enabledBorder: OutlineInputBorder(
                       borderRadius:
                           BorderRadius.circular(17),
-                      borderSide: BorderSide(
-                        color: const Color(0xFFE8E8E8),
+                      borderSide: const BorderSide(
+                        color: Color(0xFFE8E8E8),
                       ),
                     ),
                     focusedBorder: OutlineInputBorder(
@@ -1878,9 +1919,7 @@ class _CouponCodeSheetState
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 15),
-
                 SizedBox(
                   width: double.infinity,
                   height: 53,
