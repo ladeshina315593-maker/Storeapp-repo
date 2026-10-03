@@ -31,6 +31,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
   bool isAddingToCart = false;
   bool isFollowing = false;
   bool isFollowLoading = false;
+  bool isOpeningChat = false;
 
   int selectedSize = 1;
   int selectedColor = 0;
@@ -52,7 +53,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     'sellerName': 'PikkX Fashion',
     'description':
         'Classic Nike sneakers with a clean everyday design. '
-            'Comfortable, stylish and available in multiple colours and sizes.',
+        'Comfortable, stylish and available in multiple colours and sizes.',
     'deliveryEstimate': 'Arrives in 2–4 days',
   };
 
@@ -84,6 +85,10 @@ class _ProductDetailPageState extends State<ProductDetailPage>
 
   static const Color ratingYellow = Color(0xFFFFC107);
   static const Color favouriteRed = Color(0xFFE53935);
+
+  // ============================================================
+  // INIT / DISPOSE
+  // ============================================================
 
   @override
   void initState() {
@@ -121,12 +126,11 @@ class _ProductDetailPageState extends State<ProductDetailPage>
   // ============================================================
 
   Map<String, dynamic> get productData {
-    if (widget.product.isEmpty) {
-      return Map<String, dynamic>.from(nikeDemoProduct);
-    }
-
     final data = Map<String, dynamic>.from(nikeDemoProduct);
-    data.addAll(widget.product);
+
+    if (widget.product.isNotEmpty) {
+      data.addAll(widget.product);
+    }
 
     return data;
   }
@@ -221,15 +225,11 @@ class _ProductDetailPageState extends State<ProductDetailPage>
   }
 
   int get discountPercent {
-    if (originalPrice <= productPrice ||
-        originalPrice <= 0) {
+    if (originalPrice <= productPrice || originalPrice <= 0) {
       return 0;
     }
 
-    return (((originalPrice - productPrice) /
-                originalPrice) *
-            100)
-        .round();
+    return (((originalPrice - productPrice) / originalPrice) * 100).round();
   }
 
   double get savings {
@@ -240,9 +240,9 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     return originalPrice - productPrice;
   }
 
-  // ------------------------------------------------------------
-  // Currency
-  // ------------------------------------------------------------
+  // ============================================================
+  // CURRENCY
+  // ============================================================
 
   String get currencyCode {
     final value = productData['currency']
@@ -285,17 +285,11 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     return '$currencySymbol${amount.toStringAsFixed(2)}';
   }
 
-  String get formattedPrice {
-    return _formatMoney(productPrice);
-  }
+  String get formattedPrice => _formatMoney(productPrice);
 
-  String get formattedOriginalPrice {
-    return _formatMoney(originalPrice);
-  }
+  String get formattedOriginalPrice => _formatMoney(originalPrice);
 
-  String get formattedSavings {
-    return _formatMoney(savings);
-  }
+  String get formattedSavings => _formatMoney(savings);
 
   // ============================================================
   // IMAGE DATA
@@ -306,8 +300,12 @@ class _ProductDetailPageState extends State<ProductDetailPage>
 
     if (rawImages is List) {
       final firebaseImages = rawImages
-          .map((item) => item?.toString().trim() ?? '')
-          .where((item) => item.isNotEmpty)
+          .map(
+            (item) => item?.toString().trim() ?? '',
+          )
+          .where(
+            (item) => item.isNotEmpty,
+          )
           .toList();
 
       if (firebaseImages.isNotEmpty) {
@@ -315,49 +313,61 @@ class _ProductDetailPageState extends State<ProductDetailPage>
       }
     }
 
-    final imageUrl = productData['imageUrl']
-        ?.toString()
-        .trim();
+    final imageUrl = productData['imageUrl']?.toString().trim();
 
     if (imageUrl != null && imageUrl.isNotEmpty) {
       return [imageUrl];
     }
 
-    final image = productData['image']
-        ?.toString()
-        .trim();
+    final image = productData['image']?.toString().trim();
 
     if (image != null && image.isNotEmpty) {
       return [image];
     }
 
-    // No Firebase product yet:
-    // use the Nike demo images.
     return nikeImages;
+  }
+
+  int get safeSelectedColor {
+    final images = productImages;
+
+    if (images.isEmpty) {
+      return 0;
+    }
+
+    if (selectedColor >= images.length) {
+      return images.length - 1;
+    }
+
+    if (selectedColor < 0) {
+      return 0;
+    }
+
+    return selectedColor;
   }
 
   String get selectedImage {
     final images = productImages;
 
-    if (selectedColor >= images.length) {
-      selectedColor = 0;
+    if (images.isEmpty) {
+      return '';
     }
 
-    return images[selectedColor];
+    return images[safeSelectedColor];
   }
 
   String get selectedColorName {
-    if (selectedColor >= colorNames.length) {
-      return colorNames.first;
+    final index = safeSelectedColor;
+
+    if (index >= 0 && index < colorNames.length) {
+      return colorNames[index];
     }
 
-    return colorNames[selectedColor];
+    return 'Option ${index + 1}';
   }
 
   String get deliveryEstimate {
-    final value = productData['deliveryEstimate']
-        ?.toString()
-        .trim();
+    final value = productData['deliveryEstimate']?.toString().trim();
 
     if (value != null && value.isNotEmpty) {
       return value;
@@ -497,7 +507,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
         'sellerName': sellerName,
         'description': productDescription,
         'selectedColor': selectedColorName,
-        'colorIndex': selectedColor,
+        'colorIndex': safeSelectedColor,
         'size': sizes[selectedSize],
         'rating': productData['rating'],
         'reviews': productData['reviews'],
@@ -611,7 +621,6 @@ class _ProductDetailPageState extends State<ProductDetailPage>
           'updatedAt': FieldValue.serverTimestamp(),
         });
 
-        // Keep the existing notification behaviour.
         final notificationReference = _firestore
             .collection('users')
             .doc(user.uid)
@@ -677,6 +686,16 @@ class _ProductDetailPageState extends State<ProductDetailPage>
       return;
     }
 
+    if (isOpeningChat) {
+      return;
+    }
+
+    setState(() {
+      isOpeningChat = true;
+    });
+
+    // Stable conversation ID:
+    // the same customer + seller always get the same chat.
     final ids = [
       user.uid,
       sellerId,
@@ -685,10 +704,17 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     final chatId = ids.join('_');
 
     try {
-      await _firestore
+      final chatReference = _firestore
           .collection('chats')
-          .doc(chatId)
-          .set(
+          .doc(chatId);
+
+      /*
+       * Important:
+       * If ChatPage previously used deletedFor to hide the
+       * conversation from this user's inbox, opening the seller
+       * from a product should bring that same conversation back.
+       */
+      await chatReference.set(
         {
           'participants': FieldValue.arrayUnion([
             user.uid,
@@ -703,6 +729,25 @@ class _ProductDetailPageState extends State<ProductDetailPage>
         },
         SetOptions(merge: true),
       );
+
+      // Remove this user from deletedFor if it exists.
+      final chatSnapshot = await chatReference.get();
+
+      if (chatSnapshot.exists) {
+        final data = chatSnapshot.data();
+
+        final deletedFor = data?['deletedFor'];
+
+        if (deletedFor is List &&
+            deletedFor.contains(user.uid)) {
+          await chatReference.update({
+            'deletedFor': FieldValue.arrayRemove([
+              user.uid,
+            ]),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
+      }
 
       if (!mounted) return;
 
@@ -722,6 +767,12 @@ class _ProductDetailPageState extends State<ProductDetailPage>
         'Could not open seller chat.',
         error: true,
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isOpeningChat = false;
+        });
+      }
     }
   }
 
@@ -753,33 +804,25 @@ class _ProductDetailPageState extends State<ProductDetailPage>
           .collection('cart')
           .doc(widget.productId);
 
-      // Transaction avoids a separate read before writing.
-      // This is safer and faster for quantity updates.
       await _firestore.runTransaction(
         (transaction) async {
-          final snapshot =
-              await transaction.get(cartReference);
+          final snapshot = await transaction.get(cartReference);
 
           int quantity = 1;
 
           if (snapshot.exists) {
             final data = snapshot.data();
-
-            final existingQuantity =
-                data?['quantity'];
+            final existingQuantity = data?['quantity'];
 
             if (existingQuantity is num) {
-              quantity =
-                  existingQuantity.toInt() + 1;
+              quantity = existingQuantity.toInt() + 1;
             } else {
               quantity =
                   (int.tryParse(
-                            existingQuantity
-                                    ?.toString() ??
-                                '',
-                          ) ??
-                          1) +
-                      1;
+                        existingQuantity?.toString() ?? '',
+                      ) ??
+                      1) +
+                  1;
             }
           }
 
@@ -799,14 +842,12 @@ class _ProductDetailPageState extends State<ProductDetailPage>
             'description': productDescription,
             'size': sizes[selectedSize],
             'color': selectedColorName,
-            'colorIndex': selectedColor,
+            'colorIndex': safeSelectedColor,
             'selectedColor': selectedColorName,
             'rating': productData['rating'],
             'reviews': productData['reviews'],
-            'originalPrice':
-                productData['originalPrice'],
-            'updatedAt':
-                FieldValue.serverTimestamp(),
+            'originalPrice': productData['originalPrice'],
+            'updatedAt': FieldValue.serverTimestamp(),
           };
 
           cartData.removeWhere(
@@ -819,8 +860,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
               cartData,
             );
           } else {
-            cartData['createdAt'] =
-                FieldValue.serverTimestamp();
+            cartData['createdAt'] = FieldValue.serverTimestamp();
 
             transaction.set(
               cartReference,
@@ -937,8 +977,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
         10,
       ),
       child: Row(
-        mainAxisAlignment:
-            MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           _glassButton(
             icon: Icons.arrow_back_ios_new_rounded,
@@ -963,23 +1002,20 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                     width: 46,
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.72),
-                      borderRadius:
-                          BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: Colors.white.withOpacity(0.9),
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color:
-                              Colors.black.withOpacity(0.06),
+                          color: Colors.black.withOpacity(0.06),
                           blurRadius: 16,
                           offset: const Offset(0, 7),
                         ),
                       ],
                     ),
                     child: AnimatedSwitcher(
-                      duration:
-                          const Duration(milliseconds: 180),
+                      duration: const Duration(milliseconds: 180),
                       child: Icon(
                         isLiked
                             ? Icons.favorite_rounded
@@ -1006,6 +1042,14 @@ class _ProductDetailPageState extends State<ProductDetailPage>
   // ============================================================
 
   Widget _buildProductImage(String path) {
+    if (path.isEmpty) {
+      return const Icon(
+        Icons.image_not_supported_outlined,
+        size: 55,
+        color: pikkXMuted,
+      );
+    }
+
     if (path.startsWith('http://') ||
         path.startsWith('https://')) {
       return Image.network(
@@ -1033,6 +1077,10 @@ class _ProductDetailPageState extends State<ProductDetailPage>
       },
     );
   }
+
+  // ============================================================
+  // PRODUCT IMAGE CARD
+  // ============================================================
 
   Widget _productImageCard() {
     return Padding(
@@ -1077,8 +1125,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                     height: 150,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color:
-                          Colors.black.withOpacity(0.035),
+                      color: Colors.black.withOpacity(0.035),
                     ),
                   ),
                 ),
@@ -1090,8 +1137,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                     height: 180,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color:
-                          Colors.black.withOpacity(0.025),
+                      color: Colors.black.withOpacity(0.025),
                     ),
                   ),
                 ),
@@ -1110,15 +1156,12 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                     if (velocity < 0) {
                       setState(() {
                         selectedColor =
-                            (selectedColor + 1) %
-                                images.length;
+                            (safeSelectedColor + 1) % images.length;
                       });
                     } else if (velocity > 0) {
                       setState(() {
                         selectedColor =
-                            (selectedColor -
-                                    1 +
-                                    images.length) %
+                            (safeSelectedColor - 1 + images.length) %
                                 images.length;
                       });
                     }
@@ -1132,8 +1175,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                         42,
                       ),
                       child: AnimatedSwitcher(
-                        duration:
-                            const Duration(milliseconds: 280),
+                        duration: const Duration(milliseconds: 280),
                         child: SizedBox(
                           key: ValueKey(selectedImage),
                           width: double.infinity,
@@ -1157,13 +1199,10 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                         vertical: 7,
                       ),
                       decoration: BoxDecoration(
-                        color:
-                            Colors.white.withOpacity(0.72),
-                        borderRadius:
-                            BorderRadius.circular(20),
+                        color: Colors.white.withOpacity(0.72),
+                        borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color:
-                              Colors.white.withOpacity(0.9),
+                          color: Colors.white.withOpacity(0.9),
                         ),
                       ),
                       child: const Row(
@@ -1209,6 +1248,10 @@ class _ProductDetailPageState extends State<ProductDetailPage>
   Widget _thumbnailRow() {
     final images = productImages;
 
+    if (images.length <= 1) {
+      return const SizedBox(height: 8);
+    }
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -1216,8 +1259,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
         children: List.generate(
           images.length,
           (index) {
-            final selected =
-                selectedColor == index;
+            final selected = safeSelectedColor == index;
 
             return GestureDetector(
               onTap: () {
@@ -1226,18 +1268,15 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                 });
               },
               child: AnimatedContainer(
-                duration:
-                    const Duration(milliseconds: 180),
-                margin:
-                    const EdgeInsets.symmetric(horizontal: 4),
+                duration: const Duration(milliseconds: 180),
+                margin: const EdgeInsets.symmetric(horizontal: 4),
                 height: selected ? 8 : 6,
                 width: selected ? 22 : 6,
                 decoration: BoxDecoration(
                   color: selected
                       ? pikkXBlack
                       : pikkXBlack.withOpacity(0.18),
-                  borderRadius:
-                      BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(20),
                 ),
               ),
             );
@@ -1257,8 +1296,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
       children: [
         Expanded(
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 productName,
@@ -1273,6 +1311,8 @@ class _ProductDetailPageState extends State<ProductDetailPage>
               const SizedBox(height: 4),
               Text(
                 '$productCategory • $selectedColorName',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: pikkXMuted,
                   fontSize: 12,
@@ -1284,8 +1324,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
         ),
         const SizedBox(width: 15),
         Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
               formattedPrice,
@@ -1302,8 +1341,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                 style: const TextStyle(
                   color: pikkXMuted,
                   fontSize: 11,
-                  decoration:
-                      TextDecoration.lineThrough,
+                  decoration: TextDecoration.lineThrough,
                 ),
               ),
             ],
@@ -1373,21 +1411,18 @@ class _ProductDetailPageState extends State<ProductDetailPage>
   // ============================================================
 
   Widget _rating() {
-    final rating =
-        _toDouble(productData['rating']) > 0
-            ? _toDouble(productData['rating'])
-            : 4.8;
+    final ratingValue = _toDouble(productData['rating']);
 
-    final reviewsValue =
-        productData['reviews'];
+    final rating = ratingValue > 0 ? ratingValue : 4.8;
 
-    final reviews =
-        reviewsValue is num
-            ? reviewsValue.toInt()
-            : int.tryParse(
-                  reviewsValue?.toString() ?? '',
-                ) ??
-                124;
+    final reviewsValue = productData['reviews'];
+
+    final reviews = reviewsValue is num
+        ? reviewsValue.toInt()
+        : int.tryParse(
+              reviewsValue?.toString() ?? '',
+            ) ??
+            124;
 
     return Row(
       children: [
@@ -1395,8 +1430,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
           children: List.generate(
             5,
             (index) {
-              final filled =
-                  index < rating.round();
+              final filled = index < rating.round();
 
               return Icon(
                 filled
@@ -1439,7 +1473,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     }
 
     return Container(
-      padding: const EdgeInsets.all(13),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.55),
         borderRadius: BorderRadius.circular(19),
@@ -1449,24 +1483,26 @@ class _ProductDetailPageState extends State<ProductDetailPage>
       ),
       child: Row(
         children: [
+          // SMALLER SELLER ICON
           Container(
-            height: 42,
-            width: 42,
+            height: 36,
+            width: 36,
             decoration: BoxDecoration(
               color: pikkXBlack.withOpacity(0.07),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
               Icons.storefront_outlined,
               color: pikkXBlack,
-              size: 21,
+              size: 18,
             ),
           ),
-          const SizedBox(width: 10),
+
+          const SizedBox(width: 9),
+
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   'Seller',
@@ -1490,13 +1526,18 @@ class _ProductDetailPageState extends State<ProductDetailPage>
             ),
           ),
 
+          const SizedBox(width: 8),
+
           // CHAT
           _sellerActionButton(
-            icon: Icons.chat_bubble_outline_rounded,
+            icon: isOpeningChat
+                ? Icons.hourglass_empty_rounded
+                : Icons.chat_bubble_outline_rounded,
             onTap: _openMerchantChat,
+            loading: isOpeningChat,
           ),
 
-          const SizedBox(width: 7),
+          const SizedBox(width: 6),
 
           // FOLLOW
           _sellerActionButton(
@@ -1520,20 +1561,20 @@ class _ProductDetailPageState extends State<ProductDetailPage>
       color: Colors.transparent,
       child: InkWell(
         onTap: loading ? null : onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         child: Container(
-          height: 42,
-          width: 42,
+          height: 38,
+          width: 38,
           decoration: BoxDecoration(
             color: pikkXBlack.withOpacity(0.06),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: pikkXBorder,
             ),
           ),
           child: loading
               ? const Padding(
-                  padding: EdgeInsets.all(12),
+                  padding: EdgeInsets.all(10),
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                     color: pikkXBlack,
@@ -1542,7 +1583,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
               : Icon(
                   icon,
                   color: pikkXBlack,
-                  size: 20,
+                  size: 18,
                 ),
         ),
       ),
@@ -1554,8 +1595,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
   // ============================================================
 
   Widget _reviewsSection() {
-    final reviewCount =
-        productData['reviews'];
+    final reviewCount = productData['reviews'];
 
     final count = reviewCount is num
         ? reviewCount.toInt()
@@ -1565,12 +1605,10 @@ class _ProductDetailPageState extends State<ProductDetailPage>
             124;
 
     return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment:
-              MainAxisAlignment.spaceBetween,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _sectionTitle('Reviews'),
             Text(
@@ -1585,8 +1623,6 @@ class _ProductDetailPageState extends State<ProductDetailPage>
         ),
         const SizedBox(height: 10),
 
-        // Demo reviews for the Nike test product.
-        // These can later come from Firestore.
         _reviewCard(
           name: 'Amina',
           rating: 5,
@@ -1611,6 +1647,10 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     required int rating,
     required String text,
   }) {
+    final firstLetter = name.isNotEmpty
+        ? name.substring(0, 1).toUpperCase()
+        : '?';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(13),
@@ -1622,8 +1662,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
         ),
       ),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
@@ -1636,7 +1675,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                   shape: BoxShape.circle,
                 ),
                 child: Text(
-                  name.substring(0, 1),
+                  firstLetter,
                   style: const TextStyle(
                     color: pikkXBlack,
                     fontWeight: FontWeight.w800,
@@ -1732,24 +1771,20 @@ class _ProductDetailPageState extends State<ProductDetailPage>
               ),
               child: SingleChildScrollView(
                 controller: scrollController,
-                physics:
-                    const BouncingScrollPhysics(),
+                physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.only(
                   bottom: 115,
                 ),
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Center(
                       child: Container(
                         height: 5,
                         width: 45,
                         decoration: BoxDecoration(
-                          color:
-                              pikkXBlack.withOpacity(0.18),
-                          borderRadius:
-                              BorderRadius.circular(10),
+                          color: pikkXBlack.withOpacity(0.18),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                       ),
                     ),
@@ -1783,8 +1818,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                           return Expanded(
                             child: Padding(
                               padding: EdgeInsets.only(
-                                right: index ==
-                                        sizes.length - 1
+                                right: index == sizes.length - 1
                                     ? 0
                                     : 7,
                               ),
@@ -1887,8 +1921,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     String text,
     int index,
   ) {
-    final selected =
-        selectedSize == index;
+    final selected = selectedSize == index;
 
     return GestureDetector(
       onTap: () {
@@ -1897,16 +1930,14 @@ class _ProductDetailPageState extends State<ProductDetailPage>
         });
       },
       child: AnimatedContainer(
-        duration:
-            const Duration(milliseconds: 220),
+        duration: const Duration(milliseconds: 220),
         height: 45,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: selected
               ? pikkXBlack
               : Colors.white.withOpacity(0.55),
-          borderRadius:
-              BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: selected
                 ? pikkXBlack
@@ -1934,17 +1965,19 @@ class _ProductDetailPageState extends State<ProductDetailPage>
   Widget _colorSelector() {
     final images = productImages;
 
+    if (images.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return Row(
       children: List.generate(
         images.length,
         (index) {
-          final selected =
-              selectedColor == index;
+          final selected = safeSelectedColor == index;
 
-          final colorName =
-              index < colorNames.length
-                  ? colorNames[index]
-                  : 'Option ${index + 1}';
+          final colorName = index < colorNames.length
+              ? colorNames[index]
+              : 'Option ${index + 1}';
 
           return Expanded(
             child: GestureDetector(
@@ -1954,21 +1987,18 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                 });
               },
               child: AnimatedContainer(
-                duration:
-                    const Duration(milliseconds: 200),
+                duration: const Duration(milliseconds: 200),
                 margin: EdgeInsets.only(
                   right: index == images.length - 1
                       ? 0
                       : 8,
                 ),
-                padding:
-                    const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: selected
                       ? Colors.black.withOpacity(0.07)
                       : Colors.white.withOpacity(0.55),
-                  borderRadius:
-                      BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: selected
                         ? pikkXBlack
@@ -1987,6 +2017,8 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                     const SizedBox(height: 3),
                     Text(
                       colorName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: pikkXBlack,
                         fontSize: 10,
@@ -2039,8 +2071,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
           const SizedBox(width: 11),
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
@@ -2053,6 +2084,8 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: pikkXMuted,
                     fontSize: 10,
@@ -2075,8 +2108,9 @@ class _ProductDetailPageState extends State<ProductDetailPage>
       width: double.infinity,
       height: 52,
       child: ElevatedButton(
-        onPressed:
-            isAddingToCart ? null : _addToCart,
+        onPressed: isAddingToCart
+            ? null
+            : _addToCart,
         style: ElevatedButton.styleFrom(
           backgroundColor: pikkXBlack,
           disabledBackgroundColor:
@@ -2084,23 +2118,20 @@ class _ProductDetailPageState extends State<ProductDetailPage>
           foregroundColor: pikkXWhite,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
         child: isAddingToCart
             ? const SizedBox(
                 height: 21,
                 width: 21,
-                child:
-                    CircularProgressIndicator(
+                child: CircularProgressIndicator(
                   strokeWidth: 2,
                   color: pikkXWhite,
                 ),
               )
             : const Row(
-                mainAxisAlignment:
-                    MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
                     Icons.shopping_cart_rounded,
@@ -2111,8 +2142,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                     'Add to Cart',
                     style: TextStyle(
                       fontSize: 13,
-                      fontWeight:
-                          FontWeight.w800,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ],
@@ -2131,8 +2161,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
       right: 16,
       bottom: 12,
       child: ClipRRect(
-        borderRadius:
-            BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(22),
         child: BackdropFilter(
           filter: ImageFilter.blur(
             sigmaX: 20,
@@ -2142,16 +2171,13 @@ class _ProductDetailPageState extends State<ProductDetailPage>
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.82),
-              borderRadius:
-                  BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(22),
               border: Border.all(
-                color:
-                    Colors.white.withOpacity(0.95),
+                color: Colors.white.withOpacity(0.95),
               ),
               boxShadow: [
                 BoxShadow(
-                  color:
-                      Colors.black.withOpacity(0.12),
+                  color: Colors.black.withOpacity(0.12),
                   blurRadius: 25,
                   offset: const Offset(0, 8),
                 ),
@@ -2161,61 +2187,57 @@ class _ProductDetailPageState extends State<ProductDetailPage>
               children: [
                 Expanded(
                   child: Padding(
-                    padding:
-                        const EdgeInsets.only(left: 10),
+                    padding: const EdgeInsets.only(
+                      left: 10,
+                    ),
                     child: Column(
                       crossAxisAlignment:
                           CrossAxisAlignment.start,
-                      mainAxisSize:
-                          MainAxisSize.min,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           formattedPrice,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: pikkXBlack,
                             fontSize: 16,
-                            fontWeight:
-                                FontWeight.w900,
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           '$selectedColorName • '
                           '${sizes[selectedSize]}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: pikkXMuted,
                             fontSize: 10,
-                            fontWeight:
-                                FontWeight.w600,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 SizedBox(
                   height: 48,
                   child: ElevatedButton(
-                    onPressed:
-                        isAddingToCart
-                            ? null
-                            : _addToCart,
-                    style:
-                        ElevatedButton.styleFrom(
-                      backgroundColor:
-                          pikkXBlack,
-                      foregroundColor:
-                          pikkXWhite,
+                    onPressed: isAddingToCart
+                        ? null
+                        : _addToCart,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: pikkXBlack,
+                      foregroundColor: pikkXWhite,
                       disabledBackgroundColor:
-                          pikkXBlack
-                              .withOpacity(0.65),
+                          pikkXBlack.withOpacity(0.65),
                       elevation: 0,
-                      padding:
-                          const EdgeInsets.symmetric(
-                        horizontal: 21,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
                       ),
-                      shape:
-                          RoundedRectangleBorder(
+                      shape: RoundedRectangleBorder(
                         borderRadius:
                             BorderRadius.circular(16),
                       ),
@@ -2231,12 +2253,10 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                             ),
                           )
                         : const Row(
-                            mainAxisSize:
-                                MainAxisSize.min,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
-                                Icons
-                                    .shopping_cart_rounded,
+                                Icons.shopping_cart_rounded,
                                 size: 18,
                               ),
                               SizedBox(width: 7),
@@ -2305,8 +2325,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
 // CHAT LAUNCHER
 // ================================================================
 
-class _ChatPageLauncher
-    extends StatelessWidget {
+class _ChatPageLauncher extends StatelessWidget {
   const _ChatPageLauncher({
     required this.chatId,
     required this.otherUserName,
