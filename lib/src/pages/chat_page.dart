@@ -2913,25 +2913,6 @@ class _ChatPageState extends State<ChatPage> {
   // ============================================================
 
   Widget _buildFilterBox() {
-    return Padding(
-      padding:
-          const EdgeInsets.fromLTRB(
-        12,
-        6,
-        12,
-        8,
-      ),
-      child: _glass(
-        radius: 19,
-        padding:
-            const EdgeInsets.all(4),
-        child:
-            SingleChildScrollView(
-          scrollDirection:
-              Axis.horizontal,
-          physics:
-              const BouncingScrollPhysics(),
-  Widget _buildFilterBox() {
     const filters = <String>[
       'Chat',
       'Communities',
