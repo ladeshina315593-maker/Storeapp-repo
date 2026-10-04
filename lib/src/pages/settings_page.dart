@@ -507,7 +507,6 @@ class _SettingsPageState extends State<SettingsPage> {
       applicationName: 'pikkX',
       applicationVersion: '1.0.0',
       applicationLegalese: 'pikkX marketplace',
-      showLicenseButton: false,
       applicationIcon: Container(
         width: 48,
         height: 48,
