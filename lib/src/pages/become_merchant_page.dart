@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:pikkx/src/pages/merchant_application_page.dart';
 
 class BecomeMerchantPage extends StatelessWidget {
   const BecomeMerchantPage({super.key});
@@ -150,39 +151,30 @@ class BecomeMerchantPage extends StatelessWidget {
                               _benefitTile(
                                 icon: Icons.storefront_outlined,
                                 title: 'Create your store',
-                                subtitle:
-                                    'Build your own space on PikkX.',
+                                subtitle: 'Build your own space on PikkX.',
                               ),
-
                               _divider(),
-
                               _benefitTile(
                                 icon: Icons.shopping_bag_outlined,
                                 title: 'Sell your products',
                                 subtitle:
                                     'Put your products in front of customers.',
                               ),
-
                               _divider(),
-
                               _benefitTile(
                                 icon: Icons.local_shipping_outlined,
                                 title: 'Manage your orders',
                                 subtitle:
                                     'Keep track of customer orders easily.',
                               ),
-
                               _divider(),
-
                               _benefitTile(
                                 icon: Icons.chat_bubble_outline_rounded,
                                 title: 'Connect with customers',
                                 subtitle:
                                     'Chat with customers directly on PikkX.',
                               ),
-
                               _divider(),
-
                               _benefitTile(
                                 icon: Icons.trending_up_rounded,
                                 title: 'Grow your business',
@@ -209,8 +201,7 @@ class BecomeMerchantPage extends StatelessWidget {
                             ),
                           ),
                           child: Row(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Container(
                                 height: 34,
@@ -254,21 +245,24 @@ class BecomeMerchantPage extends StatelessWidget {
                           height: 58,
                           child: ElevatedButton(
                             onPressed: () {
-                              // The merchant application form
-                              // will be connected here next.
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const MerchantApplicationPage(),
+                                ),
+                              );
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: pikkXBlack,
                               foregroundColor: pikkXWhite,
                               elevation: 0,
                               shape: RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius.circular(19),
+                                borderRadius: BorderRadius.circular(19),
                               ),
                             ),
                             child: const Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.center,
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
                                   'Get Started',
