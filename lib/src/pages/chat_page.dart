@@ -56,7 +56,6 @@ class _ChatPageState extends State<ChatPage> {
   // ============================================================
 
   bool _isSending = false;
-  bool _isSendingAttachment = false;
   bool _isMarkingRead = false;
 
   /// 0 = Chat
@@ -270,7 +269,7 @@ class _ChatPageState extends State<ChatPage> {
         _userId == null ||
         !_isConversation ||
         _isSending ||
-        _isSendingAttachment) {
+        _isSending) {
       return;
     }
 
@@ -340,86 +339,6 @@ class _ChatPageState extends State<ChatPage> {
   // SEND IMAGE
   // ============================================================
 
-  Future<void> _sendImage() async {
-    if (_userId == null ||
-        !_isConversation ||
-        _isSending ||
-        _isSendingAttachment) {
-      return;
-    }
-
-    try {
-      final picked = await _imagePicker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 82,
-        maxWidth: 1600,
-      );
-
-      if (picked == null) {
-        return;
-      }
-
-      setState(() {
-        _isSendingAttachment = true;
-      });
-
-      final fileBytes = await picked.readAsBytes();
-
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-
-      final storageRef = _storage
-          .ref()
-          .child('chat_images')
-          .child(widget.chatId!)
-          .child('${_userId}_$timestamp.jpg');
-
-      final uploadTask = await storageRef.putData(
-        fileBytes,
-        SettableMetadata(
-          contentType: 'image/jpeg',
-        ),
-      );
-
-      final imageUrl =
-          await uploadTask.ref.getDownloadURL();
-
-      final chatRef =
-          _firestore.collection('chats').doc(widget.chatId);
-
-      final messageRef = chatRef.collection('messages').doc();
-
-      await messageRef.set({
-        'senderId': _userId,
-        'text': '',
-        'type': 'image',
-        'imageUrl': imageUrl,
-        'createdAt': FieldValue.serverTimestamp(),
-        'delivered': false,
-        'read': false,
-        'deleted': false,
-        'reactions': <String, dynamic>{},
-      });
-
-      await _updateChatPreview(
-        chatRef: chatRef,
-        preview: '📷 Image',
-      );
-    } catch (e, stackTrace) {
-      debugPrint('Send image error: $e');
-      debugPrint('Stack trace: $stackTrace');
-
-      if (mounted) {
-        _showMessage('Could not send image.');
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSendingAttachment = false;
-        });
-      }
-    }
-  }
-
   // ============================================================
   // SEND STICKER
   // ============================================================
@@ -427,78 +346,6 @@ class _ChatPageState extends State<ChatPage> {
   /// The picker lets the user choose sticker designs using emoji
   /// as the visual source, but the actual Firestore message is an
   /// uploaded PNG image, not an emoji text message.
-  Future<void> _sendSticker(String emoji) async {
-    if (_userId == null ||
-        !_isConversation ||
-        _isSending ||
-        _isSendingAttachment) {
-      return;
-    }
-
-    Navigator.of(context).pop();
-
-    setState(() {
-      _isSendingAttachment = true;
-    });
-
-    try {
-      final stickerBytes = await _emojiToPng(emoji);
-
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-
-      final storageRef = _storage
-          .ref()
-          .child('chat_stickers')
-          .child(widget.chatId!)
-          .child('${_userId}_$timestamp.png');
-
-      final uploadTask = await storageRef.putData(
-        stickerBytes,
-        SettableMetadata(
-          contentType: 'image/png',
-        ),
-      );
-
-      final stickerUrl =
-          await uploadTask.ref.getDownloadURL();
-
-      final chatRef =
-          _firestore.collection('chats').doc(widget.chatId);
-
-      final messageRef = chatRef.collection('messages').doc();
-
-      await messageRef.set({
-        'senderId': _userId,
-        'text': '',
-        'type': 'sticker',
-        'stickerUrl': stickerUrl,
-        'createdAt': FieldValue.serverTimestamp(),
-        'delivered': false,
-        'read': false,
-        'deleted': false,
-        'reactions': <String, dynamic>{},
-      });
-
-      await _updateChatPreview(
-        chatRef: chatRef,
-        preview: '🎨 Sticker',
-      );
-    } catch (e, stackTrace) {
-      debugPrint('Send sticker error: $e');
-      debugPrint('Stack trace: $stackTrace');
-
-      if (mounted) {
-        _showMessage('Could not send sticker.');
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSendingAttachment = false;
-        });
-      }
-    }
-  }
-
   // ============================================================
   // TURN EMOJI INTO REAL PNG
   // ============================================================
@@ -3875,15 +3722,7 @@ class _ChatPageState extends State<ChatPage> {
                   const EdgeInsets.all(4),
               child: Row(
                 children: [
-                  _inputActionButton(
-                    icon:
-                        Icons.add_rounded,
-                    onTap:
-                        _isSending ||
-                                _isSendingAttachment
-                            ? null
-                            : _showAttachmentOptions,
-                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: TextField(
                       controller:
@@ -3924,9 +3763,9 @@ class _ChatPageState extends State<ChatPage> {
                         Icons.emoji_emotions_outlined,
                     onTap:
                         _isSending ||
-                                _isSendingAttachment
+                                _isSending
                             ? null
-                            : _showStickerPicker,
+                            : () { FocusScope.of(context).requestFocus(FocusNode()); },
                   ),
                   const SizedBox(width: 3),
                   Material(
@@ -3938,7 +3777,7 @@ class _ChatPageState extends State<ChatPage> {
                     child: InkWell(
                       onTap:
                           (_isSending ||
-                                  _isSendingAttachment)
+                                  _isSending)
                               ? null
                               : _sendMessage,
                       borderRadius:
@@ -3951,7 +3790,7 @@ class _ChatPageState extends State<ChatPage> {
                         child: Center(
                           child:
                               (_isSending ||
-                                      _isSendingAttachment)
+                                      _isSending)
                                   ? const SizedBox(
                                       width: 18,
                                       height: 18,
@@ -4099,175 +3938,15 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  // ============================================================
-  // ATTACHMENTS
+
   // ============================================================
 
-  void _showAttachmentOptions() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding:
-                const EdgeInsets.all(12),
-            child: _glass(
-              radius: 27,
-              padding:
-                  const EdgeInsets.fromLTRB(
-                12,
-                12,
-                12,
-                14,
-              ),
-              child: Column(
-                mainAxisSize:
-                    MainAxisSize.min,
-                children: [
-                  _sheetHandle(),
-                  const SizedBox(height: 8),
-                  _actionTile(
-                    icon:
-                        Icons.photo_library_outlined,
-                    label: 'Send image',
-                    onTap: () {
-                      Navigator.pop(
-                        sheetContext,
-                      );
-                      _sendImage();
-                    },
-                  ),
-                  _actionTile(
-                    icon:
-                        Icons.sticky_note_2_outlined,
-                    label: 'Send sticker',
-                    onTap: () {
-                      Navigator.pop(
-                        sheetContext,
-                      );
-                      _showStickerPicker();
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
 
   // ============================================================
   // STICKER PICKER
   // ============================================================
 
-  void _showStickerPicker() {
-    const stickers = [
-      '😂',
-      '🤣',
-      '❤️',
-      '😍',
-      '🥰',
-      '🔥',
-      '😎',
-      '🥳',
-      '👏',
-      '✨',
-      '🎉',
-      '🙌',
-      '👍',
-      '😮',
-      '🤍',
-      '💯',
-      '🫶',
-      '😄',
-      '😁',
-      '🥹',
-      '😅',
-      '🤩',
-      '😭',
-      '🥺',
-      '🤭',
-      '😜',
-      '😴',
-      '🤯',
-      '💖',
-      '⭐',
-    ];
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding:
-                const EdgeInsets.all(12),
-            child: _glass(
-              radius: 27,
-              padding:
-                  const EdgeInsets.all(15),
-              child: GridView.builder(
-                shrinkWrap: true,
-                itemCount:
-                    stickers.length,
-                gridDelegate:
-                    const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 5,
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
-                  childAspectRatio: 1,
-                ),
-                itemBuilder:
-                    (context, index) {
-                  final sticker =
-                      stickers[index];
-
-                  return GestureDetector(
-                    onTap: () {
-                      _sendSticker(
-                        sticker,
-                      );
-                    },
-                    child: Container(
-                      decoration:
-                          BoxDecoration(
-                        color: Colors.white
-                            .withOpacity(0.58),
-                        borderRadius:
-                            BorderRadius
-                                .circular(
-                          15,
-                        ),
-                        border: Border.all(
-                          color: Colors.white
-                              .withOpacity(
-                            0.9,
-                          ),
-                        ),
-                      ),
-                      alignment:
-                          Alignment.center,
-                      child: Text(
-                        sticker,
-                        style:
-                            const TextStyle(
-                          fontSize: 27,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
+  
   // ============================================================
   // ACTION TILE
   // ============================================================

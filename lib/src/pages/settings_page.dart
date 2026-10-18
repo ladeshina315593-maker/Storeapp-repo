@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -502,23 +503,40 @@ class _SettingsPageState extends State<SettingsPage> {
   // ------------------------------------------------------------
 
   void _showAboutPikkX() {
-    showAboutDialog(
+    showDialog(
       context: context,
-      applicationName: 'pikkX',
-      applicationVersion: '1.0.0',
-      applicationLegalese: 'pikkX marketplace',
-      applicationIcon: Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          color: pikkXBlack,
-          borderRadius: BorderRadius.circular(14),
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: pikkXWhite,
+        surfaceTintColor: pikkXWhite,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
         ),
-        child: const Icon(
-          Icons.shopping_bag_outlined,
-          color: pikkXWhite,
-          size: 25,
+        title: const Text(
+          'pikkX',
+          style: TextStyle(
+            color: pikkXBlack,
+            fontWeight: FontWeight.w900,
+          ),
         ),
+        content: const Text(
+          'pikkX marketplace\n\nVersion 1.0.0',
+          style: TextStyle(
+            color: pikkXGrey,
+            height: 1.5,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text(
+              'Close',
+              style: TextStyle(
+                color: pikkXBlack,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -739,7 +757,17 @@ class _SettingsPageState extends State<SettingsPage> {
                                           'Help & Support',
                                       subtitle:
                                           'Get help with pikkX',
-                                      onTap: () {},
+                                      onTap: () async {
+                                        final uri = Uri.parse(
+                                          'https://wa.me/2349132315593',
+                                        );
+                                        if (await canLaunchUrl(uri)) {
+                                          await launchUrl(
+                                            uri,
+                                            mode: LaunchMode.externalApplication,
+                                          );
+                                        }
+                                      },
                                     ),
 
                                     Divider(

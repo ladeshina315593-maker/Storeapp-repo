@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'merchant_application_status_page.dart';
 
 class MerchantApplicationPage extends StatefulWidget {
   const MerchantApplicationPage({super.key});
@@ -373,10 +374,6 @@ class _MerchantApplicationPageState
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      await _firestore.collection('users').doc(user.uid).set({
-        'merchantApplicationStatus': 'pending',
-      }, SetOptions(merge: true));
-
       if (!mounted) return;
 
       setState(() => _submitting = false);
@@ -415,7 +412,14 @@ class _MerchantApplicationPageState
       );
 
       if (mounted) {
-        Navigator.pop(context, true);
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => MerchantApplicationStatusPage(
+              applicationId: applicationRef.id,
+            ),
+          ),
+        );
       }
     } on FirebaseException catch (e) {
       if (!mounted) return;
