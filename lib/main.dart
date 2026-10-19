@@ -1,9 +1,10 @@
+
 import 'package:flutter/material.dart';
-import 'package:pikkx/src/pages/profile_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:pikkx/src/pages/profile_page.dart';
 import 'package:pikkx/src/pages/mainPage.dart';
 import 'package:pikkx/src/pages/login_screen.dart';
 import 'package:pikkx/src/pages/signup_screen.dart';
@@ -19,12 +20,12 @@ import 'package:pikkx/src/pages/order_details_page.dart';
 import 'package:pikkx/src/pages/notifications_page.dart';
 import 'package:pikkx/src/pages/chat_page.dart';
 import 'package:pikkx/src/pages/settings_page.dart';
-
 import 'package:pikkx/src/pages/terms_conditions_page.dart';
 import 'package:pikkx/src/pages/privacy_policy_page.dart';
 
 import 'package:pikkx/src/widgets/customRoute.dart';
 import 'package:pikkx/src/themes/theme.dart';
+import 'package:pikkx/src/themes/app_theme_controller.dart';
 
 import 'firebase_options.dart';
 
@@ -34,6 +35,9 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Load saved appearance preferences before showing the app.
+  await AppThemeController.instance.load();
 
   runApp(const PikkXApp());
 }
@@ -47,220 +51,205 @@ class PikkXApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final baseTheme = AppTheme.lightTheme;
+    return AnimatedBuilder(
+      animation: AppThemeController.instance,
+      builder: (context, child) {
+        final controller = AppThemeController.instance;
 
-    return MaterialApp(
-      title: 'PikkX',
-      debugShowCheckedModeBanner: false,
+        final lightTheme = GoogleFonts.mulishTextTheme(
+          controller.buildTheme(Brightness.light).textTheme,
+        );
 
-      theme: baseTheme.copyWith(
-        scaffoldBackgroundColor: AppTheme.lightBackground,
-        primaryColor: AppTheme.pikkXBlack,
+        final darkTheme = GoogleFonts.mulishTextTheme(
+          controller.buildTheme(Brightness.dark).textTheme,
+        );
 
-        colorScheme: baseTheme.colorScheme.copyWith(
-          primary: AppTheme.pikkXBlack,
-          secondary: AppTheme.pikkXBlack,
-        ),
+        final builtLightTheme = controller
+            .buildTheme(Brightness.light)
+            .copyWith(textTheme: lightTheme);
 
-        textTheme: GoogleFonts.mulishTextTheme(
-          baseTheme.textTheme,
-        ).apply(
-          bodyColor: AppTheme.pikkXBlack,
-          displayColor: AppTheme.pikkXBlack,
-        ),
+        final builtDarkTheme = controller
+            .buildTheme(Brightness.dark)
+            .copyWith(textTheme: darkTheme);
 
-        appBarTheme: AppBarTheme(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          iconTheme: IconThemeData(
-            color: AppTheme.pikkXBlack,
-          ),
-        ),
-      ),
+        return MaterialApp(
+          title: 'PikkX',
+          debugShowCheckedModeBanner: false,
 
-      // ======================================================
-      // ROUTES
-      // ======================================================
+          theme: builtLightTheme,
+          darkTheme: builtDarkTheme,
+          themeMode: controller.themeMode,
 
-      routes: {
-        // AUTH
-        '/login': (context) => const LoginScreen(),
+          // ==================================================
+          // ROUTES
+          // ==================================================
 
-        '/signup': (context) => const SignUpScreen(),
+          routes: {
+            // AUTH
+            '/login': (context) => const LoginScreen(),
+            '/signup': (context) => const SignUpScreen(),
+            '/forgot-password': (context) =>
+                const ForgotPasswordScreen(),
+            '/phone-login': (context) =>
+                const PhoneAuthScreen(),
+            '/phone-signup': (context) =>
+                const PhoneAuthScreen(),
 
-        '/forgot-password': (context) =>
-            const ForgotPasswordScreen(),
+            // LEGAL
+            '/terms': (context) =>
+                const TermsConditionsPage(),
+            '/privacy': (context) =>
+                const PrivacyPolicyPage(),
 
-        '/phone-login': (context) =>
-            const PhoneAuthScreen(),
+            // MAIN APP
+            '/': (context) => const AuthGate(),
+            '/home': (context) => const MainPage(),
+            '/profile': (context) => const ProfilePage(),
+            '/MainPage': (context) => const MainPage(),
 
-        '/phone-signup': (context) =>
-            const PhoneAuthScreen(),
+            // CART
+            '/cart': (context) => ShoppingCartPage(),
 
-        // LEGAL
-        '/terms': (context) =>
-            const TermsConditionsPage(),
+            // FAVOURITES
+            '/favourites': (context) =>
+                const FavouritePage(),
 
-        '/privacy': (context) =>
-            const PrivacyPolicyPage(),
+            // CHECKOUT
+            '/checkout': (context) => CheckoutPage(),
 
-        // MAIN APP
-        '/': (context) => const AuthGate(),
+            // DELIVERY
+            '/delivery-address': (context) =>
+                DeliveryAddressPage(),
 
-        '/home': (context) => const MainPage(),
+            // ORDERS
+            '/orders': (context) => OrdersPage(),
 
-        '/profile': (context) => const ProfilePage(),
+            // NOTIFICATIONS
+            '/notifications': (context) =>
+                NotificationsPage(),
 
-        '/MainPage': (context) => const MainPage(),
+            // SETTINGS
+            '/settings': (context) => SettingsPage(),
+          },
 
-        // CART
-        '/cart': (context) => ShoppingCartPage(),
+          // ==================================================
+          // GENERATED ROUTES
+          // ==================================================
 
-        // FAVOURITES
-        '/favourites': (context) =>
-            const FavouritePage(),
+          onGenerateRoute: (RouteSettings settings) {
+            // PRODUCT DETAIL
+            if (settings.name == '/detail') {
+              final arguments = settings.arguments;
 
-        // CHECKOUT
-        '/checkout': (context) => CheckoutPage(),
+              if (arguments is! Map) {
+                return MaterialPageRoute(
+                  builder: (context) => const Scaffold(
+                    body: Center(
+                      child: Text(
+                        'Product information is missing.',
+                      ),
+                    ),
+                  ),
+                );
+              }
 
-        '/delivery-address': (context) =>
-            DeliveryAddressPage(),
+              final productMap =
+                  Map<String, dynamic>.from(arguments);
 
-        // ORDERS
-        '/orders': (context) => OrdersPage(),
+              final productId =
+                  productMap['productId']?.toString() ??
+                  productMap['id']?.toString() ??
+                  '';
 
-        // NOTIFICATIONS
-        '/notifications': (context) =>
-            NotificationsPage(),
+              if (productId.isEmpty) {
+                return MaterialPageRoute(
+                  builder: (context) => const Scaffold(
+                    body: Center(
+                      child: Text('Product ID is missing.'),
+                    ),
+                  ),
+                );
+              }
 
-        // SETTINGS
-        '/settings': (context) => SettingsPage(),
-      },
+              return CustomRoute<bool>(
+                builder: (context) => ProductDetailPage(
+                  productId: productId,
+                  product: productMap,
+                ),
+                settings: settings,
+              );
+            }
 
-      // ======================================================
-      // GENERATED ROUTES
-      // ======================================================
+            // ORDER DETAILS
+            if (settings.name == '/order-details') {
+              final orderId =
+                  settings.arguments?.toString();
 
-      onGenerateRoute: (RouteSettings settings) {
-        // PRODUCT DETAIL
-        if (settings.name == '/detail') {
-          final arguments = settings.arguments;
+              if (orderId == null || orderId.isEmpty) {
+                return MaterialPageRoute(
+                  builder: (context) => const Scaffold(
+                    body: Center(
+                      child: Text('Order ID is missing.'),
+                    ),
+                  ),
+                );
+              }
 
-          if (arguments is! Map) {
+              return CustomRoute<bool>(
+                builder: (context) => OrderDetailsPage(
+                  orderId: orderId,
+                ),
+                settings: settings,
+              );
+            }
+
+            // CHAT
+            if (settings.name == '/chat') {
+              final arguments = settings.arguments;
+
+              String? chatId;
+              String? otherUserName;
+
+              if (arguments is Map) {
+                chatId = arguments['chatId']?.toString();
+                otherUserName =
+                    arguments['otherUserName']?.toString();
+              } else if (arguments != null) {
+                chatId = arguments.toString();
+              }
+
+              if (chatId == null || chatId.isEmpty) {
+                return MaterialPageRoute(
+                  builder: (context) => const Scaffold(
+                    body: Center(
+                      child: Text('Chat ID is missing.'),
+                    ),
+                  ),
+                );
+              }
+
+              return CustomRoute<bool>(
+                builder: (context) => ChatPage(
+                  chatId: chatId!,
+                  otherUserName: otherUserName,
+                ),
+                settings: settings,
+              );
+            }
+
+            // FALLBACK
             return MaterialPageRoute(
               builder: (context) => const Scaffold(
                 body: Center(
-                  child: Text(
-                    'Product information is missing.',
-                  ),
+                  child: Text('Page not found.'),
                 ),
               ),
             );
-          }
+          },
 
-          final productMap =
-              Map<String, dynamic>.from(arguments);
-
-          final productId =
-              productMap['productId']?.toString() ??
-              productMap['id']?.toString() ??
-              '';
-
-          if (productId.isEmpty) {
-            return MaterialPageRoute(
-              builder: (context) => const Scaffold(
-                body: Center(
-                  child: Text(
-                    'Product ID is missing.',
-                  ),
-                ),
-              ),
-            );
-          }
-
-          return CustomRoute<bool>(
-            builder: (context) => ProductDetailPage(
-              productId: productId,
-              product: productMap,
-            ),
-            settings: settings,
-          );
-        }
-
-        // ORDER DETAILS
-        if (settings.name == '/order-details') {
-          final orderId =
-              settings.arguments?.toString();
-
-          if (orderId == null || orderId.isEmpty) {
-            return MaterialPageRoute(
-              builder: (context) => const Scaffold(
-                body: Center(
-                  child: Text(
-                    'Order ID is missing.',
-                  ),
-                ),
-              ),
-            );
-          }
-
-          return CustomRoute<bool>(
-            builder: (context) => OrderDetailsPage(
-              orderId: orderId,
-            ),
-            settings: settings,
-          );
-        }
-
-        // CHAT
-        if (settings.name == '/chat') {
-          final arguments = settings.arguments;
-
-          String? chatId;
-          String? otherUserName;
-
-          if (arguments is Map) {
-            chatId = arguments['chatId']?.toString();
-            otherUserName =
-                arguments['otherUserName']?.toString();
-          } else if (arguments != null) {
-            chatId = arguments.toString();
-          }
-
-          if (chatId == null || chatId.isEmpty) {
-            return MaterialPageRoute(
-              builder: (context) => const Scaffold(
-                body: Center(
-                  child: Text(
-                    'Chat ID is missing.',
-                  ),
-                ),
-              ),
-            );
-          }
-
-          return CustomRoute<bool>(
-            builder: (context) => ChatPage(
-              chatId: chatId!,
-              otherUserName: otherUserName,
-            ),
-            settings: settings,
-          );
-        }
-
-        // FALLBACK
-        return MaterialPageRoute(
-          builder: (context) => const Scaffold(
-            body: Center(
-              child: Text(
-                'Page not found.',
-              ),
-            ),
-          ),
+          initialRoute: '/',
         );
       },
-
-      initialRoute: '/',
     );
   }
 }
@@ -276,17 +265,22 @@ class AuthGate extends StatelessWidget {
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
-
       builder: (context, snapshot) {
         // CHECKING
         if (snapshot.connectionState ==
             ConnectionState.waiting) {
+          final isDark =
+              Theme.of(context).brightness == Brightness.dark;
+
           return Scaffold(
-            backgroundColor:
-                AppTheme.lightBackground,
+            backgroundColor: isDark
+                ? AppTheme.darkBackground
+                : AppTheme.lightBackground,
             body: Center(
               child: CircularProgressIndicator(
-                color: AppTheme.pikkXBlack,
+                color: isDark
+                    ? Colors.white
+                    : AppTheme.pikkXBlack,
               ),
             ),
           );
