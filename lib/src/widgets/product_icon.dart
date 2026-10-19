@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 import 'package:pikkx/src/model/category.dart';
@@ -68,9 +69,9 @@ class ProductIcon extends StatelessWidget {
             // Category image
             if (model.image != null) ...[
               Container(
-                width: 30,
-                height: 30,
-                padding: const EdgeInsets.all(5),
+                width: 22,
+                height: 22,
+                padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: selected
