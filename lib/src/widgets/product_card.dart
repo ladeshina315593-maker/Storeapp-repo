@@ -1,7 +1,7 @@
+
 import 'package:flutter/material.dart';
 
 import 'package:pikkx/src/model/product.dart';
-import 'package:pikkx/src/themes/light_color.dart';
 import 'package:pikkx/src/widgets/title_text.dart';
 import 'package:pikkx/src/widgets/extentions.dart';
 
@@ -17,278 +17,213 @@ class ProductCard extends StatelessWidget {
     this.onFavoritePressed,
   }) : super(key: key);
 
+  static const Color _black = Color(0xFF050505);
+  static const Color _background = Color(0xFFF7F7F7);
+  static const Color _muted = Color(0xFF777777);
+
   @override
   Widget build(BuildContext context) {
     final bool selected = product.isSelected;
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 250),
       curve: Curves.easeOut,
       margin: EdgeInsets.symmetric(
-        vertical: selected ? 5 : 15,
+        vertical: selected ? 5 : 8,
       ),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.52),
-        borderRadius: BorderRadius.circular(26),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: Colors.white.withOpacity(0.78),
-          width: 1.2,
+          color: selected
+              ? _black.withOpacity(0.18)
+              : const Color(0xFFEEEEEE),
+          width: selected ? 1.3 : 1,
         ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.045),
-            blurRadius: 20,
-            offset: const Offset(0, 9),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
-      child: Stack(
-        children: [
-          // Soft purple glass glow
-          Positioned(
-            top: -30,
-            left: -25,
-            child: Container(
-              width: 110,
-              height: 110,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: LightColor.grapePurple.withOpacity(0.07),
-              ),
-            ),
-          ),
-
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              16,
-              14,
-              16,
-              15,
-            ),
-            child: Column(
-              children: [
-                // ==========================
-                // FAVOURITE BUTTON
-                // ==========================
-
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: onFavoritePressed,
-                        borderRadius: BorderRadius.circular(30),
-                        child: Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.62),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.8),
-                            ),
-                          ),
-                          child: Icon(
-                            product.isliked
-                                ? Icons.favorite_rounded
-                                : Icons.favorite_border_rounded,
-                            size: 19,
-                            color: LightColor.grapePurple,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 3),
-
-                // ==========================
-                // PRODUCT IMAGE
-                // ==========================
-
-                Expanded(
-                  child: Center(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(19),
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(11, 10, 11, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Product image and favourite button.
+                  SizedBox(
+                    height: 118,
+                    width: double.infinity,
                     child: Stack(
-                      alignment: Alignment.center,
                       children: [
-                        Container(
-                          width: selected ? 120 : 105,
-                          height: selected ? 120 : 105,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: LightColor.grapeSoftPurple
-                                .withOpacity(0.30),
+                        Positioned.fill(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: _background,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            padding: const EdgeInsets.all(12),
+                            child: _productImage(),
                           ),
                         ),
-
-                        Container(
-                          width: selected ? 100 : 88,
-                          height: selected ? 100 : 88,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withOpacity(0.48),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.75),
-                              width: 1,
+                        Positioned(
+                          top: 6,
+                          right: 6,
+                          child: Material(
+                            color: Colors.white,
+                            shape: const CircleBorder(),
+                            child: InkWell(
+                              onTap: onFavoritePressed,
+                              customBorder: const CircleBorder(),
+                              child: SizedBox(
+                                width: 32,
+                                height: 32,
+                                child: Icon(
+                                  product.isliked
+                                      ? Icons.favorite_rounded
+                                      : Icons.favorite_border_rounded,
+                                  size: 18,
+                                  color: product.isliked
+                                      ? _black
+                                      : _muted,
+                                ),
+                              ),
                             ),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(10),
-                            child: _productImage(),
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
 
-                const SizedBox(height: 8),
+                  const SizedBox(height: 10),
 
-                // ==========================
-                // PRODUCT NAME
-                // ==========================
-
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TitleText(
+                  // Product name.
+                  TitleText(
                     text: product.name,
-                    fontSize: selected ? 16 : 14,
-                    color: LightColor.darkText,
+                    fontSize: 14,
+                    color: _black,
+                    fontWeight: FontWeight.w700,
                   ),
-                ),
 
-                const SizedBox(height: 4),
+                  const SizedBox(height: 4),
 
-                // ==========================
-                // CATEGORY
-                // ==========================
-
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
+                  // Product category.
+                  Text(
                     product.category,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: LightColor.mutedText,
+                      color: _muted,
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                ),
 
-                const SizedBox(height: 9),
+                  const Spacer(),
 
-                // ==========================
-                // PRICE + DETAILS BUTTON
-                // ==========================
+                  const SizedBox(height: 10),
 
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 11,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: LightColor.grapePurple.withOpacity(0.10),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: TitleText(
-                        text:
-                            '₦${product.price.toStringAsFixed(2)}',
-                        fontSize: selected ? 16 : 14,
-                        color: LightColor.darkText,
-                      ),
-                    ),
-
-                    Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: LightColor.grapePurple,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: LightColor.grapePurple
-                                .withOpacity(0.22),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
+                  // Price and details arrow.
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '₦${product.price.toStringAsFixed(2)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: _black,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
                           ),
-                        ],
+                        ),
                       ),
-                      child: const Icon(
-                        Icons.arrow_forward_rounded,
-                        color: Colors.white,
-                        size: 18,
+                      const SizedBox(width: 5),
+                      Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: _black,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.arrow_forward_rounded,
+                          color: Colors.white,
+                          size: 17,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+
+            // Subtle selection indicator.
+            if (selected)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  height: 3,
+                  color: _black,
+                ),
+              ),
+          ],
+        ),
       ).ripple(
         () {
-          // Tell Home page which product was selected.
           onSelected?.call(product);
 
-          // Open the real product details page.
           Navigator.of(context).pushNamed(
             '/detail',
             arguments: product,
           );
         },
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(20),
       ),
     );
   }
 
-  // ==========================
-  // FIREBASE IMAGE SUPPORT
-  // ==========================
-
   Widget _productImage() {
     if (product.image.isEmpty) {
-      return Icon(
+      return const Icon(
         Icons.shopping_bag_outlined,
-        color: LightColor.grapePurple,
+        color: _muted,
         size: 38,
       );
     }
 
-    // Firebase/Cloud Storage download URL
     if (product.image.startsWith('http')) {
       return Image.network(
         product.image,
         fit: BoxFit.contain,
         errorBuilder: (context, error, stackTrace) {
-          return Icon(
+          return const Icon(
             Icons.image_not_supported_outlined,
-            color: LightColor.grapePurple,
+            color: _muted,
             size: 34,
           );
         },
-        loadingBuilder: (
-          context,
-          child,
-          loadingProgress,
-        ) {
+        loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) {
             return child;
           }
 
-          return Center(
+          return const Center(
             child: SizedBox(
               width: 22,
               height: 22,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                color: LightColor.grapePurple,
+                color: _black,
               ),
             ),
           );
@@ -296,14 +231,13 @@ class ProductCard extends StatelessWidget {
       );
     }
 
-    // Existing local asset support
     return Image.asset(
       product.image,
       fit: BoxFit.contain,
       errorBuilder: (context, error, stackTrace) {
-        return Icon(
+        return const Icon(
           Icons.image_not_supported_outlined,
-          color: LightColor.grapePurple,
+          color: _muted,
           size: 34,
         );
       },
