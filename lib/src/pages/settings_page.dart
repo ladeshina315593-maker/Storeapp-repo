@@ -1,799 +1,842 @@
 import 'dart:ui';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import 'package:pikkx/src/themes/theme.dart';
+import 'package:pikkx/src/themes/app_theme_controller.dart';
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({super.key});
+const SettingsPage({super.key});
 
-  @override
-  State<SettingsPage> createState() => _SettingsPageState();
+@override
+State<SettingsPage> createState() => _SettingsPageState();
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+final FirebaseAuth _auth = FirebaseAuth.instance;
+final AppThemeController _themeController =
+AppThemeController.instance;
 
-  static const Color pikkXBlack = Color(0xFF050505);
-  static const Color pikkXWhite = Color(0xFFFFFFFF);
-  static const Color pikkXBackground = Color(0xFFF7F7F7);
-  static const Color pikkXGrey = Color(0xFF777777);
-  static const Color pikkXLightGrey = Color(0xFFE8E8E8);
+bool notificationsEnabled = true;
+bool orderUpdates = true;
+bool promotionalNotifications = true;
 
-  bool notificationsEnabled = true;
-  bool orderUpdates = true;
-  bool promotionalNotifications = true;
+bool isLoading = true;
+bool isSaving = false;
 
-  bool isLoading = true;
-  bool isSaving = false;
+String? get userId => _auth.currentUser?.uid;
 
-  String? get userId => _auth.currentUser?.uid;
+DocumentReference<Map<String, dynamic>> get userRef =>
+_firestore.collection('users').doc(userId);
 
-  DocumentReference<Map<String, dynamic>> get userRef {
-    return _firestore.collection('users').doc(userId);
-  }
+bool get isDark =>
+_themeController.isDarkMode;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadSettings();
-  }
+Color get pageBackground => isDark
+? AppTheme.darkBackground
+: AppTheme.lightBackground;
 
-  // ------------------------------------------------------------
-  // LOAD SETTINGS
-  // ------------------------------------------------------------
+Color get cardColor => isDark
+? AppTheme.darkCard
+: AppTheme.lightCard;
 
-  Future<void> _loadSettings() async {
-    if (userId == null) {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
-      return;
+Color get primaryText =>
+isDark ? Colors.white : const Color(0xFF050505);
+
+Color get secondaryText => isDark
+? Colors.white70
+: const Color(0xFF777777);
+
+Color get accent => _themeController.accentColor;
+
+Color get borderColor => isDark
+? Colors.white.withOpacity(0.12)
+: Colors.black.withOpacity(0.07);
+
+@override
+void initState() {
+super.initState();
+_loadSettings();
+}
+
+// ------------------------------------------------------------
+// LOAD FIRESTORE SETTINGS
+// ------------------------------------------------------------
+
+Future<void> _loadSettings() async {
+if (userId == null) {
+if (mounted) {
+setState(() => isLoading = false);
+}
+return;
+}
+
+try {
+  final snapshot = await userRef.get();
+  final data = snapshot.data();
+
+  final rawSettings = data?['settings'];
+  final settings = rawSettings is Map
+      ? Map<String, dynamic>.from(rawSettings)
+      : <String, dynamic>{};
+
+  if (!mounted) return;
+
+  setState(() {
+    notificationsEnabled =
+        settings['notificationsEnabled'] is bool
+            ? settings['notificationsEnabled'] as bool
+            : true;
+
+    orderUpdates =
+        settings['orderUpdates'] is bool
+            ? settings['orderUpdates'] as bool
+            : true;
+
+    promotionalNotifications =
+        settings['promotionalNotifications'] is bool
+            ? settings['promotionalNotifications'] as bool
+            : true;
+
+    if (!notificationsEnabled) {
+      orderUpdates = false;
+      promotionalNotifications = false;
     }
 
-    try {
-      final snapshot = await userRef.get();
-      final data = snapshot.data();
+    isLoading = false;
+  });
+} catch (error) {
+  debugPrint('Could not load PikkX settings: $error');
 
-      final settings = data?['settings'] is Map
-          ? Map<String, dynamic>.from(data!['settings'])
-          : <String, dynamic>{};
+  if (!mounted) return;
 
-      if (!mounted) return;
+  setState(() => isLoading = false);
+  _showMessage('Could not load your saved settings.');
+}
 
-      setState(() {
-        notificationsEnabled =
-            settings['notificationsEnabled'] ?? true;
+}
 
-        orderUpdates =
-            settings['orderUpdates'] ?? true;
+// ------------------------------------------------------------
+// SAVE FIRESTORE SETTINGS
+// ------------------------------------------------------------
 
-        promotionalNotifications =
-            settings['promotionalNotifications'] ?? true;
+Future<void> _saveSettings() async {
+if (userId == null) {
+_showMessage('Please sign in to save your settings.');
+return;
+}
 
-        isLoading = false;
-      });
-    } catch (e) {
-      debugPrint('Settings error: $e');
+if (mounted) {
+  setState(() => isSaving = true);
+}
 
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
-    }
+try {
+  await userRef.set(
+    {
+      'settings': {
+        'notificationsEnabled': notificationsEnabled,
+        'orderUpdates': orderUpdates,
+        'promotionalNotifications':
+            promotionalNotifications,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+    },
+    SetOptions(merge: true),
+  );
+} catch (error) {
+  debugPrint('Could not save PikkX settings: $error');
+  _showMessage('Could not save your settings. Please try again.');
+} finally {
+  if (mounted) {
+    setState(() => isSaving = false);
   }
+}
 
-  // ------------------------------------------------------------
-  // SAVE SETTINGS
-  // ------------------------------------------------------------
+}
 
-  Future<void> _saveSettings() async {
-    if (userId == null) return;
+Future<void> _changeNotifications(bool value) async {
+setState(() {
+notificationsEnabled = value;
 
-    if (mounted) {
-      setState(() {
-        isSaving = true;
-      });
-    }
-
-    try {
-      await userRef.set(
-        {
-          'settings': {
-            'notificationsEnabled': notificationsEnabled,
-            'orderUpdates': orderUpdates,
-            'promotionalNotifications':
-                promotionalNotifications,
-            'updatedAt': FieldValue.serverTimestamp(),
-          },
-        },
-        SetOptions(merge: true),
-      );
-    } catch (e) {
-      debugPrint('Save settings error: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          isSaving = false;
-        });
-      }
-    }
+  if (!value) {
+    orderUpdates = false;
+    promotionalNotifications = false;
   }
+});
 
-  Future<void> _changeNotifications(bool value) async {
-    setState(() {
-      notificationsEnabled = value;
+await _saveSettings();
 
-      if (!value) {
-        orderUpdates = false;
-        promotionalNotifications = false;
-      }
-    });
+}
 
-    await _saveSettings();
+Future<void> _changeOrderUpdates(bool value) async {
+setState(() => orderUpdates = value);
+await _saveSettings();
+}
+
+Future<void> _changePromotionalNotifications(
+bool value,
+) async {
+setState(() => promotionalNotifications = value);
+await _saveSettings();
+}
+
+// ------------------------------------------------------------
+// MESSAGE FEEDBACK
+// ------------------------------------------------------------
+
+void _showMessage(String message) {
+if (!mounted) return;
+
+ScaffoldMessenger.of(context)
+  ..hideCurrentSnackBar()
+  ..showSnackBar(
+    SnackBar(
+      content: Text(message),
+      behavior: SnackBarBehavior.floating,
+    ),
+  );
+
+}
+
+// ------------------------------------------------------------
+// SIGN OUT
+// ------------------------------------------------------------
+
+Future<void> _signOut() async {
+final confirmed = await showDialog<bool>(
+context: context,
+builder: (dialogContext) {
+return AlertDialog(
+backgroundColor: cardColor,
+title: Text(
+'Sign out?',
+style: TextStyle(
+color: primaryText,
+fontWeight: FontWeight.w800,
+),
+),
+content: Text(
+'You will need to sign in again to access your account.',
+style: TextStyle(color: secondaryText),
+),
+actions: [
+TextButton(
+onPressed: () =>
+Navigator.pop(dialogContext, false),
+child: Text(
+'Cancel',
+style: TextStyle(color: primaryText),
+),
+),
+TextButton(
+onPressed: () =>
+Navigator.pop(dialogContext, true),
+child: const Text(
+'Sign out',
+style: TextStyle(
+color: Colors.red,
+fontWeight: FontWeight.w700,
+),
+),
+),
+],
+);
+},
+);
+
+if (confirmed != true) return;
+
+try {
+  await _auth.signOut();
+
+  if (!mounted) return;
+
+  Navigator.pushNamedAndRemoveUntil(
+    context,
+    '/login',
+    (route) => false,
+  );
+} catch (error) {
+  debugPrint('Sign-out error: $error');
+  _showMessage('Could not sign out. Please try again.');
+}
+
+}
+
+// ------------------------------------------------------------
+// OPEN WHATSAPP SUPPORT
+// ------------------------------------------------------------
+
+Future<void> _openSupport() async {
+final uri = Uri.parse('https://wa.me/2349132315593');
+
+try {
+  final launched = await launchUrl(
+    uri,
+    mode: LaunchMode.externalApplication,
+  );
+
+  if (!launched && mounted) {
+    _showMessage('Could not open WhatsApp. Please try again.');
   }
+} catch (error) {
+  debugPrint('Support link error: $error');
+  _showMessage('Could not open WhatsApp. Please try again.');
+}
 
-  Future<void> _changeOrderUpdates(bool value) async {
-    setState(() {
-      orderUpdates = value;
-    });
+}
 
-    await _saveSettings();
-  }
+// ------------------------------------------------------------
+// GLASS CARD
+// ------------------------------------------------------------
 
-  Future<void> _changePromotionalNotifications(
-    bool value,
-  ) async {
-    setState(() {
-      promotionalNotifications = value;
-    });
+Widget _glass({
+required Widget child,
+EdgeInsetsGeometry padding = EdgeInsets.zero,
+}) {
+return ClipRRect(
+borderRadius: BorderRadius.circular(24),
+child: BackdropFilter(
+filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+child: Container(
+padding: padding,
+decoration: BoxDecoration(
+color: cardColor.withOpacity(isDark ? 0.88 : 0.80),
+borderRadius: BorderRadius.circular(24),
+border: Border.all(color: borderColor),
+boxShadow: [
+BoxShadow(
+color: Colors.black.withOpacity(isDark ? 0.12 : 0.035),
+blurRadius: 20,
+offset: const Offset(0, 8),
+),
+],
+),
+child: child,
+),
+),
+);
+}
 
-    await _saveSettings();
-  }
+// ------------------------------------------------------------
+// HEADER
+// ------------------------------------------------------------
 
-  // ------------------------------------------------------------
-  // SIGN OUT
-  // ------------------------------------------------------------
+Widget _header() {
+return Padding(
+padding: const EdgeInsets.fromLTRB(20, 14, 20, 22),
+child: Row(
+children: [
+_iconButton(
+icon: Icons.arrow_back_ios_new_rounded,
+onTap: () => Navigator.maybePop(context),
+),
+const SizedBox(width: 15),
+Expanded(
+child: Column(
+crossAxisAlignment: CrossAxisAlignment.start,
+children: [
+Text(
+'Settings',
+style: TextStyle(
+color: primaryText,
+fontSize: 25,
+fontWeight: FontWeight.w900,
+letterSpacing: -0.6,
+),
+),
+const SizedBox(height: 4),
+Text(
+'Manage your PikkX experience',
+style: TextStyle(
+color: secondaryText,
+fontSize: 12,
+),
+),
+],
+),
+),
+if (isSaving)
+SizedBox(
+height: 20,
+width: 20,
+child: CircularProgressIndicator(
+strokeWidth: 2,
+color: accent,
+),
+),
+],
+),
+);
+}
 
-  Future<void> _signOut() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: pikkXWhite,
-          surfaceTintColor: pikkXWhite,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          title: const Text(
-            'Sign out?',
-            style: TextStyle(
-              color: pikkXBlack,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          content: Text(
-            'You will need to sign in again to access your account.',
-            style: TextStyle(
-              color: AppTheme.mutedText,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext, false);
-              },
-              child: const Text(
-                'Cancel',
-                style: TextStyle(
-                  color: pikkXBlack,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext, true);
-              },
-              child: const Text(
-                'Sign out',
-                style: TextStyle(
-                  color: Colors.red,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+Widget _iconButton({
+required IconData icon,
+required VoidCallback onTap,
+}) {
+return Material(
+color: Colors.transparent,
+child: InkWell(
+onTap: onTap,
+borderRadius: BorderRadius.circular(16),
+child: Container(
+height: 46,
+width: 46,
+decoration: BoxDecoration(
+color: cardColor,
+borderRadius: BorderRadius.circular(16),
+border: Border.all(color: borderColor),
+),
+child: Icon(icon, color: primaryText, size: 19),
+),
+),
+);
+}
+
+// ------------------------------------------------------------
+// SECTION HEADING
+// ------------------------------------------------------------
+
+Widget _sectionTitle(String title, {String? subtitle}) {
+return Padding(
+padding: const EdgeInsets.only(left: 4, bottom: 10),
+child: Column(
+crossAxisAlignment: CrossAxisAlignment.start,
+children: [
+Text(
+title,
+style: TextStyle(
+color: primaryText,
+fontSize: 15,
+fontWeight: FontWeight.w900,
+),
+),
+if (subtitle != null) ...[
+const SizedBox(height: 3),
+Text(
+subtitle,
+style: TextStyle(
+color: secondaryText,
+fontSize: 11,
+),
+),
+],
+],
+),
+);
+}
+
+Widget _section({
+required String title,
+String? subtitle,
+required Widget child,
+}) {
+return Column(
+crossAxisAlignment: CrossAxisAlignment.start,
+children: [
+_sectionTitle(title, subtitle: subtitle),
+_glass(child: child),
+],
+);
+}
+
+Widget _separator() {
+return Divider(
+height: 1,
+thickness: 1,
+indent: 72,
+color: borderColor,
+);
+}
+
+// ------------------------------------------------------------
+// ACTION TILE
+// ------------------------------------------------------------
+
+Widget _actionTile({
+required IconData icon,
+required String title,
+required String subtitle,
+required VoidCallback onTap,
+Widget? trailing,
+}) {
+return ListTile(
+onTap: onTap,
+contentPadding: const EdgeInsets.symmetric(
+horizontal: 15,
+vertical: 5,
+),
+leading: Container(
+height: 44,
+width: 44,
+decoration: BoxDecoration(
+color: accent.withOpacity(isDark ? 0.18 : 0.08),
+borderRadius: BorderRadius.circular(15),
+),
+child: Icon(icon, color: accent, size: 21),
+),
+title: Text(
+title,
+style: TextStyle(
+color: primaryText,
+fontSize: 13,
+fontWeight: FontWeight.w800,
+),
+),
+subtitle: Padding(
+padding: const EdgeInsets.only(top: 4),
+child: Text(
+subtitle,
+style: TextStyle(
+color: secondaryText,
+fontSize: 11,
+),
+),
+),
+trailing: trailing ??
+Icon(
+Icons.arrow_forward_ios_rounded,
+color: secondaryText,
+size: 14,
+),
+);
+}
+
+// ------------------------------------------------------------
+// SWITCH TILE
+// ------------------------------------------------------------
+
+Widget _switchTile({
+required IconData icon,
+required String title,
+required String subtitle,
+required bool value,
+bool enabled = true,
+required ValueChanged<bool> onChanged,
+}) {
+return ListTile(
+contentPadding: const EdgeInsets.symmetric(
+horizontal: 15,
+vertical: 5,
+),
+leading: Container(
+height: 44,
+width: 44,
+decoration: BoxDecoration(
+color: accent.withOpacity(isDark ? 0.18 : 0.08),
+borderRadius: BorderRadius.circular(15),
+),
+child: Icon(icon, color: accent, size: 21),
+),
+title: Text(
+title,
+style: TextStyle(
+color: primaryText,
+fontSize: 13,
+fontWeight: FontWeight.w800,
+),
+),
+subtitle: Padding(
+padding: const EdgeInsets.only(top: 4),
+child: Text(
+subtitle,
+style: TextStyle(
+color: secondaryText,
+fontSize: 11,
+),
+),
+),
+trailing: Switch.adaptive(
+value: value,
+onChanged: enabled ? onChanged : null,
+activeTrackColor: accent,
+),
+);
+}
+
+// ------------------------------------------------------------
+// APPEARANCE
+// ------------------------------------------------------------
+
+Widget _appearanceSection() {
+return _section(
+title: 'Appearance',
+subtitle: 'Choose how PikkX looks on your device',
+child: Column(
+children: [
+_actionTile(
+icon: isDark
+? Icons.dark_mode_rounded
+: Icons.light_mode_rounded,
+title: 'Dark mode',
+subtitle: isDark
+? 'Dark appearance is enabled'
+: 'Use a darker appearance',
+trailing: Switch.adaptive(
+value: isDark,
+activeTrackColor: accent,
+onChanged: (value) async {
+await _themeController.setDarkMode(value);
+},
+),
+onTap: () async {
+await _themeController.setDarkMode(!isDark);
+},
+),
+_separator(),
+Padding(
+padding: const EdgeInsets.fromLTRB(16, 16, 16, 17),
+child: Column(
+crossAxisAlignment: CrossAxisAlignment.start,
+children: [
+Text(
+'Accent colour',
+style: TextStyle(
+color: primaryText,
+fontSize: 13,
+fontWeight: FontWeight.w800,
+),
+),
+const SizedBox(height: 5),
+Text(
+'Choose a coordinated colour for supported app controls.',
+style: TextStyle(
+color: secondaryText,
+fontSize: 11,
+),
+),
+const SizedBox(height: 16),
+Wrap(
+spacing: 10,
+runSpacing: 14,
+children: AppThemeController.accentColors.entries.map(
+(entry) {
+final selected =
+_themeController.accentTheme == entry.key;
+
+                  return SizedBox(
+                    width: 88,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(15),
+                      onTap: () async {
+                        await _themeController.setAccentTheme(entry.key);
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(5),
+                        child: Column(
+                          children: [
+                            Container(
+                              height: 42,
+                              width: 42,
+                              decoration: BoxDecoration(
+                                color: entry.value,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: selected
+                                      ? primaryText
+                                      : borderColor,
+                                  width: selected ? 3 : 1,
+                                ),
+                              ),
+                              child: selected
+                                  ? const Icon(
+                                      Icons.check_rounded,
+                                      color: Colors.white,
+                                      size: 23,
+                                    )
+                                  : null,
+                            ),
+                            const SizedBox(height: 7),
+                            Text(
+                              AppThemeController.accentNames[entry.key] ??
+                                  entry.key,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: primaryText,
+                                fontSize: 10,
+                                fontWeight: selected
+                                    ? FontWeight.w800
+                                    : FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ).toList(),
             ),
           ],
-        );
-      },
-    );
-
-    if (confirm != true) return;
-
-    await _auth.signOut();
-
-    if (!mounted) return;
-
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      '/login',
-      (route) => false,
-    );
-  }
-
-  // ------------------------------------------------------------
-  // GLASS CONTAINER
-  // ------------------------------------------------------------
-
-  Widget _glass({
-    required Widget child,
-    EdgeInsetsGeometry padding = EdgeInsets.zero,
-  }) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 16,
-          sigmaY: 16,
-        ),
-        child: Container(
-          padding: padding,
-          decoration: BoxDecoration(
-            color: pikkXWhite.withOpacity(0.76),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: pikkXWhite.withOpacity(0.92),
-              width: 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: pikkXBlack.withOpacity(0.055),
-                blurRadius: 22,
-                offset: const Offset(0, 9),
-              ),
-            ],
-          ),
-          child: child,
         ),
       ),
-    );
-  }
+    ],
+  ),
+);
 
-  // ------------------------------------------------------------
-  // TOP HEADER
-  // ------------------------------------------------------------
+}
 
-  Widget _header() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        14,
-        20,
-        20,
-      ),
-      child: Row(
-        children: [
-          _glassIconButton(
-            icon: Icons.arrow_back_ios_new_rounded,
-            onTap: () {
-              Navigator.pop(context);
-            },
-          ),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Settings',
-                  style: TextStyle(
-                    color: pikkXBlack,
-                    fontSize: 25,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  'Manage your pikkX experience',
-                  style: TextStyle(
-                    color: AppTheme.mutedText,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          _glassIconButton(
-            icon: Icons.tune_rounded,
-            iconColor: pikkXBlack,
-            onTap: () {},
-          ),
-        ],
-      ),
-    );
-  }
+// ------------------------------------------------------------
+// BUILD
+// ------------------------------------------------------------
 
-  Widget _glassIconButton({
-    required IconData icon,
-    required VoidCallback onTap,
-    Color? iconColor,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          height: 46,
-          width: 46,
-          decoration: BoxDecoration(
-            color: pikkXWhite.withOpacity(0.70),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: pikkXWhite.withOpacity(0.92),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: pikkXBlack.withOpacity(0.045),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Icon(
-            icon,
-            color: iconColor ?? pikkXBlack,
-            size: 19,
-          ),
-        ),
-      ),
-    );
-  }
+@override
+Widget build(BuildContext context) {
+return AnimatedBuilder(
+animation: _themeController,
+builder: (context, _) {
+return Scaffold(
+backgroundColor: pageBackground,
+body: SafeArea(
+child: Stack(
+children: [
+Positioned(
+top: -110,
+right: -90,
+child: IgnorePointer(
+child: Container(
+height: 250,
+width: 250,
+decoration: BoxDecoration(
+shape: BoxShape.circle,
+color: accent.withOpacity(0.045),
+),
+),
+),
+),
+Column(
+children: [
+_header(),
+Expanded(
+child: isLoading
+? Center(
+child: CircularProgressIndicator(
+color: accent,
+),
+)
+: RefreshIndicator(
+color: accent,
+onRefresh: _loadSettings,
+child: ListView(
+physics: const AlwaysScrollableScrollPhysics(
+parent: BouncingScrollPhysics(),
+),
+padding: const EdgeInsets.fromLTRB(
+20, 0, 20, 35,
+),
+children: [
+// APPEARANCE
+_appearanceSection(),
+const SizedBox(height: 25),
 
-  // ------------------------------------------------------------
-  // SECTION TITLE
-  // ------------------------------------------------------------
-
-  Widget _sectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(
-        left: 4,
-        bottom: 10,
-      ),
-      child: Text(
-        title,
-        style: const TextStyle(
-          color: pikkXBlack,
-          fontSize: 15,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-
-  // ------------------------------------------------------------
-  // SWITCH TILE
-  // ------------------------------------------------------------
-
-  Widget _switchTile({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required bool value,
-    bool enabled = true,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 15,
-        vertical: 6,
-      ),
-      leading: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: pikkXBlack.withOpacity(0.055),
-          shape: BoxShape.circle,
-        ),
-        child: const Icon(
-          Icons.notifications_none_rounded,
-          color: pikkXBlack,
-          size: 20,
-        ),
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          color: pikkXBlack,
-          fontSize: 13,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 3),
-        child: Text(
-          subtitle,
-          style: TextStyle(
-            color: AppTheme.mutedText,
-            fontSize: 10,
-          ),
-        ),
-      ),
-      trailing: Switch(
-        value: value,
-        onChanged: enabled ? onChanged : null,
-        activeThumbColor: pikkXWhite,
-        activeTrackColor: pikkXBlack,
-        inactiveThumbColor: pikkXWhite,
-        inactiveTrackColor: Colors.black12,
-      ),
-    );
-  }
-
-  // ------------------------------------------------------------
-  // ACTION TILE
-  // ------------------------------------------------------------
-
-  Widget _actionTile({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 15,
-            vertical: 6,
-          ),
-          leading: Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: pikkXBlack.withOpacity(0.055),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              color: pikkXBlack,
-              size: 20,
-            ),
-          ),
-          title: Text(
-            title,
-            style: const TextStyle(
-              color: pikkXBlack,
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          subtitle: Padding(
-            padding: const EdgeInsets.only(top: 3),
-            child: Text(
-              subtitle,
-              style: TextStyle(
-                color: AppTheme.mutedText,
-                fontSize: 10,
-              ),
-            ),
-          ),
-          trailing: Icon(
-            Icons.arrow_forward_ios_rounded,
-            color: AppTheme.mutedText,
-            size: 14,
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ------------------------------------------------------------
-  // ABOUT PIKKX
-  // ------------------------------------------------------------
-
-  void _showAboutPikkX() {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: pikkXWhite,
-        surfaceTintColor: pikkXWhite,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-        ),
-        title: const Text(
-          'pikkX',
-          style: TextStyle(
-            color: pikkXBlack,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        content: const Text(
-          'pikkX marketplace\n\nVersion 1.0.0',
-          style: TextStyle(
-            color: pikkXGrey,
-            height: 1.5,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text(
-              'Close',
-              style: TextStyle(
-                color: pikkXBlack,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ------------------------------------------------------------
-  // BUILD
-  // ------------------------------------------------------------
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: pikkXBackground,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            // Subtle neutral glass glow.
-            Positioned(
-              top: -100,
-              right: -80,
-              child: Container(
-                height: 230,
-                width: 230,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: pikkXBlack.withOpacity(0.025),
-                ),
-              ),
-            ),
-
-            Positioned(
-              bottom: -100,
-              left: -90,
-              child: Container(
-                height: 230,
-                width: 230,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: pikkXBlack.withOpacity(0.018),
-                ),
-              ),
-            ),
-
-            Column(
-              children: [
-                _header(),
-
-                Expanded(
-                  child: isLoading
-                      ? const Center(
-                          child: CircularProgressIndicator(
-                            color: pikkXBlack,
-                          ),
-                        )
-                      : RefreshIndicator(
-                          color: pikkXBlack,
-                          onRefresh: _loadSettings,
-                          child: ListView(
-                            physics:
-                                const BouncingScrollPhysics(),
-                            padding:
-                                const EdgeInsets.fromLTRB(
-                              20,
-                              0,
-                              20,
-                              35,
-                            ),
-                            children: [
-                              // ------------------------------------------------
                               // NOTIFICATIONS
-                              // ------------------------------------------------
-
-                              _sectionTitle(
-                                'Notifications',
-                              ),
-
-                              _glass(
+                              _section(
+                                title: 'Notifications',
+                                subtitle:
+                                    'Choose the updates you want to receive',
                                 child: Column(
                                   children: [
                                     _switchTile(
-                                      icon: Icons
-                                          .notifications_none_rounded,
+                                      icon: Icons.notifications_none_rounded,
                                       title: 'Notifications',
                                       subtitle:
-                                          'Receive pikkX notifications',
-                                      value:
-                                          notificationsEnabled,
-                                      onChanged:
-                                          _changeNotifications,
+                                          'Enable or disable notification preferences',
+                                      value: notificationsEnabled,
+                                      onChanged: _changeNotifications,
                                     ),
-
-                                    Divider(
-                                      height: 1,
-                                      color: pikkXBlack
-                                          .withOpacity(0.06),
-                                    ),
-
+                                    _separator(),
                                     _switchTile(
-                                      icon: Icons
-                                          .local_shipping_outlined,
-                                      title:
-                                          'Order updates',
+                                      icon: Icons.local_shipping_outlined,
+                                      title: 'Order updates',
                                       subtitle:
-                                          'Get updates about your orders',
+                                          'Preferences for order-related alerts',
                                       value: orderUpdates,
-                                      enabled:
-                                          notificationsEnabled,
-                                      onChanged:
-                                          _changeOrderUpdates,
+                                      enabled: notificationsEnabled,
+                                      onChanged: _changeOrderUpdates,
                                     ),
-
-                                    Divider(
-                                      height: 1,
-                                      color: pikkXBlack
-                                          .withOpacity(0.06),
-                                    ),
-
+                                    _separator(),
                                     _switchTile(
-                                      icon: Icons
-                                          .local_offer_outlined,
+                                      icon: Icons.local_offer_outlined,
                                       title: 'Promotions',
                                       subtitle:
-                                          'Receive offers and promotions',
-                                      value:
-                                          promotionalNotifications,
-                                      enabled:
-                                          notificationsEnabled,
+                                          'Preferences for offers and promotions',
+                                      value: promotionalNotifications,
+                                      enabled: notificationsEnabled,
                                       onChanged:
                                           _changePromotionalNotifications,
                                     ),
                                   ],
                                 ),
                               ),
-
                               const SizedBox(height: 25),
 
-                              // ------------------------------------------------
                               // ACCOUNT
-                              // ------------------------------------------------
-
-                              _sectionTitle('Account'),
-
-                              _glass(
+                              _section(
+                                title: 'Account',
+                                subtitle:
+                                    'Manage your profile and purchases',
                                 child: Column(
                                   children: [
                                     _actionTile(
-                                      icon: Icons
-                                          .location_on_outlined,
-                                      title:
-                                          'Delivery Addresses',
+                                      icon: Icons.person_outline_rounded,
+                                      title: 'Profile',
+                                      subtitle:
+                                          'Manage your PikkX profile',
+                                      onTap: () {
+                                        Navigator.pushNamed(
+                                          context, '/profile',
+                                        );
+                                      },
+                                    ),
+                                    _separator(),
+                                    _actionTile(
+                                      icon: Icons.location_on_outlined,
+                                      title: 'Delivery Addresses',
                                       subtitle:
                                           'Manage your saved addresses',
                                       onTap: () {
                                         Navigator.pushNamed(
-                                          context,
-                                          '/delivery-address',
+                                          context, '/delivery-address',
                                         );
                                       },
                                     ),
-
-                                    Divider(
-                                      height: 1,
-                                      color: pikkXBlack
-                                          .withOpacity(0.06),
-                                    ),
-
+                                    _separator(),
                                     _actionTile(
-                                      icon: Icons
-                                          .shopping_bag_outlined,
+                                      icon: Icons.shopping_bag_outlined,
                                       title: 'My Orders',
                                       subtitle:
-                                          'View previous and active orders',
+                                          'View active and previous orders',
                                       onTap: () {
                                         Navigator.pushNamed(
-                                          context,
-                                          '/orders',
-                                        );
-                                      },
-                                    ),
-
-                                    Divider(
-                                      height: 1,
-                                      color: pikkXBlack
-                                          .withOpacity(0.06),
-                                    ),
-
-                                    _actionTile(
-                                      icon: Icons
-                                          .person_outline_rounded,
-                                      title: 'Profile',
-                                      subtitle:
-                                          'Manage your pikkX profile',
-                                      onTap: () {
-                                        Navigator.pushNamed(
-                                          context,
-                                          '/profile',
+                                          context, '/orders',
                                         );
                                       },
                                     ),
                                   ],
                                 ),
                               ),
-
                               const SizedBox(height: 25),
 
-                              // ------------------------------------------------
-                              // SUPPORT
-                              // ------------------------------------------------
-
-                              _sectionTitle('Support'),
-
-                              _glass(
-                                child: Column(
-                                  children: [
-                                    _actionTile(
-                                      icon: Icons
-                                          .help_outline_rounded,
-                                      title:
-                                          'Help & Support',
-                                      subtitle:
-                                          'Get help with pikkX',
-                                      onTap: () async {
-                                        final uri = Uri.parse(
-                                          'https://wa.me/2349132315593',
-                                        );
-                                        if (await canLaunchUrl(uri)) {
-                                          await launchUrl(
-                                            uri,
-                                            mode: LaunchMode.externalApplication,
-                                          );
-                                        }
-                                      },
-                                    ),
-
-                                    Divider(
-                                      height: 1,
-                                      color: pikkXBlack
-                                          .withOpacity(0.06),
-                                    ),
-
-                                    _actionTile(
-                                      icon: Icons
-                                          .info_outline_rounded,
-                                      title: 'About pikkX',
-                                      subtitle:
-                                          'Learn more about pikkX',
-                                      onTap: _showAboutPikkX,
-                                    ),
-                                  ],
+                              // SUPPORT — ABOUT AND LICENSES REMOVED
+                              _section(
+                                title: 'Support',
+                                subtitle:
+                                    'We are here if you need assistance',
+                                child: _actionTile(
+                                  icon: Icons.support_agent_rounded,
+                                  title: 'Help & Support',
+                                  subtitle:
+                                      'Contact PikkX support on WhatsApp',
+                                  onTap: _openSupport,
                                 ),
                               ),
+                              const SizedBox(height: 30),
 
-                              const SizedBox(height: 28),
-
-                              // ------------------------------------------------
                               // SIGN OUT
-                              // ------------------------------------------------
-
                               SizedBox(
                                 height: 54,
                                 child: OutlinedButton.icon(
@@ -804,58 +847,31 @@ class _SettingsPageState extends State<SettingsPage> {
                                   ),
                                   label: const Text(
                                     'Sign Out',
-                                  ),
-                                  style:
-                                      OutlinedButton.styleFrom(
-                                    foregroundColor:
-                                        pikkXBlack,
-                                    side: BorderSide(
-                                      color: pikkXBlack
-                                          .withOpacity(0.10),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w800,
                                     ),
-                                    backgroundColor:
-                                        pikkXWhite
-                                            .withOpacity(0.65),
-                                    shape:
-                                        RoundedRectangleBorder(
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: primaryText,
+                                    side: BorderSide(
+                                      color: borderColor,
+                                    ),
+                                    backgroundColor: cardColor,
+                                    shape: RoundedRectangleBorder(
                                       borderRadius:
-                                          BorderRadius.circular(
-                                        18,
-                                      ),
+                                          BorderRadius.circular(18),
                                     ),
                                   ),
                                 ),
                               ),
-
-                              if (isSaving)
-                                Padding(
-                                  padding:
-                                      const EdgeInsets.only(
-                                    top: 14,
-                                  ),
-                                  child: const Center(
-                                    child: SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child:
-                                          CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: pikkXBlack,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-
-                              const SizedBox(height: 15),
-
-                              const Center(
+                              const SizedBox(height: 18),
+                              Center(
                                 child: Text(
-                                  'pikkX • 1.0.0',
+                                  'PikkX • 1.0.0',
                                   style: TextStyle(
-                                    color: pikkXGrey,
+                                    color: secondaryText,
                                     fontSize: 10,
-                                    fontWeight:
-                                        FontWeight.w500,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ),
@@ -869,5 +885,8 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ),
     );
-  }
+  },
+);
+
+}
 }
